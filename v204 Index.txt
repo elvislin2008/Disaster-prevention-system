@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 4px; color: #222; background-color: #eaf2f8; }
+    .page { display: none; min-height: 95vh; padding: 4px; border-radius: 12px; background-image: url('https://lh3.googleusercontent.com/d/1GL2SH1DKOc_NTaB6J0GOcUOg9MDk0rv1'); background-size: 100% auto; background-position: top center; background-repeat: no-repeat; }
+    .page.active { display: block; }
+    .title-spacer { height: 180px; width: 100%; }
+    @media screen and (max-width: 600px) { .title-spacer { height: 110px !important; } }
+    @media screen and (min-width: 768px) { .title-spacer { height: 28vw; max-height: 380px; } }
+    .nav-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+    .tab-btn { flex: 1; padding: 10px 2px; border: none; background: rgba(208, 215, 222, 0.95); color: #222; font-size: 0.88rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; backdrop-filter: blur(4px); white-space: nowrap; text-align: center; touch-action: manipulation; }
+    .tab-btn.active { background: #1F4E79; color: white; border-radius: 8px; }
+    .pullout-sub-tabs, .rescue-sub-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    .pullout-sub-btn, .rescue-sub-btn { flex: 1; padding: 8px 4px; border: 1px solid #1F4E79; background: #ffffff; color: #1F4E79; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s; text-align: center; touch-action: manipulation; }
+    .pullout-sub-btn.active-sc { background: #6a1b9a; color: #ffffff; border-color: #6a1b9a; }
+    .pullout-sub-btn.active-nl { background: #e65100; color: #ffffff; border-color: #e65100; }
+    .pullout-sub-btn.active-tm { background: #00838f; color: #ffffff; border-color: #00838f; }
+    .rescue-sub-btn.active-rescue { background: #dc3545; color: #ffffff; border-color: #dc3545; }
+    .rescue-sub-btn.active-building { background: #1F4E79; color: #ffffff; border-color: #1F4E79; }
+    .card { background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(10px); padding: 10px; border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(208, 215, 222, 0.8); width: 100%; box-shadow: none; }
+    .btn-grid-selector, .class-btn-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .btn-grade-opt { padding: 8px 12px; border: 1px solid #1F4E79; background: #fff; color: #1F4E79; border-radius: 6px; font-size: 0.92rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; touch-action: manipulation; }
+    .btn-grade-opt.active { background: #1F4E79; color: #fff; }
+    .btn-class-item { padding: 8px 12px; border: 1px solid #28a745; background: #fff; color: #155724; border-radius: 6px; font-size: 0.92rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; touch-action: manipulation; }
+    .btn-class-item.active { background: #28a745; color: #fff; }
+    .header-compact-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+    .header-title-text { font-size: 0.95rem; font-weight: bold; color: #1F4E79; white-space: nowrap; flex-shrink: 0; }
+    .sim-select-inline { flex: 1; min-width: 110px; padding: 6px 8px; border-radius: 6px; border: 1px solid #1F4E79; background: #f0f7ff; color: #1F4E79; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+    .btn-stress-inline, .btn-info-inline, .btn-mode-toggle, .btn-close-site, .btn-reset-inline, .btn-bg-toggle, .visitor-toggle-header-btn { border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; white-space: nowrap; flex-shrink: 0; touch-action: manipulation; }
+    .btn-stress-inline { background: #6f42c1; color: white; } .btn-info-inline { background: #17a2b8; color: white; }
+    .btn-mode-toggle { background: #fd7e14; color: white; } .btn-mode-toggle.disaster-mode { background: #dc3545 !important; animation: blink-red 1.5s infinite; }
+    .btn-close-site { background: #343a40; color: white; } .btn-close-site.locked { background: #dc3545 !important; }
+    .btn-reset-inline { background: #6c757d; color: white; } .btn-bg-toggle { border: 1px solid #1F4E79; background: #1F4E79; color: #fff; }
+    .visitor-toggle-header-btn { background: #17a2b8; color: white; } .visitor-toggle-header-btn:hover { background: #138496; }
+    @keyframes blink-red { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    .visitor-btn { padding: 6px 12px; border-radius: 6px; font-size: 0.88rem; font-weight: bold; border: 1px solid #1F4E79; background: #fff; color: #1F4E79; cursor: pointer; touch-action: manipulation; min-width: 40px; }
+    .visitor-item-card { background: #ffffff; border: 1px solid #b8d4e8; border-radius: 8px; padding: 8px; margin-top: 6px; }
+    .visitor-item-title { font-size: 0.82rem; font-weight: bold; color: #1F4E79; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+    .btn-visitor-opt, .btn-pullout-opt { padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: bold; border: 1px solid #ccc; background: #ffffff; color: #333; cursor: pointer; margin-right: 4px; margin-bottom: 2px; transition: all 0.15s; touch-action: manipulation; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; }
+    .btn-pullout-opt.active-pending { background: #ffc107 !important; color: #212529 !important; border-color: #ffc107 !important; font-weight: bold !important; animation: blink-yellow 1.5s infinite; }
+    .btn-visitor-opt.active-safe, .btn-pullout-opt.active-safe { background: #28a745 !important; color: #ffffff !important; border-color: #28a745 !important; }
+    .btn-visitor-opt.active-missing, .btn-pullout-opt.active-missing { background: #dc3545 !important; color: #ffffff !important; border-color: #dc3545 !important; }
+    .speech-stats-box { background: #eaf4fd; border: 1.5px solid #1F4E79; border-radius: 8px; padding: 10px; margin-top: 6px; margin-bottom: 6px; color: #1F4E79; }
+    .speech-stats-title { font-size: 0.88rem; font-weight: 800; display: flex; justify-content: space-between; gap: 4px; }
+    .speech-stats-content { font-size: 0.92rem; font-weight: bold; color: #0d233a; line-height: 1.45; }
+    .speech-stats-num { color: #dc3545; font-size: 1.05rem; font-weight: 900; text-decoration: underline; padding: 0 2px; }
+    .btn-verify-speech { padding: 4px 10px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+    .stats-bar { display: flex; justify-content: space-around; background: rgba(255, 255, 255, 0.95); border: 1px solid #ddd; padding: 8px 4px; border-radius: 8px; font-weight: bold; font-size: 0.82rem; margin-bottom: 8px; text-align: center; flex-wrap: wrap; gap: 2px; }
+    .stats-bar .present { color: #155724; } .stats-bar .study_center { color: #6a1b9a; } .stats-bar .native_lang { color: #e65100; } .stats-bar .team { color: #00838f; } .stats-bar .leave { color: #856404; } .stats-bar .missing { color: #721c24; } .stats-bar .pickedUp { color: #004085; }
+    .matrix-grid-10x3 { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; padding: 2px 1px 6px 1px; }
+    @media screen and (max-width: 600px) { .matrix-grid-10x3 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; } }
+    .seat-btn { padding: 6px 1px; border: 1.5px solid #28a745; background: rgba(232, 245, 233, 0.95); color: #155724; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; user-select: none; display: flex; flex-direction: column; justify-content: center; min-height: 50px; touch-action: manipulation; }
+    .seat-btn.study_center { background: rgba(243, 229, 245, 0.95); border-color: #ab47bc; color: #4a148c; } .seat-btn.native_lang { background: rgba(255, 243, 224, 0.95); border-color: #ffa726; color: #e65100; } .seat-btn.team { background: rgba(224, 247, 250, 0.95); border-color: #00bcd4; color: #006064; }
+    .seat-btn.pullout-safe-sc { background: rgba(232, 245, 233, 0.95) !important; border-color: #28a745 !important; color: #6a1b9a !important; } .seat-btn.pullout-safe-nl { background: rgba(232, 245, 233, 0.95) !important; border-color: #28a745 !important; color: #e65100 !important; } .seat-btn.pullout-safe-tm { background: rgba(232, 245, 233, 0.95) !important; border-color: #28a745 !important; color: #00838f !important; }
+    .seat-btn.leave { background: rgba(255, 243, 205, 0.95); border-color: #ffc107; color: #856404; } .seat-btn.missing { background: rgba(248, 215, 218, 0.95); border-color: #dc3545; color: #721c24; } .seat-btn.pickedUp { background: rgba(204, 229, 255, 0.95); border-color: #007bff; color: #004085; }
+    .seat-btn .seat-title { font-size: 0.65rem; opacity: 0.85; margin-bottom: 1px; } .seat-btn .name { font-size: 0.82rem; word-break: break-all; line-height: 1.1; } .seat-btn .status-label { font-size: 0.62rem; margin-top: 1px; font-weight: normal; }
+    .location-panel { margin-top: 8px; padding: 8px; background: rgba(253, 237, 237, 0.95); border: 1px solid #f5c6cb; border-radius: 8px; } .location-panel-title { font-size: 0.82rem; font-weight: bold; color: #721c24; margin-bottom: 4px; } .location-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; } .loc-tag { padding: 4px 8px; background: #fff; border: 1px solid #dc3545; color: #dc3545; border-radius: 12px; font-size: 0.78rem; font-weight: bold; cursor: pointer; touch-action: manipulation; } .loc-tag.selected { background: #dc3545; color: #fff; } .loc-input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.82rem; }
+    .teacher-contact-panel { margin-top: 10px; padding: 8px; background: rgba(255, 255, 255, 0.95); border: 1px solid #b8d4e8; border-radius: 8px; } tr.teacher-row-contact-done { background-color: #e8f5e9 !important; border: 1px solid #a3e0b5 !important; } tr.teacher-row-contact-done td { color: #155724; }
+    .btn-help-req, .btn-take-back { border: none; border-radius: 6px; font-weight: bold; cursor: pointer; touch-action: manipulation; display: block; padding: 6px 10px; font-size: 0.78rem; } .btn-help-req { background: #e63946; color: white; margin-top: 2px; } .btn-help-req.requested { background: #495057 !important; } .btn-take-back { background: #17a2b8; color: white; font-size: 0.72rem; margin-top: 3px; }
+    .btn-submit { width: 100%; background: #fd7e14; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; font-weight: bold; margin-top: 8px; cursor: pointer; touch-action: manipulation; transition: background 0.3s ease; min-height: 44px; } .btn-submit.saved { background: #28a745 !important; }
+    .placeholder-box { text-align: center; color: #666; padding: 20px 6px; font-size: 0.88rem; }
+    .grade-section { margin-bottom: 6px; padding: 6px; border-radius: 6px; background: rgba(240, 245, 250, 0.65); display: flex; flex-direction: column; gap: 5px; } .grade-section-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; } .grade-section-title { font-size: 0.88rem; font-weight: bold; color: #1F4E79; white-space: nowrap; flex-shrink: 0; } .grade-stats-summary { font-size: 0.82rem; font-weight: 800; color: #1d2124; background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #1F4E79; } .school-overview-grid { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+    .class-status-card { min-width: 62px; padding: 5px 6px; border-radius: 6px; text-align: center; background: #e8f0f8; border: 1px solid #c0d4e5; color: #333; cursor: pointer; transition: transform 0.15s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: manipulation; } .class-status-card:active { transform: scale(0.95); } .class-status-card .class-name-num { font-size: 0.85rem; font-weight: bold; color: #2c3e50; line-height: 1.1; } .class-status-card .count-tag { font-size: 0.62rem; display: block; margin-top: 1px; color: #5c7c99; font-weight: normal; white-space: nowrap; }
+    .class-status-card.all-present { background: #d4edda !important; border: 1px solid #28a745 !important; } .class-status-card.all-present .class-name-num, .class-status-card.all-present .count-tag { color: #155724 !important; } .class-status-card.has-missing { background: #f8d7da !important; border: 1px solid #dc3545 !important; } .class-status-card.has-missing .class-name-num, .class-status-card.has-missing .count-tag { color: #721c24 !important; } .class-status-card.has-leave { background: #fff3cd !important; border: 1px solid #ffc107 !important; } .class-status-card.has-leave .class-name-num, .class-status-card.has-leave .count-tag { color: #856404 !important; } .class-status-card.search-all-done { background: linear-gradient(135deg, #d4edda 50%, #ffffff 50%) !important; border: 2px solid #28a745 !important; } .class-status-card.search-all-done .class-name-num { color: #155724 !important; } .class-status-card.search-contact-all-done { background: #d4edda !important; border: 2.5px solid #28a745 !important; } .class-status-card.search-contact-all-done .class-name-num, .class-status-card.search-contact-all-done .count-tag { color: #155724 !important; }
+    .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; } table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 5px; background: rgba(255, 255, 255, 0.95); } th, td { border: 1px solid #ddd; padding: 6px 6px; text-align: left; vertical-align: middle; } th { background: #1F4E79; color: white; white-space: nowrap; }
+    .btn-rescue-opt, .btn-triage-opt, .btn-escort-opt { border-radius: 6px; font-weight: bold; border: 1px solid #ccc; cursor: pointer; margin-right: 3px; margin-bottom: 3px; transition: all 0.2s; white-space: nowrap; touch-action: manipulation; } .btn-rescue-opt { padding: 6px 10px; font-size: 0.78rem; background: #f8f9fa; color: #333; min-height: 38px; } .btn-triage-opt { padding: 6px 8px; font-size: 0.75rem; background: #f8f9fa; color: #333; min-height: 36px; } .btn-escort-opt { padding: 4px 8px; font-size: 0.78rem; border-color: #888; background: #f0f0f0; color: #111; }
+    .btn-rescue-opt.active-searching { background: #dc3545 !important; color: #fff !important; border-color: #dc3545 !important; } .btn-rescue-opt.active-injured { background: #fd7e14 !important; color: #fff !important; border-color: #fd7e14 !important; } .btn-rescue-opt.active-safe { background: #28a745 !important; color: #fff !important; border-color: #28a745 !important; }
+    .btn-triage-opt.active-green { background: #28a745 !important; color: #fff !important; border-color: #28a745 !important; } .btn-triage-opt.active-yellow { background: #ffc107 !important; color: #212529 !important; border-color: #ffc107 !important; font-weight: bold !important; } .btn-triage-opt.active-red { background: #dc3545 !important; color: #fff !important; border-color: #dc3545 !important; } .btn-escort-opt.active { background: #1F4E79 !important; color: #fff !important; border-color: #1F4E79 !important; }
+    .badge-status-missing, .badge-status-found, .badge-status-yellow, .badge-status-red { color: #fff; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.78rem; display: inline-block; white-space: nowrap; } .badge-status-missing, .badge-status-red { background: #dc3545; } .badge-status-found { background: #28a745; } .badge-status-yellow { background: #ffc107; color: #212529; }
+    .building-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 6px; } .building-card { background: #fff; border: 1px solid #ced4da; border-radius: 8px; padding: 10px; text-align: left; } .building-title { font-weight: bold; color: #1F4E79; font-size: 0.88rem; margin-bottom: 5px; border-bottom: 1.5px solid #1F4E79; padding-bottom: 2px; } .building-check-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; font-size: 0.78rem; gap: 5px; } .btn-building-toggle { padding: 4px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: bold; border: 1px solid #ccc; cursor: pointer; white-space: nowrap; flex-shrink: 0; touch-action: manipulation; } .btn-building-toggle.safe { background: #d4edda; color: #155724; border-color: #28a745; } .btn-building-toggle.danger { background: #f8d7da; color: #721c24; border-color: #dc3545; }
+    .custom-modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 10px; } .custom-modal-card { background: #ffffff; border-radius: 12px; width: 100%; max-width: 480px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; } .modal-header { padding: 10px 14px; background: #1F4E79; color: white; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 0.92rem; } .modal-body { padding: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; font-size: 0.85rem; color: #333; flex: 1; } .modal-footer { padding: 8px 12px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 6px; } .btn-modal-close { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; touch-action: manipulation; }
+    .calc-breakdown-pill { padding: 3px 8px; background: #ffffff; border: 1px solid #1F4E79; color: #1F4E79; border-radius: 6px; font-size: 0.75rem; font-weight: bold; } .building-status-tag { padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: inline-block; margin-right: 4px; margin-top: 2px; white-space: nowrap; } .building-status-tag.safe { background: #d4edda; color: #155724; border: 1px solid #28a745; } .building-status-tag.danger { background: #f8d7da; color: #721c24; border: 1px solid #dc3545; } .building-status-tag.pending { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+    @media screen and (max-width: 768px) { body { padding: 3px; font-size: 0.95rem; } .card { padding: 8px 10px; margin-bottom: 8px; } .table-wrapper table, .table-wrapper thead, .table-wrapper tbody, .table-wrapper th, .table-wrapper td, .table-wrapper tr { display: block !important; width: 100% !important; } .table-wrapper thead { display: none !important; } .table-wrapper tr { margin-bottom: 10px !important; background: #ffffff !important; border: 1.5px solid #b8d4e8 !important; border-radius: 10px !important; padding: 10px !important; } .table-wrapper td { border: none !important; padding: 4px 0 !important; position: relative !important; font-size: 0.92rem !important; line-height: 1.45 !important; } .table-wrapper td:not(:last-child) { border-bottom: 1px dashed #eee !important; padding-bottom: 6px !important; margin-bottom: 6px !important; } .btn-escort-opt { padding: 6px 12px !important; font-size: 0.85rem !important; } .btn-triage-opt { padding: 6px 10px !important; font-size: 0.8rem !important; } .btn-rescue-opt { padding: 8px 12px !important; font-size: 0.88rem !important; } .badge-status-missing, .badge-status-found, .badge-status-yellow, .badge-status-red { font-size: 0.85rem !important; padding: 4px 10px !important; } .assignee-input-compact, .search-note-input { width: 100% !important; font-size: 0.88rem !important; padding: 6px !important; } }
+    @keyframes blink-yellow { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+    .fab-back-top { position: fixed; bottom: 18px; right: 14px; background: #1F4E79; color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 25px; padding: 8px 14px; font-size: 0.82rem; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 999; display: flex; align-items: center; gap: 4px; backdrop-filter: blur(6px); transition: transform 0.15s ease, background 0.2s ease; touch-action: manipulation; } .fab-back-top:active { transform: scale(0.92); background: #133453; }
+    .phone-link { color: #d9534f; font-weight: bold; text-decoration: none; font-size: 0.88rem; display: inline-block; padding: 3px 6px; background: #fff0f0; border: 1px dashed #d9534f; border-radius: 4px; margin-top: 1px; } .contact-row-container { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .site-locked-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(33, 37, 41, 0.96); backdrop-filter: blur(8px); z-index: 100000; text-align: center; color: white; padding: 30px 16px; flex-direction: column; align-items: center; justify-content: center; } .site-locked-overlay.active { display: flex; }
+  </style>
+</head>
+<body>
+  <div id="siteLockedOverlay" class="site-locked-overlay">
+    <div style="font-size: 3.5rem; margin-bottom: 12px;">🔒</div>
+    <h2 style="color: #ffc107; margin-bottom: 8px;">因應個資保護，防災點名系統未啟用</h2>
+    <p style="font-size: 0.95rem; color: #ced4da; max-width: 400px; line-height: 1.5;">本系統學生基本聯絡資訊與點名看板目前已鎖定防護。若為授權演練或災難指揮人員，請點擊下方按鈕解鎖。</p>
+    <button onclick="toggleSiteLock()" style="margin-top: 16px; padding: 8px 18px; background: #dc3545; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🔑 輸入指揮中心授權密碼解鎖重開</button>
+  </div>
+
+  <div id="teacherPage" class="page active">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:4px;">
+        <div style="font-size:0.85rem; font-weight:bold; color:#1F4E79;">1. 請點選年級/單位：</div>
+        <button class="visitor-toggle-header-btn" onclick="openVisitorModal()">📝 登記校外/臨時人員 (+/-)</button>
+      </div>
+      <div class="btn-grid-selector" id="gradeBtnContainer"></div>
+      <div id="classBtnSection" style="margin-top:8px; display:none;">
+        <div id="classStepLabel" style="font-size:0.85rem; font-weight:bold; color:#155724; margin-bottom:4px;">2. 請點選班級：</div>
+        <div class="class-btn-grid" id="classBtnContainer"></div>
+      </div>
+    </div>
+    <div class="card" id="studentAreaCard">
+      <div id="placeholderBox" class="placeholder-box">👈 請選擇上方【年級/單位】與【班級】按鈕即可展開點名名單</div>
+      <div id="studentContent" style="display:none;">
+        <div class="stats-bar">
+          <div>應到: <span id="stTotal">0</span></div>
+          <div class="present">實到: <span id="stPresent">0</span></div>
+          <div class="study_center">學習中心: <span id="stStudyCenter">0</span></div>
+          <div class="native_lang">本土語: <span id="stNativeLang">0</span></div>
+          <div class="team">團隊: <span id="stTeam">0</span></div>
+          <div class="leave">請假: <span id="stLeave">0</span></div>
+          <div class="missing">失蹤: <span id="stMissing">0</span></div>
+          <div class="pickedUp">已接回: <span id="stPickedUp">0</span></div>
+        </div>
+        <p style="font-size:0.7rem; color:#666; margin:0 0 5px 0; text-align:center;">
+          💡 切換順序：<span style="color:#155724; font-weight:bold;">實到(綠)</span> ➔ <span style="color:#4a148c; font-weight:bold;">學習中心(紫)</span> ➔ <span style="color:#e65100; font-weight:bold;">本土語(橘)</span> ➔ <span style="color:#00838f; font-weight:bold;">團隊(青)</span> ➔ <span style="color:#856404; font-weight:bold;">請假(黃)</span> ➔ <span style="color:#721c24; font-weight:bold;">失蹤(紅)</span> ➔ <span style="color:#004085; font-weight:bold;">已接回(藍)</span>
+        </p>
+        <div class="matrix-grid-10x3" id="studentGrid"></div>
+        <div id="locationSection" class="location-panel" style="display:none;"><div class="location-panel-title">📍 失蹤學生最後已知位置與建議搜尋地點：</div><div id="locationList"></div></div>
+        <div id="teacherContactSection" class="teacher-contact-panel" style="display:none;">
+          <div style="font-size:0.88rem; font-weight:bold; color:#1F4E79; margin-bottom:5px;">📞 本班失蹤學生緊急聯繫追蹤：</div>
+          <div class="table-wrapper"><table><thead><tr><th>學生 / 帶班老師</th><th>家長電話 (點擊撥號)</th><th>導師聯繫進度</th><th>指揮中心協助</th></tr></thead><tbody id="teacherContactTable"></tbody></table></div>
+        </div>
+        <div id="autoSaveMsg" class="auto-save-bar" style="display:none; color:#fd7e14; font-size:0.8rem; font-weight:bold; margin-top:5px; text-align:center;">⏳ 偵測到異動，無新動作 5 秒後將自動同步存檔...</div>
+        <button id="btnSubmitAttendance" class="btn-submit" onclick="submitAttendance(false)">送出點名紀錄 (請送出紀錄)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pulloutPage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn active" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div class="pullout-sub-tabs">
+      <button id="subBtnSC" class="pullout-sub-btn active-sc" onclick="switchPulloutSubTab('SC')">🟣 A 區塊：學習中心</button>
+      <button id="subBtnNL" class="pullout-sub-btn" onclick="switchPulloutSubTab('NL')">🟠 B 區塊：本土語</button>
+      <button id="subBtnTM" class="pullout-sub-btn" onclick="switchPulloutSubTab('TM')"><span style="color:#00838f; font-size:1rem; vertical-align:middle;">●</span> C 區塊：團隊</button>
+    </div>
+    <div id="cardPulloutSC" class="card"><h3 style="margin-top:0; color:#6a1b9a; font-size:1rem; border-bottom:1.5px solid #6a1b9a; padding-bottom:4px;">🟣 A 區塊：學習中心抽離學生安全確認</h3><div class="table-wrapper"><table><thead><tr><th>原班級</th><th>學生姓名</th><th>帶班導師</th><th>抽離教室安全確認</th></tr></thead><tbody id="pulloutTableStudyCenter"><tr><td colspan="4" style="text-align:center; color:#888;">目前尚無學習中心抽離學生</td></tr></tbody></table></div></div>
+    <div id="cardPulloutNL" class="card" style="display:none;"><h3 style="margin-top:0; color:#e65100; font-size:1rem; border-bottom:1.5px solid #e65100; padding-bottom:4px;">🟠 B 區塊：本土語抽離學生安全確認</h3><div class="table-wrapper"><table><thead><tr><th>原班級</th><th>學生姓名</th><th>帶班導師</th><th>抽離教室安全確認</th></tr></thead><tbody id="pulloutTableNativeLang"><tr><td colspan="4" style="text-align:center; color:#888;">目前尚無本土語抽離學生</td></tr></tbody></table></div></div>
+    <div id="cardPulloutTM" class="card" style="display:none;"><h3 style="margin-top:0; color:#00838f; font-size:1rem; border-bottom:1.5px solid #00838f; padding-bottom:4px;"><span style="color:#00838f; font-size:1.1rem; vertical-align:middle;">●</span> C 區塊：團隊抽離學生安全確認</h3><div class="table-wrapper"><table><thead><tr><th>原班級</th><th>學生姓名</th><th>帶班導師</th><th>抽離教室安全確認</th></tr></thead><tbody id="pulloutTableTeam"><tr><td colspan="4" style="text-align:center; color:#888;">目前尚無團隊抽離學生</td></tr></tbody></table></div></div>
+  </div>
+
+  <div id="rescuePage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn active" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div class="rescue-sub-tabs">
+      <button id="subBtnRescueA" class="rescue-sub-btn active-rescue" onclick="switchRescueSubTab('A')">🚨 A 區塊：傷病處置與搜救</button>
+      <button id="subBtnRescueB" class="rescue-sub-btn" onclick="switchRescueSubTab('B')">🏢 B 區塊：建物安全檢核</button>
+    </div>
+    <div id="cardRescueA" class="card"><h3 style="margin-top:0; color:#dc3545; font-size:1rem;">🚨 A 區塊：危難救助與急救傷病處置</h3><div class="table-wrapper"><table><thead><tr><th>班級</th><th>學生姓名 (原狀態)</th><th>搜救狀態與發現地點</th><th>危急處置與檢傷分類卡</th></tr></thead><tbody id="rescueTableBody"><tr><td colspan="4" style="text-align:center; color:#888;">目前尚無救助中案件</td></tr></tbody></table></div></div>
+    <div id="cardRescueB" class="card" style="display:none;"><h3 style="margin-top:0; color:#1F4E79; font-size:1rem;">🏢 B 區塊：校園建築安全 8 大指標檢核回報</h3><div class="building-grid" id="buildingCheckGrid"></div></div>
+  </div>
+
+  <div id="adminPage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn active" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div id="overviewTopAnchor"></div>
+    <div class="card">
+      <div class="header-compact-row">
+        <span class="header-title-text">📊 全校點名概況</span>
+        <select id="simTimeSelect" class="sim-select-inline" onchange="onSimTimeChange(this.value)">
+          <option value="auto">⏳ 動態時間</option>
+          <option value="mon_am">🕒 星期一 (09:00全校在校)</option>
+          <option value="mon_pm1">🕒 星期一 (14:00一二放學,課照一段)</option>
+          <option value="mon_pm2">🕒 星期一 (16:30全放學,課照二段)</option>
+          <option value="tue_pm">🕒 星期二 (14:00全校全天在校)</option>
+          <option value="wed_pm1">🕒 星期三 (14:00全校半天,課照一段)</option>
+          <option value="wed_pm2">🕒 星期三 (16:30全放學,課照二段)</option>
+          <option value="fri_pm">🕒 星期五 (14:00一二三四放學)</option>
+          <option value="night">🌙 星光班時段 (17:40-18:30)</option>
+        </select>
+        <button id="btnBgToggle" class="btn-bg-toggle" onclick="toggleBgTheme()">🖼️ 底圖: C版</button>
+        <button class="btn-stress-inline" onclick="executeBackendStressTest()">⚡ 壓測</button>
+        <button class="btn-info-inline" onclick="showLatestStressClassList()">📋 壓測名單</button>
+        <button id="btnSecurityMode" class="btn-mode-toggle" onclick="toggleSecurityMode()">🛡️ 演練防護</button>
+        <button id="btnCloseSite" class="btn-close-site" onclick="toggleSiteLock()">🔒 網站關閉</button>
+        <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
+      </div>
+      <div class="speech-stats-box">
+        <div class="speech-stats-title"><span>🎤 全校應出席與出缺席重要統計數據：</span></div>
+        <div class="speech-stats-content" id="speechBoxSchool">全校教職員工及學生應出席 <span class="speech-stats-num" id="spTotal">0</span> 人，請假 <span class="speech-stats-num" id="spLeave">0</span> 人，送醫 <span class="speech-stats-num" id="spHospital">0</span> 人，陪同就醫 <span class="speech-stats-num" id="spEscort">0</span> 人，現場出席人數 <span class="speech-stats-num" id="spPresent">0</span> 人，另有校外人士 <span class="speech-stats-num" id="spVisitor">0</span> 名，報告完畢。<b style="color:#dc3545;">(搜救中 <span class="speech-stats-num" id="spRescuing">0</span> 人)</b></div>
+        <div style="margin-top:6px; padding:4px 6px; background:#f0f7ff; border-radius:6px; font-size:0.78rem; font-weight:bold; color:#1F4E79;">🏢 各棟建物安全檢核動態：<span id="buildingStatusTagContainer"></span></div>
+        <div style="margin-top:6px; padding:6px 8px; border:1px dashed #1F4E79; border-radius:6px; background:#ffffff;">
+          <div style="font-size:0.82rem; font-weight:bold; color:#1F4E79; margin-bottom:4px;">🧮 當前時段在校班級應出席人數加總過程：</div>
+          <div id="calcBreakdownContainer" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;"></div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;"><button id="btnApproveCalc" class="btn-verify-speech" style="background:#28a745; font-size:0.78rem; padding:4px 10px;" onclick="approveCalculatedTotal()">✅ 指揮官核定採納試算數 (<span id="calcTotalLabel">0</span>人)</button><button class="btn-verify-speech" style="background:#17a2b8; font-size:0.78rem; padding:4px 10px;" onclick="setCustomTotalAttendance()">✏️ 手動自訂修改人數</button></div>
+        </div>
+      </div>
+      <div id="schoolOverviewContainer" style="margin-top:8px;"><div style="color:#666; font-size:0.85rem;">載入全校單位中...</div></div>
+    </div>
+    <div class="card"><h3 style="margin-top:0; color:#e63946; font-size:1rem;">🚨 失蹤學生緊急聯繫與搜救追蹤（優先處理）</h3><div class="table-wrapper"><table><thead><tr><th>班級</th><th>學生姓名 (原狀態)</th><th>帶班導師 (點擊撥號)</th><th>搜救狀態</th><th>尋獲地點與描述</th><th>家長姓名 / 電話 (點擊撥號)</th><th>聯繫狀態與處置人員</th></tr></thead><tbody id="summaryTableActive"><tr><td colspan="7" style="text-align:center; color:#888;">目前尚無緊急失蹤案件</td></tr></tbody></table></div></div>
+    <div class="card" style="background: rgba(235, 247, 238, 0.92); border: 1px solid #a3e0b5;"><h3 style="margin-top:0; color:#155724; font-size:0.95rem;">✅ 已完結案件（已尋獲且已完成家長聯繫）</h3><div class="table-wrapper"><table><thead><tr><th>班級</th><th>學生姓名</th><th>帶班導師</th><th>搜救狀態</th><th>尋獲地點與描述</th><th>家長姓名 / 電話</th></tr></thead><tbody id="summaryTableDone"><tr><td colspan="7" style="text-align:center; color:#666;">尚無已完結歸檔項目</td></tr></tbody></table></div></div>
+    <button class="fab-back-top" onclick="scrollToOverviewTop()">⬆️ 回全校看板</button>
+  </div>
+
+  <div id="visitorModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card">
+      <div class="modal-header"><span>📝 登記校外 / 臨時人員</span><span style="cursor:pointer; font-size:1.2rem;" onclick="closeVisitorModal()">✖</span></div>
+      <div class="modal-body">
+        <div style="display:flex; gap:6px; margin-bottom:10px;"><button id="vSubBtnAdd" class="pullout-sub-btn active-sc" style="flex:1;" onclick="switchVisitorSubTab('add')">➕ 本次新增填報</button><button id="vSubBtnList" class="pullout-sub-btn" style="flex:1;" onclick="switchVisitorSubTab('list')">📋 校外已登記總表</button></div>
+        <div id="vTabContentAdd">
+          <div style="font-size:0.78rem; color:#666; margin-bottom:8px;">請按加減鈕點選本次新增之校外人員（預設標示為🟢安全確認）：</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;"><span style="font-size:0.88rem; font-weight:bold;">🎒 轉學 / 臨時學生</span><div><button class="visitor-btn" onclick="adjustNewVisitorItemCount('student', -1)">- 1</button><button class="visitor-btn" onclick="adjustNewVisitorItemCount('student', 1)" style="background:#17a2b8; color:#fff;">+ 1</button></div></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;"><span style="font-size:0.88rem; font-weight:bold;">🧑🏫 代課老師 / 職員</span><div><button class="visitor-btn" onclick="adjustNewVisitorItemCount('teacher', -1)">- 1</button><button class="visitor-btn" onclick="adjustNewVisitorItemCount('teacher', 1)" style="background:#17a2b8; color:#fff;">+ 1</button></div></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;"><span style="font-size:0.88rem; font-weight:bold;">👪 志工家長 / 訪客</span><div><button class="visitor-btn" onclick="adjustNewVisitorItemCount('parent', -1)">- 1</button><button class="visitor-btn" onclick="adjustNewVisitorItemCount('parent', 1)" style="background:#17a2b8; color:#fff;">+ 1</button></div></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;"><span style="font-size:0.88rem; font-weight:bold;">🛠️ 維護廠商 / 工程人員</span><div><button class="visitor-btn" onclick="adjustNewVisitorItemCount('vendor', -1)">- 1</button><button class="visitor-btn" onclick="adjustNewVisitorItemCount('vendor', 1)" style="background:#17a2b8; color:#fff;">+ 1</button></div></div>
+          </div>
+          <div id="newVisitorItemsContainer" style="margin-top:10px;"></div>
+        </div>
+        <div id="vTabContentList" style="display:none;"><div id="allVisitorItemsContainer"></div></div>
+      </div>
+      <div class="modal-footer"><button id="btnSubmitVisitorNew" class="btn-modal-close" style="background:#28a745; padding:8px 20px; font-size:0.92rem;" onclick="submitNewVisitorBatchData()">✅ 確認送出本次填報</button></div>
+    </div>
+  </div>
+
+  <div id="stressModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card">
+      <div class="modal-header"><span id="modalTitle">📊 最近一次壓力測試班級名單</span><span style="cursor:pointer; font-size:1.2rem;" onclick="closeStressModal()">✖</span></div>
+      <div id="modalBody" class="modal-body">載入名單中...</div>
+      <div class="modal-footer"><button class="btn-modal-copy" style="padding:6px 14px; background:#17a2b8; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="copyStressModalText()">📋 複製完整名單</button><button class="btn-modal-close" onclick="closeStressModal()">關閉</button></div>
+    </div>
+  </div>
+
+  <script>
+    let allStudents = [];
+    let currentClassStudents = [];
+    let studentStatusMap = {}; 
+    let studentLocationMap = {}; 
+    let classReports = {};
+    let contactStates = {}; 
+    let searchStatusMap = {}; 
+    let searchNotesMap = {}; 
+    let helpRequestMap = {}; 
+    let assigneeMap = {}; 
+    let pulloutStatusMap = {}; 
+    let autoSaveTimer = null; 
+    let simTimeMode = "auto"; 
+    let securityMode = "drill"; 
+    let isUnlockedByPassword = false;
+    let unlockExpiryTime = 0; 
+    let isSiteLocked = false; 
+    let rawStressClassText = "";
+    let activePulloutSubTab = "SC"; 
+    let activeRescueSubTab = "A";
+    let visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+    let visitorList = []; 
+    let newVisitorBatch = []; 
+    let isVisitorModalOpen = false; 
+    let activeVisitorSubTab = "add";
+    let approvedCustomTotal = null; 
+    let selectedGradeOpt = "";
+    let selectedClassBtn = "";
+    let rescueTriageMap = {}; 
+    let smartPollingTimer = null;
+
+    const bgThemes = {
+      'A': 'https://lh3.googleusercontent.com/d/1DOWCepWL2RC9FS4MXIKBLJpNAujIpLeR',
+      'B': 'https://lh3.googleusercontent.com/d/1iONTfSJxD9MfqWFSyTjOsxGSqOjXQ6uw',
+      'C': 'https://lh3.googleusercontent.com/d/1GL2SH1DKOc_NTaB6J0GOcUOg9MDk0rv1'
+    };
+    let currentBgTheme = localStorage.getItem('SELECTED_BG_THEME') || 'C';
+
+    function applyBgTheme(themeKey) {
+      currentBgTheme = themeKey;
+      let bgUrl = bgThemes[themeKey] || bgThemes['C'];
+      document.querySelectorAll('.page').forEach(p => { p.style.backgroundImage = "url('" + bgUrl + "')"; });
+      localStorage.setItem('SELECTED_BG_THEME', themeKey);
+      let btn = document.getElementById('btnBgToggle');
+      if (btn) btn.innerText = '🖼️ 底圖: ' + themeKey + '版';
+    }
+
+    function toggleBgTheme() {
+      let nextTheme = 'C';
+      if (currentBgTheme === 'C') nextTheme = 'A';
+      else if (currentBgTheme === 'A') nextTheme = 'B';
+      else if (currentBgTheme === 'B') nextTheme = 'C';
+      applyBgTheme(nextTheme);
+    }
+
+    const buildingCheckItems = [
+      "1. 建物整體/部分塌陷，結構與基礎錯開", "2. 建物整體或部分樓層明顯傾斜", "3. 柱、梁嚴重損壞，主要牆壁龜裂", "4. 外牆掉落物與傾倒物危害情形",
+      "5. 鄰近建物傾斜破壞，影響本體安全", "6. 基地開裂、下陷、崩滑或土壤液化", "7. 旁側或內部設施可能擴大災害規模", "8. 其他 (瓦斯管破裂外溢、電線掉落等)"
+    ];
+    let buildingStatusMap = { "慈愛樓": {}, "至善樓": {}, "維揚樓": {}, "樂群樓": {}, "弘德樓": {}, "中山樓": {} };
+    const ADMIN_RESET_PASSWORD = "8888";
+    const defaultLocations = ["📌 教室受困", "📌 走廊受困", "📌 疏散過程失蹤", "❓ 不知去向"];
+
+    const gradeSortOrder = {
+      "一": 1, "一年級": 1, "二": 2, "二年級": 2, "三": 3, "三年級": 3,
+      "四": 4, "四年級": 4, "五": 5, "五年級": 5, "六": 6, "六年級": 6,
+      "特教": 7, "幼兒園": 8, "課後班": 9, "學習扶助班": 10, "緊急應變小組": 11
+    };
+
+    function normStr(str) { return str ? String(str).normalize('NFKC').replace(/[\s\uFEFF\xA0]/g, '').toLowerCase() : ''; }
+
+    function parseGradeAndClassInfo(str) {
+      if (!str) return null;
+      let clean = normStr(str);
+      let match3 = clean.match(/^([1-6])(\d{2})$/);
+      if (match3) return { grade: parseInt(match3[1], 10), classNum: parseInt(match3[2], 10) };
+      
+      let gradeNum = 0; let remaining = clean;
+      const gradeMap = [
+        { keys: ["一年級", "1年級", "1年", "一年"], val: 1 }, { keys: ["二年級", "2年級", "2年", "二年"], val: 2 },
+        { keys: ["三年級", "3年級", "3年", "三年"], val: 3 }, { keys: ["四年級", "4年級", "4年", "四年"], val: 4 },
+        { keys: ["五年級", "5年級", "5年", "五年"], val: 5 }, { keys: ["六年級", "6年級", "6年", "六年"], val: 6 },
+        { keys: ["特教"], val: 7 }, { keys: ["幼兒園", "幼兒"], val: 8 }
+      ];
+      for (let i = 0; i < gradeMap.length; i++) {
+        let item = gradeMap[i];
+        for (let k = 0; k < item.keys.length; k++) {
+          if (remaining.indexOf(item.keys[k]) !== -1) { gradeNum = item.val; remaining = remaining.replace(item.keys[k], ''); break; }
+        }
+        if (gradeNum > 0) break;
+      }
+      if (gradeNum === 0) {
+        if (/^一|^1[^\d]/.test(clean)) { gradeNum = 1; remaining = clean.replace(/^一|^1/, ''); }
+        else if (/^二|^2[^\d]/.test(clean)) { gradeNum = 2; remaining = clean.replace(/^二|^2/, ''); }
+        else if (/^三|^3[^\d]/.test(clean)) { gradeNum = 3; remaining = clean.replace(/^三|^3/, ''); }
+        else if (/^四|^4[^\d]/.test(clean)) { gradeNum = 4; remaining = clean.replace(/^四|^4/, ''); }
+        else if (/^五|^5[^\d]/.test(clean)) { gradeNum = 5; remaining = clean.replace(/^五|^5/, ''); }
+        else if (/^六|^6[^\d]/.test(clean)) { gradeNum = 6; remaining = clean.replace(/^六|^6/, ''); }
+      }
+      let classNum = 0; let digitMatch = remaining.match(/\d+/);
+      if (digitMatch) classNum = parseInt(digitMatch[0], 10);
+      return (gradeNum > 0 && classNum > 0) ? { grade: gradeNum, classNum: classNum } : null;
+    }
+
+    function isSameClass(strA, strB) {
+      if (!strA || !strB) return false;
+      let infoA = parseGradeAndClassInfo(strA); let infoB = parseGradeAndClassInfo(strB);
+      if (infoA && infoB) return (infoA.grade === infoB.grade) && (infoA.classNum === infoB.classNum);
+      return normStr(strA) === normStr(strB);
+    }
+
+    function openVisitorModal() { isVisitorModalOpen = true; newVisitorBatch = []; switchVisitorSubTab("add"); renderNewVisitorModalItems(); document.getElementById("visitorModal").style.display = "flex"; }
+    function closeVisitorModal() { isVisitorModalOpen = false; document.getElementById("visitorModal").style.display = "none"; }
+
+    function switchVisitorSubTab(tabType) {
+      activeVisitorSubTab = tabType;
+      let btnAdd = document.getElementById("vSubBtnAdd"); let btnList = document.getElementById("vSubBtnList");
+      let contentAdd = document.getElementById("vTabContentAdd"); let contentList = document.getElementById("vTabContentList");
+      let btnSubmit = document.getElementById("btnSubmitVisitorNew");
+      if (tabType === 'add') {
+        btnAdd.className = "pullout-sub-btn active-sc"; btnList.className = "pullout-sub-btn";
+        contentAdd.style.display = "block"; contentList.style.display = "none"; if (btnSubmit) btnSubmit.style.display = "block";
+      } else {
+        btnAdd.className = "pullout-sub-btn"; btnList.className = "pullout-sub-btn active-sc";
+        contentAdd.style.display = "none"; contentList.style.display = "block"; if (btnSubmit) btnSubmit.style.display = "none";
+        renderAllVisitorListItems();
+      }
+    }
+
+    const typeLabelMap = { student: "🎒 學生", teacher: "🧑🏫 代課/職員", parent: "👪 志工/訪客", vendor: "🛠️ 廠商/工程" };
+
+    function adjustNewVisitorItemCount(type, delta) {
+      if (delta > 0) {
+        let sameTypeItems = newVisitorBatch.filter(v => v.type === type);
+        let nextSeq = sameTypeItems.length + 1; let seqStr = nextSeq < 10 ? "0" + nextSeq : "" + nextSeq;
+        newVisitorBatch.push({ id: "v_" + Date.now() + "_" + Math.floor(Math.random() * 1000), type: type, seq: seqStr, title: typeLabelMap[type] + " " + seqStr, status: "safe", note: "" });
+      } else {
+        let idx = -1;
+        for (let i = newVisitorBatch.length - 1; i >= 0; i--) { if (newVisitorBatch[i].type === type) { idx = i; break; } }
+        if (idx !== -1) newVisitorBatch.splice(idx, 1);
+      }
+      renderNewVisitorModalItems();
+    }
+
+    function setNewVisitorItemStatus(vId, statusVal) { let item = newVisitorBatch.find(v => v.id === vId); if (item) { item.status = statusVal; renderNewVisitorModalItems(); } }
+    function setNewVisitorItemNote(vId, val) { let item = newVisitorBatch.find(v => v.id === vId); if (item) item.note = val; }
+
+    function renderNewVisitorModalItems() {
+      let container = document.getElementById("newVisitorItemsContainer"); if (!container) return; container.innerHTML = "";
+      if (newVisitorBatch.length === 0) { container.innerHTML = '<div style="text-align:center; color:#888; padding:15px; font-size:0.85rem;">本次尚未點選任何新增校外人員。</div>'; return; }
+      newVisitorBatch.forEach(item => {
+        let card = document.createElement("div"); card.className = "visitor-item-card";
+        let isSafe = (item.status === "safe"); let isMissing = (item.status === "missing");
+        let noteInputHtml = isMissing ? '<input type="text" style="width:100%; margin-top:5px; padding:4px 6px; font-size:0.8rem; border:1px solid #dc3545; border-radius:6px;" placeholder="📌 請填寫姓名/機構/最後位置備註..." value="' + (item.note || '') + '" oninput="setNewVisitorItemNote(\'' + item.id + '\', this.value)">' : '';
+        card.innerHTML = '<div class="visitor-item-title"><span><b>' + item.title + '</b></span><div><button class="btn-visitor-opt ' + (isSafe ? "active-safe" : "") + '" onclick="setNewVisitorItemStatus(\'' + item.id + '\', \'safe\')">🟢 安全確認</button><button class="btn-visitor-opt ' + (isMissing ? "active-missing" : "") + '" onclick="setNewVisitorItemStatus(\'' + item.id + '\', \'missing\')">🔴 失蹤</button></div></div>' + noteInputHtml;
+        container.appendChild(card);
+      });
+    }
+
+    function renderAllVisitorListItems() {
+      let container = document.getElementById("allVisitorItemsContainer"); if (!container) return; container.innerHTML = "";
+      if (visitorList.length === 0) { container.innerHTML = '<div style="text-align:center; color:#888; padding:15px; font-size:0.85rem;">全校目前尚未登記任何校外人士。</div>'; return; }
+      visitorList.forEach(item => {
+        let card = document.createElement("div"); card.className = "visitor-item-card";
+        let isSafe = (item.status === "safe");
+        let statusBadge = isSafe ? '<span style="color:#155724; font-weight:bold;">🟢 現場出席</span>' : '<span style="color:#dc3545; font-weight:bold;">🔴 失蹤搜救中</span>';
+        let noteText = item.note ? '<div style="font-size:0.78rem; color:#555; margin-top:2px;">📌 備註：' + item.note + '</div>' : '';
+        card.innerHTML = '<div class="visitor-item-title"><span><b>' + item.title + '</b></span><div>' + statusBadge + '</div></div>' + noteText;
+        container.appendChild(card);
+      });
+    }
+
+    function submitNewVisitorBatchData() {
+      let btn = document.getElementById("btnSubmitVisitorNew");
+      if (newVisitorBatch.length === 0) { alert("ℹ️ 您尚未點選任何新增校外人員。"); closeVisitorModal(); return; }
+      if (btn) { btn.disabled = true; btn.style.background = "#198754"; btn.innerText = "✅ 已填報送出 (同步中...)"; }
+      newVisitorBatch.forEach(v => { if (!v.status) v.status = "safe"; });
+      let count = newVisitorBatch.length;
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.visitorList) visitorList = res.visitorList;
+          if (res.visitorCounts) visitorCounts = res.visitorCounts;
+          if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          renderSchoolOverview(); renderRescueTable(); renderSummaryTable();
+        }
+        setTimeout(function() {
+          if (btn) { btn.disabled = false; btn.style.background = "#28a745"; btn.innerText = "✅ 確認送出本次填報"; }
+          closeVisitorModal(); alert("✅ 已成功完成 " + count + " 名校外人員填報！視窗已自動關閉。");
+        }, 300);
+      }).withFailureHandler(function(err) {
+        alert("❌ 填報送出失敗：" + err);
+        if (btn) { btn.disabled = false; btn.style.background = "#28a745"; btn.innerText = "✅ 確認送出本次填報"; }
+      }).appendVisitorListDelta(newVisitorBatch);
+    }
+
+    function getPhoneHref(phoneRaw) {
+      if (!phoneRaw) return "#"; let cleanP = String(phoneRaw).replace(/\D/g, "").trim();
+      if (cleanP.length === 8 && !cleanP.startsWith("0")) cleanP = "02" + cleanP;
+      else if ((cleanP.length === 9 || cleanP.length === 10) && !cleanP.startsWith("0")) cleanP = "0" + cleanP;
+      return "tel:" + cleanP;
+    }
+
+    function cleanClassLabel(cName, gName) {
+      if (!cName) return "";
+      return String(cName).trim();
+    }
+
+    function toggleSiteLock() {
+      let overlay = document.getElementById("siteLockedOverlay"); let btn = document.getElementById("btnCloseSite");
+      if (!isSiteLocked) {
+        if (confirm("🚨 確定要啟動【網站關閉/緊急鎖定】嗎？\n啟動後全頁面敏感學生個資將獨立隱藏封鎖！")) {
+          isSiteLocked = true; overlay.classList.add("active"); btn.innerText = "🔒 網站已鎖定"; btn.classList.add("locked");
+        }
+      } else {
+        let pwd = prompt("🔑 請輸入指揮中心授權密碼解除全站鎖定：");
+        if (pwd === ADMIN_RESET_PASSWORD) {
+          isSiteLocked = false; overlay.classList.remove("active"); btn.innerText = "🔒 網站關閉"; btn.classList.remove("locked");
+          alert("✅ 網站解鎖成功，恢復正常運作。"); updateSecurityUI();
+        } else if (pwd !== null) alert("❌ 密碼錯誤！");
+      }
+    }
+
+    function toggleSecurityMode() {
+      if (securityMode === "drill") {
+        let pwd = prompt("🔑 請輸入指揮中心授權密碼切換為【危難全開模式】：");
+        if (pwd === ADMIN_RESET_PASSWORD) {
+          securityMode = "disaster"; isUnlockedByPassword = true; updateSecurityUI(); saveFullSystemStateToBackend();
+          alert("🚨 已切換為【危難模式】！所有功能與家長個資聯繫電話全面解鎖。");
+        } else if (pwd !== null) alert("❌ 密碼錯誤！無法切換模式。");
+      } else {
+        securityMode = "drill"; isUnlockedByPassword = false; unlockExpiryTime = 0; updateSecurityUI(); saveFullSystemStateToBackend();
+        alert("🛡️ 已切換為【演練密碼防護模式】！家長個資電話已隱藏鎖定。");
+      }
+    }
+
+    function updateSecurityUI() {
+      let btn = document.getElementById("btnSecurityMode");
+      if (securityMode === "disaster") { btn.innerText = "🚨 危難全開"; btn.className = "btn-mode-toggle disaster-mode"; }
+      else { btn.innerText = "🛡️ 演練防護"; btn.className = "btn-mode-toggle"; }
+      if (currentClassStudents.length > 0) renderTeacherContactPanel();
+      renderSummaryTable(); renderRescueTable(); renderPulloutPage();
+    }
+
+    function verifyPasswordToUnlockPhone() { alert("🛡️ 家長電話預設防護隱藏！請由指揮中心點擊『🛡️ 演練防護』輸入授權密碼切換為『🚨 危難全開』模式解鎖全頁面電話。"); }
+
+    function onSimTimeChange(mode) {
+      simTimeMode = mode;
+      approvedCustomTotal = null; // 切換時段重置自訂人數
+      
+      // ✨ 1. 立即更新本地畫面（不用等後端）
+      updateGradeDropdown();
+      renderSchoolOverview();
+      renderPulloutPage();
+      if (selectedClassBtn) onClassClick(selectedClassBtn);
+
+      // ✨ 2. 標記剛切換時間，讓背景輪詢 5 秒內不要拿舊值覆蓋回拉
+      window.lastTimeSwitchTimestamp = Date.now();
+
+      // ✨ 3. 背景儲存
+      saveFullSystemStateToBackend();
+    }
+
+    // ==========================================
+    // 依據 Config_Schedules 判斷班級是否在校 (極速相容版)
+    // ==========================================
+    function isClassActiveAtTime(gradeName, className) {
+      if (!gradeName) return false;
+      if (gradeName.includes("緊急") || gradeName.includes("應變")) return true;
+
+      let now = new Date();
+      let dayIndex = now.getDay();
+      const dayKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      let targetDay = dayKeys[dayIndex];
+      let targetSlot = "am";
+
+      if (simTimeMode === "auto") {
+        if (dayIndex === 0 || dayIndex === 6) return false;
+        let currentMinutes = now.getHours() * 60 + now.getMinutes();
+        if (currentMinutes < 480 || currentMinutes >= 1110) return false;
+
+        if (currentMinutes < 720) targetSlot = "am";
+        else if (currentMinutes < 960) targetSlot = "pm1";
+        else if (currentMinutes < 1060) targetSlot = "pm2";
+        else targetSlot = "night";
+      } else {
+        if (simTimeMode === "mon_am") { targetDay = "mon"; targetSlot = "am"; }
+        else if (simTimeMode === "mon_pm1") { targetDay = "mon"; targetSlot = "pm1"; }
+        else if (simTimeMode === "mon_pm2") { targetDay = "mon"; targetSlot = "pm2"; }
+        else if (simTimeMode === "tue_pm") { targetDay = "tue"; targetSlot = "pm1"; }
+        else if (simTimeMode === "wed_pm1") { targetDay = "wed"; targetSlot = "pm1"; }
+        else if (simTimeMode === "wed_pm2") { targetDay = "wed"; targetSlot = "pm2"; }
+        else if (simTimeMode === "fri_pm") { targetDay = "fri"; targetSlot = "pm1"; }
+        else if (simTimeMode === "night") {
+          targetSlot = "night";
+          targetDay = (dayIndex >= 1 && dayIndex <= 5) ? dayKeys[dayIndex] : "mon";
+        }
+      }
+
+      let slotKey = targetDay + "_" + targetSlot;
+
+      if (window.scheduleConfigData && window.scheduleConfigData.length > 0) {
+        let gStr = String(gradeName).trim();
+        let cStr = String(className).trim();
+
+        function isGroupMatch(rG, tG) {
+          if (rG === tG) return true;
+          return rG.replace(/年級$/, '') === tG.replace(/年級$/, '');
+        }
+
+        // 1. 通用列比對 (B欄為空、或為 all / 全部)
+        let groupRow = window.scheduleConfigData.find(item => {
+          let rG = String(item.groupName).trim();
+          let rC = String(item.className || "").trim().toLowerCase();
+          return isGroupMatch(rG, gStr) && (rC === "" || rC === "all" || rC === "全部");
+        });
+        if (groupRow) {
+          return groupRow[slotKey] === true;
+        }
+
+        // 2. 獨立班級列比對 (支援多列同名班級)
+        if (cStr) {
+          return window.scheduleConfigData.some(item => 
+            isGroupMatch(String(item.groupName).trim(), gStr) && 
+            String(item.className).trim() === cStr && 
+            item[slotKey] === true
+          );
+        } else {
+          return window.scheduleConfigData.some(item => 
+            isGroupMatch(String(item.groupName).trim(), gStr) && 
+            item[slotKey] === true
+          );
+        }
+      }
+
+      return true;
+    }
+
+    function isStudentOffCampus(gradeName) {
+      return !isClassActiveAtTime(gradeName, "");
+    }
+
+    function getSmartPollingInterval() {
+      let activePage = document.querySelector('.page.active')?.id;
+      if (activePage === 'adminPage') return 3500;  
+      if (activePage === 'rescuePage') return 4000; 
+      if (activePage === 'pulloutPage') return 6000;
+      return 15000; 
+    }
+
+    function triggerSmartPollingLoop() {
+      if (smartPollingTimer) clearTimeout(smartPollingTimer);
+      smartPollingTimer = setTimeout(function() {
+        let activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (!autoSaveTimer && activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && !isVisitorModalOpen) {
+          google.script.run.withSuccessHandler(function(state) {
+            syncRemoteState(state); triggerSmartPollingLoop(); 
+          }).withFailureHandler(function() { triggerSmartPollingLoop(); }).getFullSystemState();
+        } else { triggerSmartPollingLoop(); }
+      }, getSmartPollingInterval());
+    }
+
+    window.onload = function() {
+      applyBgTheme(currentBgTheme);
+      google.script.run.withSuccessHandler(setupData).getStudentData();
+      google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
+      
+      // ✨ 關鍵：抓取最新 Config_Schedules 時段表
+      google.script.run.withSuccessHandler(function(config) { 
+        if (config && config.length > 0) { 
+          window.scheduleConfigData = config; 
+          updateGradeDropdown(); 
+          renderSchoolOverview(); 
+          if (selectedClassBtn) onClassClick(selectedClassBtn); 
+        }
+      }).getScheduleConfigData();
+
+      triggerSmartPollingLoop(); 
+    };
+
+    function setupData(data) { allStudents = data; updateGradeDropdown(); renderSchoolOverview(); renderPulloutPage(); }
+
+    function updateGradeDropdown() {
+      let container = document.getElementById("gradeBtnContainer");
+      if (!container) return;
+      container.innerHTML = "";
+      if (!allStudents || allStudents.length === 0) return;
+
+      let grades = [...new Set(allStudents.map(d => d.grade))].filter(Boolean);
+      let activeGrades = grades.filter(g => isClassActiveAtTime(g, ""));
+      activeGrades.sort((a, b) => (gradeSortOrder[a] || 99) - (gradeSortOrder[b] || 99));
+
+      if (selectedGradeOpt && !activeGrades.includes(selectedGradeOpt)) {
+        selectedGradeOpt = "";
+        selectedClassBtn = "";
+        let sec = document.getElementById("classBtnSection");
+        if (sec) sec.style.display = "none";
+        document.getElementById("placeholderBox").style.display = "block";
+        document.getElementById("studentContent").style.display = "none";
+      }
+
+      activeGrades.forEach(g => {
+        let btn = document.createElement("button");
+        btn.className = "btn-grade-opt " + (selectedGradeOpt === g ? "active" : "");
+        btn.innerText = g;
+        btn.onclick = function() {
+          selectedGradeOpt = g;
+          Array.from(container.children).forEach(child => child.classList.remove("active"));
+          btn.classList.add("active");
+          onGradeChange();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function onGradeChange() {
+      let gVal = selectedGradeOpt;
+      let sec = document.getElementById("classBtnSection");
+      let label = document.getElementById("classStepLabel");
+      let container = document.getElementById("classBtnContainer");
+      container.innerHTML = "";
+      document.getElementById("placeholderBox").style.display = "block";
+      document.getElementById("studentContent").style.display = "none";
+      selectedClassBtn = "";
+
+      if (!gVal) { sec.style.display = "none"; return; }
+      label.innerText = (gVal.includes("應變") || gVal.includes("緊急")) ? "2. 請點選組別/職稱：" : "2. 請點選班級：";
+
+      let classes = [...new Set(allStudents.filter(d => d.grade === gVal).map(d => d.className))].filter(Boolean);
+      classes = classes.filter(c => isClassActiveAtTime(gVal, c));
+      classes.sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
+
+      if (classes.length === 0) {
+        container.innerHTML = '<div style="padding:8px 12px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; border-radius:6px; font-size:0.85rem; font-weight:bold;">⚠️ 當前時段尚無該單位班別在校。</div>';
+      } else {
+        classes.forEach(c => {
+          let btn = document.createElement("button");
+          btn.className = "btn-class-item " + (selectedClassBtn === c ? "active" : "");
+          btn.innerText = cleanClassLabel(c, gVal);
+          btn.onclick = function() {
+            selectedClassBtn = c;
+            Array.from(container.children).forEach(child => child.classList.remove("active"));
+            btn.classList.add("active");
+            onClassClick(c);
+          };
+          container.appendChild(btn);
+        });
+      }
+      sec.style.display = "block";
+    }
+
+    function loadSavedFullState(state) {
+      if (!state) return;
+      classReports = state.classReports || {}; searchStatusMap = state.searchStatusMap || {}; searchNotesMap = state.searchNotesMap || {}; contactStates = state.contactStates || {}; helpRequestMap = state.helpRequestMap || {}; assigneeMap = state.assigneeMap || {}; rescueTriageMap = state.rescueTriageMap || {}; pulloutStatusMap = state.pulloutStatusMap || {}; visitorCounts = state.visitorCounts || { student: 0, teacher: 0, parent: 0, vendor: 0 };
+      if (state.visitorList) visitorList = state.visitorList; 
+      if (state.approvedCustomTotal !== undefined) approvedCustomTotal = state.approvedCustomTotal;
+      if (state.buildingStatusMap && Object.keys(state.buildingStatusMap).length > 0) { buildingStatusMap = state.buildingStatusMap; if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"]; }
+      const defaultBuildingsList = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
+      defaultBuildingsList.forEach(b => { if (!buildingStatusMap[b]) buildingStatusMap[b] = {}; });
+      if (state.securityMode) { securityMode = state.securityMode; if (securityMode === "disaster") isUnlockedByPassword = true; updateSecurityUI(); }
+      
+      // ✨ 防覆蓋保護：若使用者在 5 秒內剛手動切換時間，絕不被輪詢舊值蓋回去
+      let timeSinceSwitch = Date.now() - (window.lastTimeSwitchTimestamp || 0);
+      if (state.simTimeMode && timeSinceSwitch > 5000) { 
+        if (simTimeMode !== state.simTimeMode) {
+          simTimeMode = state.simTimeMode; 
+          let selectEl = document.getElementById("simTimeSelect"); 
+          if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode; 
+          updateGradeDropdown();
+          renderSchoolOverview();
+        }
+      }
+
+      renderSchoolOverview(); renderPulloutPage(); renderSummaryTable(); renderRescueTable(); renderBuildingGrid();
+    }
+
+    function syncRemoteState(state) {
+      if (!state) return; loadSavedFullState(state); if (currentClassStudents.length > 0) renderTeacherContactPanel();
+    }
+
+    function saveFullSystemStateToBackend() {
+      let payload = { classReports: classReports, searchStatusMap: searchStatusMap, searchNotesMap: searchNotesMap, contactStates: contactStates, helpRequestMap: helpRequestMap, assigneeMap: assigneeMap, rescueTriageMap: rescueTriageMap, pulloutStatusMap: pulloutStatusMap, visitorCounts: visitorCounts, visitorList: visitorList, approvedCustomTotal: approvedCustomTotal, buildingStatusMap: buildingStatusMap, securityMode: securityMode, simTimeMode: simTimeMode };
+      google.script.run.saveFullSystemState(payload);
+    }
+
+    function triggerAutoSaveTimer() {
+      let msgBar = document.getElementById("autoSaveMsg"); let btnSubmit = document.getElementById("btnSubmitAttendance");
+      if (msgBar) msgBar.style.display = "block"; if (btnSubmit) { btnSubmit.innerText = "送出點名紀錄 (請送出紀錄)"; btnSubmit.classList.remove("saved"); }
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(function() { submitAttendance(true); }, 5000);
+    }
+
+    function onClassClick(cVal) {
+      let gVal = selectedGradeOpt; if (!cVal || !gVal) return;
+      currentClassStudents = allStudents.filter(d => d.grade === gVal && d.className === cVal); currentClassStudents.sort((a, b) => a.seatNum - b.seatNum);
+      studentStatusMap = {}; studentLocationMap = {}; let key = gVal + " " + cVal; let lastReport = classReports[key];
+      currentClassStudents.forEach(s => {
+        let studentKey = key + "_" + s.seatRaw;
+        if (searchStatusMap[studentKey]) studentStatusMap[s.seatRaw] = 'present';
+        else if (lastReport) {
+          if (lastReport.leave && lastReport.leave.some(l => l.seatRaw === s.seatRaw)) studentStatusMap[s.seatRaw] = 'leave';
+          else if (lastReport.pickedUp && lastReport.pickedUp.some(p => p.seatRaw === s.seatRaw)) studentStatusMap[s.seatRaw] = 'pickedUp';
+          else if (lastReport.studyCenter && lastReport.studyCenter.some(sc => sc.seatRaw === s.seatRaw)) studentStatusMap[s.seatRaw] = 'study_center';
+          else if (lastReport.nativeLang && lastReport.nativeLang.some(nl => nl.seatRaw === s.seatRaw)) studentStatusMap[s.seatRaw] = 'native_lang';
+          else if (lastReport.team && lastReport.team.some(tm => tm.seatRaw === s.seatRaw)) studentStatusMap[s.seatRaw] = 'team';
+          else if (lastReport.missing && lastReport.missing.some(m => m.seatRaw === s.seatRaw)) {
+            studentStatusMap[s.seatRaw] = 'missing'; let mObj = lastReport.missing.find(m => m.seatRaw === s.seatRaw);
+            studentLocationMap[s.seatRaw] = { tag: mObj.locationTag || '', note: mObj.locationNote || '' };
+          } else studentStatusMap[s.seatRaw] = 'present';
+        } else studentStatusMap[s.seatRaw] = 'present';
+      });
+      renderMatrix(); let btnSubmit = document.getElementById("btnSubmitAttendance"); if (btnSubmit) { btnSubmit.innerText = "送出點名紀錄 (請送出紀錄)"; btnSubmit.classList.remove("saved"); }
+      document.getElementById("placeholderBox").style.display = "none"; document.getElementById("studentContent").style.display = "block";
+    }
+
+    function renderMatrix() {
+      let grid = document.getElementById("studentGrid"); grid.innerHTML = "";
+      let gVal = selectedGradeOpt; let cVal = selectedClassBtn; let key = gVal + " " + cVal;
+      let isEmergencyTeacherGroup = (gVal.includes("緊急") || gVal.includes("應變")) && cVal.includes("導師");
+
+      currentClassStudents.forEach(s => {
+        let studentKey = key + "_" + s.seatRaw; let pulloutSt = pulloutStatusMap[studentKey] || 'pending'; let isRescueFound = !!searchStatusMap[studentKey];
+        let status = studentStatusMap[s.seatRaw] || 'present'; let btn = document.createElement("div"); let statusClass = ''; let statusText = '🟢 實到';
+
+        if (isEmergencyTeacherGroup) {
+          let classHasReported = Object.keys(classReports).some(k => { let rep = classReports[k]; let cLabel = cleanClassLabel(rep.className || k); return isSameClass(k, s.name) || isSameClass(cLabel, s.name); });
+          if (status === 'missing') { statusClass = 'missing'; statusText = classHasReported ? '🔴 失蹤 (班級已回報)' : '🔴 失蹤 (班級未回報)'; } 
+          else if (classHasReported) { statusClass = 'pullout-safe-tm'; statusText = '🟢 實到 (班級已回報)'; } 
+          else { statusClass = 'leave'; statusText = '🟡 待確認 (班級未回報)'; }
+        } 
+        else if (status === 'study_center') {
+          if (pulloutSt === 'safe') { statusClass = 'pullout-safe-sc'; statusText = '🟣 學習中心 (安全確認)'; } 
+          else if (pulloutSt === 'missing') { statusClass = 'missing'; statusText = '🔴 失蹤 (學習中心)'; } 
+          else { statusClass = 'study_center'; statusText = '🟣 學習中心 (待確認)'; }
+        }
+        else if (status === 'native_lang') {
+          if (pulloutSt === 'safe') { statusClass = 'pullout-safe-nl'; statusText = '🟠 本土語 (安全確認)'; } 
+          else if (pulloutSt === 'missing') { statusClass = 'missing'; statusText = '🔴 失蹤 (本土語)'; } 
+          else { statusClass = 'native_lang'; statusText = '🟠 本土語 (待確認)'; }
+        }
+        else if (status === 'team') {
+          if (pulloutSt === 'safe') { statusClass = 'pullout-safe-tm'; statusText = '<span style="color:#00838f; font-size:0.85rem; vertical-align:middle;">●</span> 團隊 (安全確認)'; } 
+          else if (pulloutSt === 'missing') { statusClass = 'missing'; statusText = '🔴 失蹤 (團隊)'; } 
+          else { statusClass = 'team'; statusText = '<span style="color:#00838f; font-size:0.85rem; vertical-align:middle;">●</span> 團隊 (待確認)'; }
+        }
+        else if (status === 'leave') { statusClass = 'leave'; statusText = '🟡 請假'; }
+        else if (status === 'missing') { statusClass = 'missing'; statusText = '🔴 失蹤'; }
+        else if (status === 'pickedUp') { statusClass = 'pickedUp'; statusText = '🔵 已接回'; }
+
+        let noteHtml = ''; let noteText = searchNotesMap[studentKey] || '';
+        if (isRescueFound && status === 'present') { statusText = '✅ 實到 (已尋獲)'; if (noteText) noteHtml = '<span class="found-note-tag">🔍 ' + noteText + '</span>'; }
+
+        btn.className = "seat-btn " + statusClass;
+        btn.innerHTML = '<span class="seat-title">' + s.seatRaw + '</span><span class="name">' + s.name + '</span><span class="status-label">' + statusText + '</span>' + noteHtml;
+        
+        btn.onclick = function() {
+          if (status === 'present') { studentStatusMap[s.seatRaw] = 'study_center'; if (!pulloutStatusMap[studentKey]) pulloutStatusMap[studentKey] = 'pending'; } 
+          else if (status === 'study_center') { studentStatusMap[s.seatRaw] = 'native_lang'; if (!pulloutStatusMap[studentKey]) pulloutStatusMap[studentKey] = 'pending'; }
+          else if (status === 'native_lang') { studentStatusMap[s.seatRaw] = 'team'; if (!pulloutStatusMap[studentKey]) pulloutStatusMap[studentKey] = 'pending'; }
+          else if (status === 'team') { studentStatusMap[s.seatRaw] = 'leave'; delete pulloutStatusMap[studentKey]; }
+          else if (status === 'leave') { studentStatusMap[s.seatRaw] = 'missing'; delete pulloutStatusMap[studentKey]; if (!studentLocationMap[s.seatRaw]) studentLocationMap[s.seatRaw] = { tag: '', note: '' }; } 
+          else if (status === 'missing') { studentStatusMap[s.seatRaw] = 'pickedUp'; delete studentLocationMap[s.seatRaw]; } 
+          else { studentStatusMap[s.seatRaw] = 'present'; delete studentLocationMap[s.seatRaw]; delete pulloutStatusMap[studentKey]; }
+          renderMatrix(); triggerAutoSaveTimer(); 
+        };
+        grid.appendChild(btn);
+      });
+      updateStats(); renderLocationPanel(); renderTeacherContactPanel();
+    }
+
+    function renderLocationPanel() {
+      let missingStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'missing');
+      let panel = document.getElementById("locationSection"); let list = document.getElementById("locationList");
+      if (missingStudents.length === 0) { panel.style.display = "none"; return; }
+      panel.style.display = "block"; list.innerHTML = "";
+      missingStudents.forEach(s => {
+        if (!studentLocationMap[s.seatRaw]) studentLocationMap[s.seatRaw] = { tag: '', note: '' }; let locData = studentLocationMap[s.seatRaw];
+        let box = document.createElement("div"); box.style.marginBottom = "10px"; box.style.paddingBottom = "8px"; box.style.borderBottom = "1px dashed #f5c6cb";
+        let title = document.createElement("div"); title.style.fontSize = "0.8rem"; title.style.fontWeight = "bold"; title.style.color = "#721c24"; title.style.marginBottom = "4px"; title.innerText = "🎯 " + s.seatRaw + " " + s.name + " 位置標註："; box.appendChild(title);
+        let tagsDiv = document.createElement("div"); tagsDiv.className = "location-tags";
+        defaultLocations.forEach(loc => {
+          let btn = document.createElement("span"); btn.className = "loc-tag " + (locData.tag === loc ? "selected" : ""); btn.innerText = loc;
+          btn.onclick = function() { locData.tag = (locData.tag === loc) ? '' : loc; renderLocationPanel(); triggerAutoSaveTimer(); }; tagsDiv.appendChild(btn);
+        });
+        box.appendChild(tagsDiv);
+        let input = document.createElement("input"); input.type = "text"; input.className = "loc-input"; input.placeholder = "其他自行備註..."; input.value = locData.note || '';
+        input.oninput = function() { locData.note = this.value; triggerAutoSaveTimer(); }; box.appendChild(input); list.appendChild(box);
+      });
+    }
+
+    function renderTeacherContactPanel() {
+      let gVal = selectedGradeOpt; let cVal = selectedClassBtn; let classKey = gVal + " " + cVal;
+      let missingStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'missing');
+      let panel = document.getElementById("teacherContactSection"); let tbody = document.getElementById("teacherContactTable");
+      if (missingStudents.length === 0) { panel.style.display = "none"; return; }
+      panel.style.display = "block"; tbody.innerHTML = "";
+      missingStudents.forEach(s => {
+        let studentKey = classKey + "_" + s.seatRaw;
+        if (!contactStates[studentKey]) contactStates[studentKey] = { status: "未聯繫", count: 0 };
+        let state = contactStates[studentKey];
+        if (state.count >= 5 && helpRequestMap[studentKey] === undefined) helpRequestMap[studentKey] = true;
+        let isDone = (state.status === "已聯繫"); let isHelpReq = !!helpRequestMap[studentKey];
+        let phoneHref = getPhoneHref(s.phone); let teacherPhoneHref = getPhoneHref(s.teacherPhone);
+        let displayParentPhone = (securityMode === "drill") || isSiteLocked ? '<span class="masked-phone" onclick="verifyPasswordToUnlockPhone()">🔒 ***-*** (個資防護中)</span>' : '<a class="phone-link" href="' + phoneHref + '">📞 ' + (s.phone || '無電話') + '</a>';
+        let row = document.createElement("tr");
+        if (isDone) row.className = "teacher-row-contact-done"; else if (isHelpReq) row.className = "teacher-row-disabled";
+        let actionBtnHtml = isDone ? '<span style="color:#155724; font-weight:bold; font-size:0.75rem;">✅ 已完結</span>' : (isHelpReq ? '<button class="btn-help-req requested" disabled>🚨 已轉交指揮中心</button><button class="btn-take-back" onclick="takeBackContact(\'' + studentKey + '\')">↩️ 導師自主接回聯繫</button>' : '<button class="btn-help-req" onclick="toggleHelpReq(\'' + studentKey + '\')">🚨 請求指揮中心協助</button>');
+        let searchNoteInfo = searchNotesMap[studentKey] ? '<br><small style="color:#155724; font-weight:bold;">📍 尋獲地點：' + searchNotesMap[studentKey] + '</small>' : '';
+        let teacherInfo = s.teacher ? '<br><small style="color:#1F4E79; font-weight:bold;">🧑🏫 帶班導師：' + s.teacher + '</small>' + (s.teacherPhone ? ' <a class="phone-link" style="padding:1px 4px; font-size:0.7rem;" href="' + teacherPhoneHref + '">📞 撥打導師</a>' : '') : '';
+        row.innerHTML = '<td><b>' + s.seatRaw + ' ' + s.name + '</b>' + teacherInfo + searchNoteInfo + '</td>' + '<td>' + s.parent + '<br>' + displayParentPhone + '</td>' + '<td><div class="contact-controls"><div><label><input type="radio" name="tc_' + studentKey + '" value="未聯繫" ' + (state.status === "未聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'未聯繫\')">未聯繫</label> <label><input type="radio" name="tc_' + studentKey + '" value="聯繫中" ' + (state.status === "聯繫中" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'聯繫中\')">聯繫中</label> <label><input type="radio" name="tc_' + studentKey + '" value="已聯繫" ' + (state.status === "已聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'已聯繫\')">已聯繫</label></div><div class="retry-counter"><span>已撥打：<b>' + state.count + '</b> 次</span> <button class="retry-btn" onclick="addRetry(\'' + studentKey + '\')">+1 次未接</button></div></div></td>' + '<td>' + actionBtnHtml + '</td>';
+        tbody.appendChild(row);
+      });
+    }
+
+    function toggleHelpReq(key) { helpRequestMap[key] = true; google.script.run.withSuccessHandler(function(res) { if (res && res.success) { if (res.contactStates) contactStates = res.contactStates; if (res.helpRequestMap) helpRequestMap = res.helpRequestMap; renderTeacherContactPanel(); renderSummaryTable(); renderRescueTable(); } }).updateContactStateDelta(key, contactStates[key], true); renderTeacherContactPanel(); renderSummaryTable(); renderRescueTable(); triggerAutoSaveTimer(); }
+    function takeBackContact(key) { helpRequestMap[key] = false; google.script.run.withSuccessHandler(function(res) { if (res && res.success) { if (res.contactStates) contactStates = res.contactStates; if (res.helpRequestMap) helpRequestMap = res.helpRequestMap; renderTeacherContactPanel(); renderSummaryTable(); renderRescueTable(); } }).updateContactStateDelta(key, contactStates[key], false); renderTeacherContactPanel(); renderSummaryTable(); renderRescueTable(); triggerAutoSaveTimer(); }
+
+    function updateStats() {
+      let total = currentClassStudents.length; let presentCount = 0, studyCenterCount = 0, nativeLangCount = 0, teamCount = 0, leaveCount = 0, missingCount = 0, pickedUpCount = 0;
+      let isEmergencyTeacherGroup = (selectedGradeOpt.includes("緊急") || selectedGradeOpt.includes("應變")) && selectedClassBtn.includes("導師");
+      currentClassStudents.forEach(s => {
+        let st = studentStatusMap[s.seatRaw] || 'present';
+        if (isEmergencyTeacherGroup) {
+          let classHasReported = Object.keys(classReports).some(k => { let rep = classReports[k]; let cLabel = cleanClassLabel(rep.className || k); return isSameClass(k, s.name) || isSameClass(cLabel, s.name); });
+          if (st === 'missing') missingCount++; else if (classHasReported) presentCount++; else leaveCount++; 
+        } else {
+          if (st === 'present') presentCount++; else if (st === 'study_center') studyCenterCount++; else if (st === 'native_lang') nativeLangCount++; else if (st === 'team') teamCount++; else if (st === 'leave') leaveCount++; else if (st === 'missing') missingCount++; else if (st === 'pickedUp') pickedUpCount++;
+        }
+      });
+      document.getElementById("stTotal").innerText = total; document.getElementById("stPresent").innerText = presentCount; document.getElementById("stStudyCenter").innerText = studyCenterCount; document.getElementById("stNativeLang").innerText = nativeLangCount; document.getElementById("stTeam").innerText = teamCount; document.getElementById("stLeave").innerText = leaveCount; document.getElementById("stMissing").innerText = missingCount; document.getElementById("stPickedUp").innerText = pickedUpCount;
+    }
+
+    function submitAttendance(isAuto) {
+      if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+      let msgBar = document.getElementById("autoSaveMsg"); if (msgBar) msgBar.style.display = "none";
+      let gVal = selectedGradeOpt; let cVal = selectedClassBtn; let key = gVal + " " + cVal;
+      let leaveStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'leave'); let pickedUpStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'pickedUp'); let studyCenterStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'study_center'); let nativeLangStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'native_lang'); let teamStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'team');
+      let missingStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'missing').map(s => { let loc = studentLocationMap[s.seatRaw] || {}; return { ...s, locationTag: loc.tag || '', locationNote: loc.note || '' }; });
+      let presentCount = currentClassStudents.length - leaveStudents.length - missingStudents.length - pickedUpStudents.length - studyCenterStudents.length - nativeLangStudents.length - teamStudents.length;
+      let singleReport = { grade: gVal, className: cVal, total: currentClassStudents.length, presentCount: presentCount, leave: leaveStudents, pickedUp: pickedUpStudents, studyCenter: studyCenterStudents, nativeLang: nativeLangStudents, team: teamStudents, missing: missingStudents };
+      classReports[key] = singleReport;
+      google.script.run.withSuccessHandler(function(res) { if (res && res.success) { if (res.classReports) classReports = res.classReports; renderSchoolOverview(); renderPulloutPage(); renderSummaryTable(); renderRescueTable(); } }).updateClassReportDelta(key, singleReport);
+      let btnSubmit = document.getElementById("btnSubmitAttendance"); if (btnSubmit) { btnSubmit.innerText = "✅ 最新點名紀錄已自動同步送出"; btnSubmit.classList.add("saved"); }
+      renderSchoolOverview(); renderPulloutPage(); renderSummaryTable(); renderRescueTable(); if (!isAuto) alert("✅ " + key + " 最新點名紀錄已成功送出！");
+    }
+
+    function switchPulloutSubTab(tabType) {
+      activePulloutSubTab = tabType;
+      let btnSC = document.getElementById("subBtnSC"); let btnNL = document.getElementById("subBtnNL"); let btnTM = document.getElementById("subBtnTM");
+      let cardSC = document.getElementById("cardPulloutSC"); let cardNL = document.getElementById("cardPulloutNL"); let cardTM = document.getElementById("cardPulloutTM");
+      btnSC.className = "pullout-sub-btn" + (tabType === 'SC' ? " active-sc" : ""); btnNL.className = "pullout-sub-btn" + (tabType === 'NL' ? " active-nl" : ""); btnTM.className = "pullout-sub-btn" + (tabType === 'TM' ? " active-tm" : "");
+      cardSC.style.display = (tabType === 'SC') ? "block" : "none"; cardNL.style.display = (tabType === 'NL') ? "block" : "none"; cardTM.style.display = (tabType === 'TM') ? "block" : "none";
+    }
+
+    function switchRescueSubTab(tabType) {
+      activeRescueSubTab = tabType;
+      let btnA = document.getElementById("subBtnRescueA"); let btnB = document.getElementById("subBtnRescueB");
+      let cardA = document.getElementById("cardRescueA"); let cardB = document.getElementById("cardRescueB");
+      if (tabType === 'A') { btnA.className = "rescue-sub-btn active-rescue"; btnB.className = "rescue-sub-btn"; cardA.style.display = "block"; cardB.style.display = "none"; } else { btnA.className = "rescue-sub-btn"; btnB.className = "rescue-sub-btn active-building"; cardA.style.display = "none"; cardB.style.display = "block"; }
+    }
+
+    function renderPulloutPage() {
+      let tbodySC = document.getElementById("pulloutTableStudyCenter"); let tbodyNL = document.getElementById("pulloutTableNativeLang"); let tbodyTM = document.getElementById("pulloutTableTeam");
+      if (!tbodySC || !tbodyNL || !tbodyTM) return;
+      tbodySC.innerHTML = ""; tbodyNL.innerHTML = ""; tbodyTM.innerHTML = "";
+      let scList = [], nlList = [], tmList = [];
+
+      Object.keys(classReports).forEach(k => {
+        let rep = classReports[k]; let gName = rep.grade || k.split(" ")[0] || ""; let cName = rep.className || k.split(" ")[1] || "";
+        if (rep.studyCenter && rep.studyCenter.length > 0) rep.studyCenter.forEach(s => scList.push({ classKey: k, student: s, studentKey: k + "_" + s.seatRaw, gradeName: gName, className: cName }));
+        if (rep.nativeLang && rep.nativeLang.length > 0) rep.nativeLang.forEach(s => nlList.push({ classKey: k, student: s, studentKey: k + "_" + s.seatRaw, gradeName: gName, className: cName }));
+        if (rep.team && rep.team.length > 0) rep.team.forEach(s => tmList.push({ classKey: k, student: s, studentKey: k + "_" + s.seatRaw, gradeName: gName, className: cName }));
+      });
+
+      function comparePullout(a, b) {
+        let stA = pulloutStatusMap[a.studentKey] || 'pending'; let stB = pulloutStatusMap[b.studentKey] || 'pending';
+        let rankA = (stA === 'pending') ? 0 : 1; let rankB = (stB === 'pending') ? 0 : 1;
+        if (rankA !== rankB) return rankA - rankB;
+        let gA = gradeSortOrder[a.gradeName] || 99; let gB = gradeSortOrder[b.gradeName] || 99;
+        if (gA !== gB) return gA - gB;
+        let cComp = a.className.localeCompare(b.className, 'zh-Hant', { numeric: true });
+        if (cComp !== 0) return cComp;
+        return (a.student.seatNum || 0) - (b.student.seatNum || 0);
+      }
+
+      scList.sort(comparePullout); nlList.sort(comparePullout); tmList.sort(comparePullout);
+
+      function buildPulloutRows(list, tbody, typeLabel) {
+        if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">目前尚無' + typeLabel + '抽離學生</td></tr>'; return; }
+        list.forEach(item => {
+          let sKey = item.studentKey; let s = item.student;
+          if (!pulloutStatusMap[sKey]) pulloutStatusMap[sKey] = 'pending';
+          let curStatus = pulloutStatusMap[sKey];
+          let row = document.createElement("tr");
+          let teacherPhoneHref = getPhoneHref(s.teacherPhone); let teacherCellHtml = s.teacher ? '<b>' + s.teacher + '</b>' + (s.teacherPhone ? '<br><a class="phone-link" style="padding:1px 4px; font-size:0.7rem;" href="' + teacherPhoneHref + '">📞 撥打導師</a>' : '') : '無導師資訊';
+          let btnGroupHtml = '<div>' +
+            '<button class="btn-pullout-opt ' + (curStatus === "pending" ? "active-pending" : "") + '" onclick="updatePulloutStatus(\'' + sKey + '\', \'pending\', \'' + typeLabel + '\')">⏳ 抽離待確認</button>' +
+            '<button class="btn-pullout-opt ' + (curStatus === "safe" ? "active-safe" : "") + '" onclick="updatePulloutStatus(\'' + sKey + '\', \'safe\', \'' + typeLabel + '\')">☑️ 安全確認</button>' +
+            '<button class="btn-pullout-opt ' + (curStatus === "missing" ? "active-missing" : "") + '" onclick="updatePulloutStatus(\'' + sKey + '\', \'missing\', \'' + typeLabel + '\')">🚨 失蹤</button>' +
+          '</div>';
+          row.innerHTML = '<td><b>' + item.classKey + '</b></td><td><b>' + s.seatRaw + ' ' + s.name + '</b>' + (curStatus !== 'pending' ? ' <small style="color:#28a745; font-weight:bold;">(已完成處理)</small>' : '') + '</td><td>' + teacherCellHtml + '</td><td>' + btnGroupHtml + '</td>';
+          tbody.appendChild(row);
+        });
+      }
+      buildPulloutRows(scList, tbodySC, "學習中心"); buildPulloutRows(nlList, tbodyNL, "本土語"); buildPulloutRows(tmList, tbodyTM, "團隊");
+    }
+
+    function updatePulloutStatus(sKey, statusVal, typeLabel) {
+      pulloutStatusMap[sKey] = statusVal; let rescueData = null;
+      if (statusVal === 'missing') {
+        if (!rescueTriageMap[sKey]) rescueTriageMap[sKey] = { status: "searching", triage: "none", note: "", locationFound: "", escortCount: 0 };
+        rescueTriageMap[sKey].status = "searching"; rescueTriageMap[sKey].locationFound = "📌 抽離失蹤 (" + typeLabel + "地點)"; rescueData = rescueTriageMap[sKey];
+      } 
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.pulloutStatusMap) pulloutStatusMap = res.pulloutStatusMap; if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          renderPulloutPage(); renderSchoolOverview(); renderRescueTable(); renderSummaryTable(); if (currentClassStudents.length > 0) renderMatrix();
+        }
+      }).updatePulloutStatusDelta(sKey, statusVal, rescueData);
+      renderPulloutPage(); renderSchoolOverview(); renderRescueTable(); renderSummaryTable(); if (currentClassStudents.length > 0) renderMatrix();
+    }
+
+    function renderRescueRowInPlace(sKey) {
+      let row = document.getElementById("rescue_row_" + sKey); if (!row) return;
+      let rData = rescueTriageMap[sKey] || { status: "searching", triage: "none", note: "", locationFound: "", escortCount: 0 }; let item = null;
+
+      Object.keys(classReports).forEach(k => {
+        let rep = classReports[k]; let gName = rep.grade || k.split(" ")[0] || ""; let cName = rep.className || k.split(" ")[1] || "";
+        let searchInList = function(list, pLabel) { if (list) { let found = list.find(s => (k + "_" + s.seatRaw) === sKey); if (found) item = { classKey: k, student: found, studentKey: sKey, gradeName: gName, className: cName, pulloutLabel: pLabel }; } };
+        searchInList(rep.missing, null); searchInList(rep.studyCenter, "學習中心教室"); searchInList(rep.nativeLang, "本土語教室"); searchInList(rep.team, "團隊活動地點");
+      });
+
+      if (!item && sKey.startsWith("校外人士_")) {
+        let vTitle = sKey.replace("校外人士_", ""); let vObj = visitorList.find(v => v.title === vTitle);
+        if (vObj) item = { classKey: "校外人士", student: { seatRaw: vObj.seq + "號", name: vObj.title + (vObj.note ? " (" + vObj.note + ")" : ""), phone: "", teacher: "校外人士無導師", teacherPhone: "" }, studentKey: sKey, gradeName: "校外人士", className: "校外人員", pulloutLabel: "校外失蹤" };
+      }
+
+      if (!item) return;
+      let s = item.student; let defaultLocDesc = rData.locationFound || (item.pulloutLabel ? "📌 抽離失蹤 (" + item.pulloutLabel + ")" : "");
+      let statusBtns = '<div><button class="btn-rescue-opt ' + (rData.status === "searching" ? "active-searching" : "") + '" onclick="updateRescueStatus(\'' + sKey + '\', \'searching\')">🔍 1. 搜救中</button><button class="btn-rescue-opt ' + (rData.status === "injured" ? "active-injured" : "") + '" onclick="updateRescueStatus(\'' + sKey + '\', \'injured\')">🚑 2. 受傷轉介救護</button><button class="btn-rescue-opt ' + (rData.status === "safe" ? "active-safe" : "") + '" onclick="updateRescueStatus(\'' + sKey + '\', \'safe\')">🟢 3. 安全送班</button></div><input type="text" style="width:100%; margin-top:2px; font-size:0.8rem; padding:4px; border:1px solid #1F4E79; border-radius:6px;" placeholder="📌 發現地點描述..." value="' + defaultLocDesc + '" oninput="updateRescueLocation(\'' + sKey + '\', this.value)">';
+
+      let triageBtns = '';
+      if (rData.status === "injured") {
+        let phoneHref = getPhoneHref(s.phone); let displayPhone = (securityMode === "drill") || isSiteLocked ? '<span class="masked-phone" onclick="verifyPasswordToUnlockPhone()">🔒 ***-*** (個資防護中)</span>' : '<a class="phone-link" href="' + phoneHref + '">📞 ' + (s.phone || '無電話') + '</a>';
+        let escortBtnsHtml = '';
+        if (rData.triage === "yellow" || rData.triage === "red") escortBtnsHtml = '<div style="margin-top:4px; font-size:0.8rem; color:#dc3545; font-weight:bold; display:flex; align-items:center; gap:3px; flex-wrap:wrap;"><span>陪同就醫:</span><button class="btn-escort-opt ' + (rData.escortCount === 1 ? "active" : "") + '" onclick="updateRescueEscort(\'' + sKey + '\', 1)">1人</button><button class="btn-escort-opt ' + (rData.escortCount === 2 ? "active" : "") + '" onclick="updateRescueEscort(\'' + sKey + '\', 2)">2人</button><button class="btn-escort-opt ' + (rData.escortCount === 3 ? "active" : "") + '" onclick="updateRescueEscort(\'' + sKey + '\', 3)">3人</button><button class="btn-escort-opt ' + (rData.escortCount === 4 ? "active" : "") + '" onclick="updateRescueEscort(\'' + sKey + '\', 4)">4人</button></div>';
+        let isFinalized = !!searchStatusMap[sKey]; let okBtnBg = isFinalized ? "#6c757d" : "#28a745"; let okBtnText = isFinalized ? "🔄 已送出" : "✅ OK確認";
+        triageBtns = '<div style="margin-top:2px;"><div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><button class="btn-triage-opt ' + (rData.triage === "green" ? "active-green" : "") + '" onclick="updateRescueTriage(\'' + sKey + '\', \'green\')">🟢 綠卡</button><button class="btn-triage-opt ' + (rData.triage === "yellow" ? "active-yellow" : "") + '" onclick="updateRescueTriage(\'' + sKey + '\', \'yellow\')">🟡 黃卡</button><button class="btn-triage-opt ' + (rData.triage === "red" ? "active-red" : "") + '" onclick="updateRescueTriage(\'' + sKey + '\', \'red\')">🔴 紅卡</button><button style="padding:4px 8px; background:' + okBtnBg + '; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:0.78rem; cursor:pointer; margin-bottom:3px; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.15);" onclick="confirmRescueTriage(\'' + sKey + '\')">' + okBtnText + '</button></div>' + escortBtnsHtml + '<input type="text" id="triageNote_' + sKey + '" style="width:100%; margin-top:4px; font-size:0.8rem; padding:4px; border:1px solid #ccc; border-radius:6px;" placeholder="📝 檢傷傷勢備註 (非必填)..." value="' + (rData.note || '') + '" oninput="updateRescueNote(\'' + sKey + '\', this.value)"><div style="margin-top:4px; font-size:0.78rem; color:#555;">家長聯繫：' + displayPhone + '</div></div>';
+      }
+      let origStatusTag = item.pulloutLabel ? '<small style="color:#d9534f; font-weight:bold; display:block;">(原狀態:' + item.pulloutLabel + ')</small>' : '<small style="color:#721c24; font-weight:normal; display:block;">(原狀態:失蹤)</small>';
+      let noteLocTag = (s.locationTag || s.locationNote) ? '<div style="font-size:0.75rem; color:#dc3545; margin-top:2px;">📌點名備註: ' + (s.locationTag || '') + ' ' + (s.locationNote || '') + '</div>' : '';
+      row.innerHTML = '<td><b>' + item.classKey + '</b></td><td><span class="badge-status-missing">🚨 ' + s.seatRaw + ' ' + s.name + '</span>' + origStatusTag + noteLocTag + '</td><td>' + statusBtns + '</td><td>' + (rData.status === "safe" ? '<span style="color:#155724; font-weight:bold;">🟢 已安全送班</span>' : triageBtns) + '</td>';
+    }
+
+    function renderRescueTable() {
+      let tbody = document.getElementById("rescueTableBody"); if (!tbody) return; tbody.innerHTML = "";
+      let rescueList = [];
+
+      Object.keys(classReports).forEach(k => {
+        let rep = classReports[k];
+        let gName = rep.grade || k.split(" ")[0] || "";
+        let cName = rep.className || k.split(" ")[1] || "";
+
+        if (rep.missing && rep.missing.length > 0) {
+          rep.missing.forEach(s => {
+            let sKey = k + "_" + s.seatRaw;
+            rescueList.push({ classKey: k, student: s, studentKey: sKey, gradeName: gName, className: cName });
+          });
+        }
+
+        let checkPulloutMissing = function(sList, labelText) {
+          if (sList && sList.length > 0) {
+            sList.forEach(s => {
+              let sKey = k + "_" + s.seatRaw;
+              if (pulloutStatusMap[sKey] === 'missing' && !rescueList.some(r => r.studentKey === sKey)) {
+                rescueList.push({ classKey: k, student: s, studentKey: sKey, gradeName: gName, className: cName, pulloutLabel: labelText });
+              }
+            });
+          }
+        };
+        checkPulloutMissing(rep.studyCenter, "學習中心教室");
+        checkPulloutMissing(rep.nativeLang, "本土語教室");
+        checkPulloutMissing(rep.team, "團隊活動地點");
+      });
+
+      visitorList.filter(v => v.status === "missing").forEach(v => {
+        let sKey = "校外人士_" + v.title;
+        if (!rescueList.some(r => r.studentKey === sKey)) {
+          rescueList.push({
+            classKey: "校外人士",
+            student: { seatRaw: v.seq + "號", name: v.title + (v.note ? " (" + v.note + ")" : ""), phone: "", teacher: "校外人士", teacherPhone: "" },
+            studentKey: sKey,
+            gradeName: "校外人士",
+            className: "校外人員",
+            pulloutLabel: "校外失蹤"
+          });
+        }
+      });
+
+      if (rescueList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#155724; font-weight:bold;">🟢 目前尚無救助中案件，人員均安全！</td></tr>';
+        return;
+      }
+
+      function compareTriageCases(a, b) {
+        let rA = rescueTriageMap[a.studentKey] || { status: "searching", triage: "none", locationFound: "", note: "", escortCount: 0 };
+        let rB = rescueTriageMap[b.studentKey] || { status: "searching", triage: "none", locationFound: "", note: "", escortCount: 0 };
+        let compA = !!searchStatusMap[a.studentKey];
+        let compB = !!searchStatusMap[b.studentKey];
+        if (compA !== compB) return compA ? 1 : -1;
+        let gA = gradeSortOrder[a.gradeName] || 99;
+        let gB = gradeSortOrder[b.gradeName] || 99;
+        if (gA !== gB) return gA - gB;
+        let classComp = a.className.localeCompare(b.className, 'zh-Hant', { numeric: true });
+        if (classComp !== 0) return classComp;
+
+        function getTriageRank(r) {
+          if (r.status === "injured") {
+            if (r.triage === "red") return 1;
+            if (r.triage === "yellow") return 2;
+            if (r.triage === "green") return 3;
+            return 5;
+          }
+          if (r.status === "safe") return 4;
+          if (r.status === "searching") return 5;
+          return 99;
+        }
+
+        let rankA = getTriageRank(rA);
+        let rankB = getTriageRank(rB);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.student.seatNum || 0) - (b.student.seatNum || 0);
+      }
+      
+      rescueList.sort(compareTriageCases);
+
+      rescueList.forEach(item => {
+        let sKey = item.studentKey;
+        let row = document.createElement("tr");
+        row.id = "rescue_row_" + sKey;
+        tbody.appendChild(row);
+        renderRescueRowInPlace(sKey);
+      });
+    }
+
+    function updateRescueLocation(key, val) {
+      if (!rescueTriageMap[key]) rescueTriageMap[key] = { status: "searching", triage: "none", note: "", locationFound: "", escortCount: 0 };
+      rescueTriageMap[key].locationFound = val;
+      triggerDebouncedStateSave();
+    }
+
+    function updateRescueEscort(key, count) {
+      if (!rescueTriageMap[key]) rescueTriageMap[key] = { status: "injured", triage: "yellow", note: "", locationFound: "", escortCount: 0 };
+      rescueTriageMap[key].escortCount = count;
+      searchStatusMap[key] = false; 
+
+      if (!contactStates[key]) contactStates[key] = { status: "未聯繫", count: 0 };
+      
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          if (res.searchStatusMap) searchStatusMap = res.searchStatusMap;
+          renderRescueRowInPlace(key); renderSchoolOverview();
+        }
+      }).updateRescueStatusDelta(key, rescueTriageMap[key], false);
+
+      renderRescueRowInPlace(key);
+      renderSchoolOverview();
+    }
+
+    function updateRescueStatus(key, val) {
+      if (!rescueTriageMap[key]) rescueTriageMap[key] = { status: "searching", triage: "none", note: "", locationFound: "", escortCount: 0 };
+      rescueTriageMap[key].status = val;
+      let isSearchDone = (val === "safe");
+
+      if (val === "safe") {
+        searchStatusMap[key] = true;
+        if (pulloutStatusMap[key]) pulloutStatusMap[key] = 'safe'; 
+        if (!contactStates[key]) contactStates[key] = { status: "未聯繫", count: 0 };
+      } else {
+        searchStatusMap[key] = false;
+      }
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          if (res.searchStatusMap) searchStatusMap = res.searchStatusMap;
+          if (res.pulloutStatusMap) pulloutStatusMap = res.pulloutStatusMap;
+          renderSchoolOverview(); renderSummaryTable(); renderPulloutPage(); renderRescueTable();
+        }
+      }).updateRescueStatusDelta(key, rescueTriageMap[key], isSearchDone);
+
+      if (val === "safe") renderRescueTable(); else renderRescueRowInPlace(key);
+      renderSchoolOverview(); renderSummaryTable(); renderPulloutPage();
+    }
+
+    function confirmRescueTriage(key) {
+      let rData = rescueTriageMap[key];
+      if (!rData) return;
+
+      if (rData.triage === "none" || !rData.triage) {
+        alert("⚠️ 請先選擇檢傷分類卡 (🟢綠卡 / 🟡黃卡 / 🔴紅卡)！");
+        return;
+      }
+      
+      if (rData.triage === "yellow" || rData.triage === "red") {
+        if (!rData.escortCount || rData.escortCount === 0) {
+          alert("⚠️ 選擇黃卡/紅卡時，請先點選【陪同就醫人數】才可 OK 送出！");
+          return;
+        }
+      }
+
+      let noteInput = document.getElementById("triageNote_" + key);
+      if (noteInput) {
+        rData.note = noteInput.value.trim();
+      }
+
+      searchStatusMap[key] = true;
+      if (pulloutStatusMap[key]) pulloutStatusMap[key] = 'safe'; 
+
+      if (!contactStates[key]) contactStates[key] = { status: "未聯繫", count: 0 };
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          if (res.searchStatusMap) searchStatusMap = res.searchStatusMap;
+          if (res.pulloutStatusMap) pulloutStatusMap = res.pulloutStatusMap;
+          renderSchoolOverview(); renderSummaryTable(); renderRescueTable(); renderPulloutPage();
+        }
+      }).updateRescueStatusDelta(key, rData, true);
+
+      renderSchoolOverview(); 
+      renderSummaryTable(); 
+      renderRescueTable();
+      renderPulloutPage();
+    }
+
+    function updateRescueTriage(key, val) {
+      if (!rescueTriageMap[key]) rescueTriageMap[key] = { status: "injured", triage: "none", note: "", locationFound: "", escortCount: 0 };
+      
+      if (rescueTriageMap[key].triage !== val) {
+        rescueTriageMap[key].triage = val;
+        rescueTriageMap[key].escortCount = 0; 
+      }
+      searchStatusMap[key] = false; 
+
+      if (!contactStates[key]) contactStates[key] = { status: "未聯繫", count: 0 };
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.rescueTriageMap) rescueTriageMap = res.rescueTriageMap;
+          if (res.searchStatusMap) searchStatusMap = res.searchStatusMap;
+          renderRescueRowInPlace(key); renderSchoolOverview();
+        }
+      }).updateRescueStatusDelta(key, rescueTriageMap[key], false);
+
+      renderRescueRowInPlace(key);
+      renderSchoolOverview();
+    }
+
+    function updateRescueNote(key, val) {
+      if (!rescueTriageMap[key]) rescueTriageMap[key] = { status: "injured", triage: "none", note: "", locationFound: "", escortCount: 0 };
+      rescueTriageMap[key].note = val;
+      triggerDebouncedStateSave();
+    }
+
+    let debouncedStateSaveTimer = null;
+    function triggerDebouncedStateSave() {
+      if (debouncedStateSaveTimer) clearTimeout(debouncedStateSaveTimer);
+      debouncedStateSaveTimer = setTimeout(function() {
+        saveFullSystemStateToBackend();
+      }, 3000);
+    }
+
+    function renderBuildingGrid() {
+      let grid = document.getElementById("buildingCheckGrid"); if (!grid) return; grid.innerHTML = "";
+      
+      Object.keys(buildingStatusMap).forEach(bName => {
+        if (bName === "ALL") return;
+        let bData = buildingStatusMap[bName] || {}; 
+        let card = document.createElement("div"); card.className = "building-card";
+        let cardHtml = '<div class="building-title">🏢 ' + bName + ' 結構安全檢核</div>';
+
+        buildingCheckItems.forEach((itemText, idx) => {
+          let itemKey = "item_" + idx;
+          let isDanger = (bData[itemKey] === true);
+          let btnText = isDanger ? "⚠️ 受損/危險" : "✅ 安全";
+          let btnClass = isDanger ? "btn-building-toggle danger" : "btn-building-toggle safe";
+
+          cardHtml += '<div class="building-check-item">' +
+            '<span>' + itemText + '</span>' +
+            '<button class="' + btnClass + '" onclick="toggleBuildingItem(\'' + bName + '\', \'' + itemKey + '\')">' + btnText + '</button>' +
+          '</div>';
+        });
+
+        let isSubmitted = (bData.submitted === true);
+        let btnBg = isSubmitted ? "#28a745" : "#fd7e14";
+        let btnLabel = isSubmitted ? "✅ 已檢核完畢 (已存檔)" : "檢核完畢送出 (請送出紀錄)";
+
+        cardHtml += '<input type="text" id="bNoteInput_' + bName + '" style="width:100%; margin-top:6px; font-size:0.8rem; padding:5px; border:1px solid #ccc; border-radius:6px;" placeholder="📌 建築物損毀詳細現況說明..." value="' + (bData.note || '') + '" oninput="onBuildingNoteInput(\'' + bName + '\', this.value)">';
+        cardHtml += '<button id="bSubmitBtn_' + bName + '" class="btn-submit" onclick="submitBuildingCheck(\'' + bName + '\')" style="margin-top:8px; padding:10px; font-size:0.88rem; background:' + btnBg + ';">' + btnLabel + '</button>';
+
+        card.innerHTML = cardHtml;
+        grid.appendChild(card);
+      });
+    }
+
+    let buildingAutoSaveTimers = {};
+    function onBuildingNoteInput(bName, val) {
+      if (!buildingStatusMap[bName]) buildingStatusMap[bName] = {};
+      buildingStatusMap[bName].note = val;
+      buildingStatusMap[bName].submitted = false;
+      
+      let btn = document.getElementById("bSubmitBtn_" + bName);
+      if (btn) {
+        btn.style.background = "#fd7e14";
+        btn.innerText = "檢核完畢送出 (請送出紀錄)";
+      }
+
+      if (buildingAutoSaveTimers[bName]) clearTimeout(buildingAutoSaveTimers[bName]);
+      buildingAutoSaveTimers[bName] = setTimeout(function() {
+        google.script.run.updateBuildingStatusDelta(bName, buildingStatusMap[bName]);
+        renderSchoolOverview();
+      }, 3000);
+    }
+
+    function toggleBuildingItem(bName, itemKey) {
+      if (!buildingStatusMap[bName]) buildingStatusMap[bName] = {};
+      buildingStatusMap[bName][itemKey] = !buildingStatusMap[bName][itemKey];
+      buildingStatusMap[bName].submitted = false; 
+      google.script.run.updateBuildingStatusDelta(bName, buildingStatusMap[bName]);
+      renderBuildingGrid();
+      renderSchoolOverview();
+    }
+
+    function submitBuildingCheck(bName) {
+      if (!buildingStatusMap[bName]) buildingStatusMap[bName] = {};
+      buildingStatusMap[bName].submitted = true; 
+      
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.buildingStatusMap) buildingStatusMap = res.buildingStatusMap;
+          if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"];
+          renderBuildingGrid();
+          renderSchoolOverview();
+          alert("✅ " + bName + " 建築安全檢核紀錄已成功送出存檔！");
+        } else {
+          alert("❌ 存檔失敗，請稍後再試。");
+        }
+      }).updateBuildingStatusDelta(bName, buildingStatusMap[bName]);
+
+      renderBuildingGrid();
+      renderSchoolOverview();
+    }
+
+    function executeBackendStressTest() {
+      let currentSimMode = document.getElementById("simTimeSelect").value || "mon_am";
+      if (!confirm("⚠️ 確定要執行當前在校班級併發壓力測試嗎？\n系統將自動對實際在校班級進行模擬點名寫入。")) return;
+      
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          alert("✅ 當前在校班級併發壓力測試完成！\n\n當前模擬時段：" + currentSimMode + "\n實際測試班級數：" + res.totalClasses + " 班\n總模擬學生人數：" + res.totalStudents + " 人\n處理時間：" + res.totalDurationSec + " s\n\n📊 壓力測試紀錄已同步寫入試算表【StressTestLogs】分頁。");
+          google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
+        } else { alert("❌ 測試失敗：" + (res ? res.error : "未知原因")); }
+      }).runStressTest(currentSimMode);
+    }
+
+    function showLatestStressClassList() {
+      document.getElementById("modalBody").innerHTML = "載入名單明細中...";
+      document.getElementById("stressModal").style.display = "flex";
+
+      google.script.run.withSuccessHandler(function(data) {
+        let body = document.getElementById("modalBody");
+        if (data.error) {
+          body.innerHTML = '<div style="color:#dc3545; font-weight:bold;">⚠️ ' + data.error + '</div>';
+          rawStressClassText = "";
+        } else {
+          rawStressClassText = "📋 壓力測試班級名單 (共 " + data.selectedClassesCount + " 班)\n\n" + data.classList.join("\n");
+          
+          let groupedMap = {};
+          data.classList.forEach(cKey => {
+            let parts = cKey.split(" ");
+            let gName = parts[0];
+            let cName = parts[1] || parts[0];
+            if (!groupedMap[gName]) groupedMap[gName] = [];
+            groupedMap[gName].push(cName);
+          });
+
+          let sortedGrades = Object.keys(groupedMap).sort((a, b) => (gradeSortOrder[a] || 99) - (gradeSortOrder[b] || 99));
+
+          let html = '<div style="margin-bottom:10px; color:#1F4E79; font-weight:bold; font-size:0.85rem;">' +
+                     '🕒 演練模式：' + data.simTimeMode + ' | 當前在校測試班級數：' + data.selectedClassesCount + ' 班' +
+                     '</div>';
+
+          sortedGrades.forEach(gName => {
+            html += '<div style="margin-top:8px; font-weight:bold; color:#2c3e50; border-bottom:1px solid #ddd; padding-bottom:2px;">📌 ' + gName + '</div>';
+            html += '<div class="badge-grid-container">';
+            groupedMap[gName].forEach(cName => {
+              html += '<div class="class-badge-item">' + cleanClassLabel(cName) + '</div>';
+            });
+            html += '</div>';
+          });
+
+          body.innerHTML = html;
+        }
+      }).getLatestStressTestClassList();
+    }
+
+    function closeStressModal() {
+      document.getElementById("stressModal").style.display = "none";
+    }
+
+    function copyStressModalText() {
+      if (!rawStressClassText) {
+        alert("⚠️ 目前無壓測名單可供複製。");
+        return;
+      }
+      navigator.clipboard.writeText(rawStressClassText).then(function() {
+        alert("✅ 最新壓力測試班級名單已成功複製至剪貼簿！");
+      }).catch(function(err) {
+        alert("複製失敗：" + err);
+      });
+    }
+
+    function resetAllDataWithPassword() {
+      let pwd = prompt("🔑 請輸入指揮中心授權管理密碼："); if (pwd === null) return;
+      if (pwd === ADMIN_RESET_PASSWORD) {
+        if (confirm("⚠️ 密碼驗證成功！確定要清空並重置全校點名紀錄與建築物檢核狀態嗎？")) {
+          google.script.run.withSuccessHandler(function() {
+            classReports = {}; contactStates = {}; searchStatusMap = {}; searchNotesMap = {}; helpRequestMap = {}; assigneeMap = {}; rescueTriageMap = {}; pulloutStatusMap = {}; visitorList = [];
+            visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+            
+            buildingStatusMap = {
+              "慈愛樓": {}, "至善樓": {}, "維揚樓": {}, "樂群樓": {}, "弘德樓": {}, "中山樓": {}
+            };
+            google.script.run.saveBuildingStatus(buildingStatusMap);
+
+            renderSchoolOverview(); 
+            renderPulloutPage();
+            renderSummaryTable(); 
+            renderRescueTable(); 
+            renderBuildingGrid();
+
+            if (currentClassStudents.length > 0) { currentClassStudents.forEach(s => studentStatusMap[s.seatRaw] = 'present'); renderMatrix(); }
+            alert("✅ 全校點名紀錄與建築物檢核狀態已成功歸零重置！");
+          }).clearAllReports();
+        }
+      } else alert("❌ 密碼錯誤！無法執行重置動作。");
+    }
+
+    // ==========================================
+    // 全校點名概況與動態人數彙整 (完整修復版)
+    // ==========================================
+    function renderSchoolOverview() {
+      let container = document.getElementById("schoolOverviewContainer");
+      if (!container) return;
+      container.innerHTML = "";
+      if (!allStudents || allStudents.length === 0) {
+        container.innerHTML = '<div style="color:#666; font-size:0.85rem;">目前試算表中尚無學生資料。</div>';
+        return;
+      }
+
+      // 1. 群組化所有學生資料
+      let gradeGroupMap = {};
+      allStudents.forEach(s => {
+        let gName = s.grade;
+        if (!gradeGroupMap[gName]) gradeGroupMap[gName] = new Set();
+        gradeGroupMap[gName].add(s.className);
+      });
+
+      // 2. 嚴格依據 Config 表篩選「當前時段有班級在校」的年級
+      let gradeList = Object.keys(gradeGroupMap).filter(g => isClassActiveAtTime(g, ""));
+      if (gradeList.length === 0) {
+        container.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:10px; text-align:center; background:#e8f4f8; border-radius:6px;">⚠️ 當前時段全校均非在校時間（無班級在校）。</div>';
+        // 清空口頭報告數據
+        document.getElementById("spTotal").innerText = 0;
+        document.getElementById("spLeave").innerText = 0;
+        document.getElementById("spHospital").innerText = 0;
+        document.getElementById("spEscort").innerText = 0;
+        document.getElementById("spPresent").innerText = 0;
+        document.getElementById("spVisitor").innerText = visitorList.length;
+        document.getElementById("spRescuing").innerText = 0;
+        document.getElementById("calcBreakdownContainer").innerHTML = '<span class="calc-breakdown-pill">總計在校: 0人</span>';
+        document.getElementById("calcTotalLabel").innerText = 0;
+        return;
+      }
+
+      // 年級排序
+      gradeList.sort((a, b) => (gradeSortOrder[a] || 99) - (gradeSortOrder[b] || 99));
+
+      let grandTotal = 0, grandPresent = 0, grandLeave = 0, grandHospital = 0, grandEscort = 0, grandRescuing = 0;
+      let breakdownHtml = "";
+
+      // 3. 逐一年級渲染區塊與班級卡片
+      gradeList.forEach(gradeName => {
+        let gradeDiv = document.createElement("div");
+        gradeDiv.className = "grade-section";
+        let header = document.createElement("div");
+        header.className = "grade-section-header";
+        let title = document.createElement("div");
+        title.className = "grade-section-title";
+        title.innerText = "🏫 " + gradeName;
+        header.appendChild(title);
+
+        // 嚴格依據 Config 表篩選該年級「當前時段在校」的班級
+        let classList = Array.from(gradeGroupMap[gradeName]).filter(c => isClassActiveAtTime(gradeName, c));
+        classList.sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
+
+        if (classList.length === 0) return; // 該年級無班級在校則跳過
+
+        let gPresentTotal = 0, gLeaveTotal = 0, gMissingTotal = 0, gTotal = 0, gDoneTotal = 0;
+
+        classList.forEach(cName => {
+          let fullKey = gradeName + " " + cName;
+          let rep = classReports[fullKey];
+
+          if (rep) {
+            gTotal += (rep.total || 0);
+            let classPresent = rep.presentCount || 0;
+
+            // 抽離學生安全狀態統計
+            let checkPullout = function(sList) {
+              if (sList && sList.length > 0) {
+                sList.forEach(s => {
+                  let sKey = fullKey + "_" + s.seatRaw;
+                  let pState = pulloutStatusMap[sKey] || 'pending';
+                  let isDone = !!searchStatusMap[sKey];
+
+                  if (pState === 'safe' || isDone) {
+                    classPresent++;
+                  } else {
+                    gMissingTotal++;
+                    grandRescuing++;
+                  }
+                });
+              }
+            };
+
+            checkPullout(rep.studyCenter);
+            checkPullout(rep.nativeLang);
+            checkPullout(rep.team);
+
+            gPresentTotal += classPresent;
+            gLeaveTotal += (rep.leave ? rep.leave.length : 0);
+
+            // 失蹤搜救與送醫處置統計
+            if (rep.missing) {
+              rep.missing.forEach(m => {
+                let mKey = fullKey + "_" + m.seatRaw;
+                if (searchStatusMap[mKey] && contactStates[mKey] && contactStates[mKey].status === "已聯繫") {
+                  gDoneTotal++;
+                } else if (!searchStatusMap[mKey]) {
+                  gMissingTotal++;
+                  grandRescuing++;
+                }
+
+                let rData = rescueTriageMap[mKey];
+                if (rData && rData.status === "injured") {
+                  if (rData.triage === "yellow" || rData.triage === "red") {
+                    grandHospital++;
+                    grandEscort += (rData.escortCount || 0);
+                  }
+                }
+              });
+            }
+          } else {
+            // 尚未點名回報時，由原始學生名單統計應到人數
+            let rawCount = allStudents.filter(s => s.grade === gradeName && s.className === cName).length;
+            gTotal += rawCount;
+          }
+        });
+
+        grandTotal += gTotal;
+        grandPresent += gPresentTotal;
+        grandLeave += gLeaveTotal;
+
+        breakdownHtml += '<span class="calc-breakdown-pill">' + gradeName + ' (' + classList.length + '班): ' + gTotal + '人</span>';
+
+        let statsSummary = document.createElement("div");
+        statsSummary.className = "grade-stats-summary";
+        statsSummary.innerHTML = '應到:' + gTotal + ' | 實:<span style="color:#155724;">' + gPresentTotal + '</span> | 假:<span style="color:#856404;">' + gLeaveTotal + '</span> | 失:<span style="color:#721c24;">' + gMissingTotal + '</span> | 結:<span style="color:#0f5132;">' + gDoneTotal + '</span>';
+        header.appendChild(statsSummary);
+        gradeDiv.appendChild(header);
+
+        // 班級狀態卡片矩陣
+        let grid = document.createElement("div");
+        grid.className = "school-overview-grid";
+
+        classList.forEach(cName => {
+          let fullKey = gradeName + " " + cName;
+          let rep = classReports[fullKey];
+          let card = document.createElement("div");
+          card.onclick = function() { scrollToClassRow(fullKey); };
+          let shortClassName = cleanClassLabel(cName, gradeName);
+
+          if (!rep) {
+            card.className = "class-status-card";
+            card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">待填報</span>';
+          } else {
+            let missingCount = rep.missing ? rep.missing.length : 0;
+            let leaveCount = rep.leave ? rep.leave.length : 0;
+            let presentCount = rep.presentCount || 0;
+
+            let pulloutPendingOrMissing = 0;
+            let checkPulloutCard = function(sList) {
+              if (sList && sList.length > 0) {
+                sList.forEach(s => {
+                  let sKey = fullKey + "_" + s.seatRaw;
+                  let pState = pulloutStatusMap[sKey] || 'pending';
+                  let isDone = !!searchStatusMap[sKey];
+                  if (pState === 'safe' || isDone) {
+                    presentCount++;
+                  } else {
+                    pulloutPendingOrMissing++;
+                  }
+                });
+              }
+            };
+            checkPulloutCard(rep.studyCenter);
+            checkPulloutCard(rep.nativeLang);
+            checkPulloutCard(rep.team);
+
+            let allMissingKeys = [];
+            if (rep.missing) rep.missing.forEach(m => allMissingKeys.push(fullKey + "_" + m.seatRaw));
+
+            let collectPulloutMissing = function(sList) {
+              if (sList) {
+                sList.forEach(s => {
+                  let sKey = fullKey + "_" + s.seatRaw;
+                  if (pulloutStatusMap[sKey] === 'missing' && !allMissingKeys.includes(sKey)) {
+                    allMissingKeys.push(sKey);
+                  }
+                });
+              }
+            };
+            collectPulloutMissing(rep.studyCenter);
+            collectPulloutMissing(rep.nativeLang);
+            collectPulloutMissing(rep.team);
+
+            let totalDisplayMissing = missingCount + pulloutPendingOrMissing;
+            let allMissingSearchDone = false;
+            let allMissingContactDone = false;
+
+            if (allMissingKeys.length > 0) {
+              allMissingSearchDone = allMissingKeys.every(sKey => !!searchStatusMap[sKey]);
+              allMissingContactDone = allMissingKeys.every(sKey => contactStates[sKey] && contactStates[sKey].status === "已聯繫");
+            }
+
+            if (totalDisplayMissing === 0 && leaveCount === 0) {
+              card.className = "class-status-card all-present";
+              card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">實' + presentCount + '/假0/失0</span>';
+            } else if (totalDisplayMissing === 0) {
+              card.className = "class-status-card has-leave";
+              card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">實' + presentCount + '/假' + leaveCount + '/失0</span>';
+            } else if (allMissingSearchDone && allMissingContactDone) {
+              card.className = "class-status-card search-contact-all-done";
+              card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">實' + presentCount + '/假' + leaveCount + '/已結案' + totalDisplayMissing + '</span>';
+            } else if (allMissingSearchDone) {
+              card.className = "class-status-card search-all-done";
+              card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">實' + presentCount + '/假' + leaveCount + '/已結案' + totalDisplayMissing + '</span>';
+            } else {
+              card.className = "class-status-card has-missing";
+              card.innerHTML = '<span class="class-name-num">' + shortClassName + '</span><span class="count-tag">實' + presentCount + '/假' + leaveCount + '/失' + totalDisplayMissing + '</span>';
+            }
+          }
+          grid.appendChild(card);
+        });
+
+        gradeDiv.appendChild(grid);
+        container.appendChild(gradeDiv);
+      });
+
+      // 4. 校外人士彙整
+      let totalVisitors = visitorList.length;
+      let safeVisitors = visitorList.filter(v => v.status === "safe").length;
+      let missingVisitors = visitorList.filter(v => v.status === "missing").length;
+      grandRescuing += missingVisitors;
+
+      let vSummarySection = document.createElement("div");
+      vSummarySection.className = "grade-section";
+      vSummarySection.style.background = "rgba(235, 243, 250, 0.9)";
+      vSummarySection.style.border = "1px solid #17a2b8";
+
+      let vHeader = document.createElement("div");
+      vHeader.className = "grade-section-header";
+      vHeader.innerHTML = '<div class="grade-section-title" style="color:#17a2b8;">👥 校外 / 臨時人員動態彙整</div>' +
+        '<div class="grade-stats-summary" style="border-color:#17a2b8;">登錄總數: <b>' + totalVisitors + '</b> 人 | 🟢現場出席: <span style="color:#155724;">' + safeVisitors + '</span> | 🔴失蹤搜救: <span style="color:#dc3545;">' + missingVisitors + '</span></div>';
+      vSummarySection.appendChild(vHeader);
+
+      let vGrid = document.createElement("div");
+      vGrid.className = "school-overview-grid";
+      vGrid.style.marginTop = "4px";
+
+      const catKeys = [
+        { type: "student", label: "🎒 學生" },
+        { type: "teacher", label: "👨🏫 代課" },
+        { type: "parent", label: "🤝 訪客" },
+        { type: "vendor", label: "👷 廠商" }
+      ];
+
+      catKeys.forEach(cat => {
+        let catItems = visitorList.filter(v => v.type === cat.type);
+        let catTotal = catItems.length;
+        let catSafe = catItems.filter(v => v.status === "safe").length;
+        let catMissing = catItems.filter(v => v.status === "missing").length;
+
+        let vCard = document.createElement("div");
+        vCard.className = "class-status-card";
+        vCard.style.minWidth = "110px";
+
+        if (catTotal === 0) {
+          vCard.innerHTML = '<span class="class-name-num">' + cat.label + '</span><span class="count-tag">未登記 (0人)</span>';
+        } else if (catMissing > 0) {
+          vCard.className = "class-status-card has-missing";
+          vCard.innerHTML = '<span class="class-name-num">' + cat.label + '</span><span class="count-tag">共' + catTotal + '人 (失' + catMissing + ')</span>';
+        } else {
+          vCard.className = "class-status-card all-present";
+          vCard.innerHTML = '<span class="class-name-num">' + cat.label + '</span><span class="count-tag">出席' + catSafe + '人/失0</span>';
+        }
+        vGrid.appendChild(vCard);
+      });
+
+      vSummarySection.appendChild(vGrid);
+      container.appendChild(vSummarySection);
+
+      // 5. 更新數據膠囊與指揮官總覽
+      breakdownHtml += '<span class="calc-breakdown-pill" style="background:#1F4E79; color:#fff;">總計在校: ' + grandTotal + '人</span>';
+      document.getElementById("calcBreakdownContainer").innerHTML = breakdownHtml;
+      document.getElementById("calcTotalLabel").innerText = grandTotal;
+
+      let finalExpectedTotal = (approvedCustomTotal !== null) ? approvedCustomTotal : grandTotal;
+      document.getElementById("spTotal").innerText = finalExpectedTotal;
+      document.getElementById("spLeave").innerText = grandLeave;
+      document.getElementById("spHospital").innerText = grandHospital;
+      document.getElementById("spEscort").innerText = grandEscort;
+      document.getElementById("spPresent").innerText = grandPresent;
+      document.getElementById("spVisitor").innerText = totalVisitors;
+      document.getElementById("spRescuing").innerText = grandRescuing;
+
+      // 6. 建物安全標籤動態
+      let bTagsContainer = document.getElementById("buildingStatusTagContainer");
+      if (bTagsContainer) {
+        let bTagHtml = "";
+        Object.keys(buildingStatusMap).forEach(bName => {
+          if (bName === "ALL") return;
+          let bData = buildingStatusMap[bName] || {};
+          let isSubmitted = (bData.submitted === true);
+          let hasDanger = false;
+
+          buildingCheckItems.forEach((_, idx) => {
+            if (bData["item_" + idx] === true) hasDanger = true;
+          });
+
+          if (isSubmitted && hasDanger) {
+            bTagHtml += '<span class="building-status-tag danger">🔴 ' + bName + ': 受損</span>';
+          } else if (isSubmitted) {
+            bTagHtml += '<span class="building-status-tag safe">🟢 ' + bName + ': 安全</span>';
+          } else {
+            bTagHtml += '<span class="building-status-tag pending">⏳ ' + bName + ': 待檢</span>';
+          }
+        });
+        bTagsContainer.innerHTML = bTagHtml;
+      }
+    }
+
+    function approveCalculatedTotal() {
+      let calcVal = parseInt(document.getElementById("calcTotalLabel").innerText, 10) || 0;
+      approvedCustomTotal = calcVal;
+      renderSchoolOverview();
+      alert("✅ 指揮官已採納試算數（在校應出席：" + calcVal + " 人）！");
+    }
+
+    function setCustomTotalAttendance() {
+      let val = prompt("✏️ 請輸入全校自訂應出席總人數：", approvedCustomTotal !== null ? approvedCustomTotal : "2143");
+      if (val !== null && !isNaN(parseInt(val, 10))) {
+        approvedCustomTotal = parseInt(val, 10);
+        renderSchoolOverview();
+        alert("✅ 已成功自訂全校應出席人數為：" + approvedCustomTotal + " 人");
+      }
+    }
+
+    function scrollToClassRow(classKey) {
+      let targetRow = document.getElementById("row_active_" + classKey) || document.getElementById("row_done_" + classKey);
+      if (targetRow) targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else alert("ℹ️ " + classKey + " 目前無失蹤學生，無需進一步搜救追蹤。");
+    }
+
+    function scrollToOverviewTop() {
+      let topAnchor = document.getElementById("overviewTopAnchor"); if (topAnchor) topAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderSummaryTable() {
+      let tbodyActive = document.getElementById("summaryTableActive"); let tbodyDone = document.getElementById("summaryTableDone");
+      tbodyActive.innerHTML = ""; tbodyDone.innerHTML = "";
+      
+      let keys = Object.keys(classReports); let activeCount = 0, doneCount = 0; let allMissingItems = [];
+
+      keys.forEach(k => {
+        let rep = classReports[k]; let gName = rep.grade || k.split(" ")[0] || ""; let cName = rep.className || k.split(" ")[1] || "";
+        
+        if (rep.missing && rep.missing.length > 0) {
+          rep.missing.forEach((s, idx) => {
+            let studentKey = k + "_" + s.seatRaw;
+            if (!contactStates[studentKey]) contactStates[studentKey] = { status: "未聯繫", count: 0 };
+            let state = contactStates[studentKey]; let isSearchDone = !!searchStatusMap[studentKey]; let isHelpReq = !!helpRequestMap[studentKey];
+
+            let originalStudentData = allStudents.find(orig => orig.grade === gName && orig.className === cName && orig.seatRaw === s.seatRaw);
+            let teacherName = s.teacher || (originalStudentData ? originalStudentData.teacher : '');
+            let teacherPhone = s.teacherPhone || (originalStudentData ? originalStudentData.teacherPhone : '');
+
+            allMissingItems.push({
+              classKey: k, gradeName: gName, className: cName, student: { ...s, teacher: teacherName, teacherPhone: teacherPhone },
+              studentKey: studentKey, state: state, isSearchDone: isSearchDone, isHelpReq: isHelpReq, isFirstInClass: idx === 0, pulloutLabel: null
+            });
+          });
+        }
+
+        let checkPulloutMissing = function(sList, labelText) {
+          if (sList && sList.length > 0) {
+            sList.forEach((s, idx) => {
+              let studentKey = k + "_" + s.seatRaw;
+              if (pulloutStatusMap[studentKey] === 'missing' && !allMissingItems.some(item => item.studentKey === studentKey)) {
+                if (!contactStates[studentKey]) contactStates[studentKey] = { status: "未聯繫", count: 0 };
+                let state = contactStates[studentKey]; let isSearchDone = !!searchStatusMap[studentKey]; let isHelpReq = !!helpRequestMap[studentKey];
+
+                let originalStudentData = allStudents.find(orig => orig.grade === gName && orig.className === cName && orig.seatRaw === s.seatRaw);
+                let teacherName = s.teacher || (originalStudentData ? originalStudentData.teacher : '');
+                let teacherPhone = s.teacherPhone || (originalStudentData ? originalStudentData.teacherPhone : '');
+
+                allMissingItems.push({
+                  classKey: k, gradeName: gName, className: cName, student: { ...s, teacher: teacherName, teacherPhone: teacherPhone },
+                  studentKey: studentKey, state: state, isSearchDone: isSearchDone, isHelpReq: isHelpReq, isFirstInClass: false, pulloutLabel: labelText
+                });
+              }
+            });
+          }
+        };
+        checkPulloutMissing(rep.studyCenter, "學習中心");
+        checkPulloutMissing(rep.nativeLang, "本土語");
+        checkPulloutMissing(rep.team, "團隊");
+      });
+
+      visitorList.filter(v => v.status === "missing").forEach(v => {
+        let studentKey = "校外人士_" + v.title;
+        if (!allMissingItems.some(item => item.studentKey === studentKey)) {
+          if (!contactStates[studentKey]) contactStates[studentKey] = { status: "未聯繫", count: 0 };
+          let state = contactStates[studentKey]; let isSearchDone = !!searchStatusMap[studentKey]; let isHelpReq = !!helpRequestMap[studentKey];
+
+          allMissingItems.push({
+            classKey: "校外人士", gradeName: "校外人士", className: "校外人員",
+            student: { seatRaw: v.seq + "號", name: v.title + (v.note ? " (" + v.note + ")" : ""), phone: "", teacher: "無導師", teacherPhone: "" },
+            studentKey: studentKey, state: state, isSearchDone: isSearchDone, isHelpReq: isHelpReq, isFirstInClass: false, pulloutLabel: "校外失蹤"
+          });
+        }
+      });
+
+      allMissingItems.sort((a, b) => {
+        let isCompA = a.isSearchDone && (a.state.status === "已聯繫");
+        let isCompB = b.isSearchDone && (b.state.status === "已聯繫");
+        if (isCompA !== isCompB) return isCompA ? 1 : -1;
+
+        let gA = gradeSortOrder[a.gradeName] || 99;
+        let gB = gradeSortOrder[b.gradeName] || 99;
+        if (gA !== gB) return gA - gB;
+
+        let classComp = a.className.localeCompare(b.className, 'zh-Hant', { numeric: true });
+        if (classComp !== 0) return classComp;
+
+        let rA = rescueTriageMap[a.studentKey] || { status: "searching", triage: "none" };
+        let rB = rescueTriageMap[b.studentKey] || { status: "searching", triage: "none" };
+        
+        function getRank(r) {
+          if (r.status === "injured") {
+            if (r.triage === "red") return 1;
+            if (r.triage === "yellow") return 2;
+            if (r.triage === "green") return 3;
+            return 5;
+          }
+          if (r.status === "safe") return 4;
+          if (r.status === "searching") return 5;
+          return 99;
+        }
+        
+        let rankA = getRank(rA);
+        let rankB = getRank(rB);
+        if (rankA !== rankB) return rankA - rankB;
+
+        return (a.student.seatNum || 0) - (b.student.seatNum || 0);
+      });
+
+      allMissingItems.forEach(item => {
+        let k = item.classKey; let s = item.student; let studentKey = item.studentKey; let state = item.state;
+        let isSearchDone = item.isSearchDone; let isHelpReq = item.isHelpReq;
+        let assigneeName = assigneeMap[studentKey] || '';
+
+        let rData = rescueTriageMap[studentKey] || { status: "searching", triage: "none", note: "", locationFound: "" };
+        let isCaseCompleted = isSearchDone && (state.status === "已聯繫");
+
+        let locText = "";
+        if (s.locationTag || s.locationNote) {
+          let partsLoc = []; if (s.locationTag) partsLoc.push(s.locationTag); if (s.locationNote) partsLoc.push(s.locationNote);
+          locText = '<br><small style="color:#d9534f; font-weight:bold;">📌 ' + partsLoc.join(" / ") + '</small>';
+        }
+
+        let phoneHref = getPhoneHref(s.phone); let teacherPhoneHref = getPhoneHref(s.teacherPhone);
+        let displayParentPhone = (securityMode === "drill" && !isUnlockedByPassword) || isSiteLocked ? 
+          '<span class="masked-phone" onclick="verifyPasswordToUnlockPhone()">🔒 ***-***</span>' : 
+          '<a class="phone-link" href="' + phoneHref + '">📞 ' + (s.phone || '無電話') + '</a>';
+
+        let row = document.createElement("tr");
+        if (isCaseCompleted) row.id = item.isFirstInClass ? "row_done_" + k : "row_done_" + studentKey;
+        else { row.id = item.isFirstInClass ? "row_active_" + k : "row_active_" + studentKey; if (isHelpReq) row.className = "help-requested"; }
+
+        let helpTagHtml = (isHelpReq && !isCaseCompleted) ? '<br><span style="color:#dc3545; font-weight:bold; font-size:0.7rem;">🚨 請求協助</span>' : '';
+        let teacherCellHtml = s.teacher ? '<b>' + s.teacher + '</b>' + (s.teacherPhone ? '<br><a class="phone-link" style="padding:1px 4px; font-size:0.7rem;" href="' + teacherPhoneHref + '">📞 撥打導師</a>' : '') : '無導師資訊';
+
+        let badgeHtml = '<span class="badge-status-missing">🚨 搜救中</span>';
+        if (rData.status === "safe") badgeHtml = '<span class="badge-status-found">🟢 安全送班</span>';
+        else if (rData.status === "injured") {
+          if (rData.triage === "green") badgeHtml = '<span class="badge-status-found">🟢 綠卡輕傷</span>';
+          else if (rData.triage === "yellow") badgeHtml = '<span class="badge-status-yellow">🟡 黃卡送醫</span>';
+          else if (rData.triage === "red") badgeHtml = '<span class="badge-status-red">🔴 紅卡送醫</span>';
+          else badgeHtml = '<span style="background:#fd7e14; color:#fff; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:0.72rem;">🚑 轉介救護</span>';
+        } else if (isSearchDone) {
+          badgeHtml = '<span class="badge-status-found">✅ 已尋獲</span>';
+        }
+
+        let descText = rData.locationFound ? "📌 " + rData.locationFound : "";
+        if (rData.note) descText += (descText ? " | " : "") + "📝 " + rData.note;
+        if (!descText && searchNotesMap[studentKey]) descText = searchNotesMap[studentKey];
+
+        let origStatusTag = item.pulloutLabel ? 
+          '<small style="color:#d9534f; font-weight:bold; display:block;">(原狀態:' + item.pulloutLabel + ')</small>' : 
+          '<small style="color:#721c24; font-weight:normal; display:block;">(原狀態:失蹤)</small>';
+
+        row.innerHTML = '<td><b>' + k + '</b></td>' +
+          '<td><b>' + s.seatRaw + ' ' + s.name + '</b>' + origStatusTag + locText + helpTagHtml + '</td>' +
+          '<td>' + teacherCellHtml + '</td>' +
+          '<td><label style="cursor:pointer; font-weight:bold;"><input type="checkbox" ' + (isSearchDone ? "checked" : "") + ' onchange="toggleSearchDone(\'' + studentKey + '\', this.checked)"> 完結</label><br>' + badgeHtml + '</td>' +
+          '<td><input type="text" class="search-note-input" placeholder="📌 尋獲地點與描述..." value="' + descText + '" oninput="updateSearchNote(\'' + studentKey + '\', this.value)"></td>' +
+          '<td>' + (s.parent || '家長') + '<br>' + displayParentPhone + '</td>' +
+          '<td><div class="contact-row-container"><div><label><input type="radio" name="tc_' + studentKey + '" value="未聯繫" ' + (state.status === "未聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'未聯繫\')">未聯繫</label> <label><input type="radio" name="tc_' + studentKey + '" value="聯繫中" ' + (state.status === "聯繫中" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'聯繫中\')">聯繫中</label> <label><input type="radio" name="tc_' + studentKey + '" value="已聯繫" ' + (state.status === "已聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'已聯繫\')">已聯繫</label></div><div class="retry-counter"><span>撥打<b>' + state.count + '</b>次</span> <button class="retry-btn" onclick="addRetry(\'' + studentKey + '\')">+1</button></div><input type="text" class="assignee-input-compact" placeholder="👤 處置組別/人" value="' + assigneeName + '" oninput="updateAssignee(\'' + studentKey + '\', this.value)"></div></td>';
+
+        if (isCaseCompleted) { tbodyDone.appendChild(row); doneCount++; }
+        else { tbodyActive.appendChild(row); activeCount++; }
+      });
+
+      if (activeCount === 0) tbodyActive.innerHTML = '<tr><td colspan="7" style="text-align:center; color:green; font-weight:bold;">✅ 目前尚無緊急處置案件！</td></tr>';
+      if (doneCount === 0) tbodyDone.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">尚無已完結歸檔項目</td></tr>';
+    }
+
+    function updateSearchNote(key, val) { searchNotesMap[key] = val; triggerDebouncedStateSave(); }
+    function updateAssignee(key, val) { assigneeMap[key] = val; triggerDebouncedStateSave(); }
+
+    function toggleSearchDone(key, isChecked) {
+      searchStatusMap[key] = isChecked; if (currentClassStudents.length > 0) { renderMatrix(); renderTeacherContactPanel(); }
+      
+      google.script.run.withSuccessHandler(function(res) {
+        if (res && res.success) {
+          if (res.searchStatusMap) searchStatusMap = res.searchStatusMap;
+          if (res.pulloutStatusMap) pulloutStatusMap = res.pulloutStatusMap;
+          renderSummaryTable(); renderRescueTable(); renderSchoolOverview(); renderPulloutPage();
+        }
+      }).updateRescueStatusDelta(key, null, isChecked);
+
+      renderSummaryTable(); renderRescueTable(); renderSchoolOverview(); renderPulloutPage();
+    }
+
+    function updateStatus(key, val) {
+      if (contactStates[key]) {
+        contactStates[key].status = val;
+        google.script.run.updateContactStateDelta(key, contactStates[key], null);
+        renderSchoolOverview(); renderSummaryTable(); renderRescueTable(); renderPulloutPage();
+        if (currentClassStudents.length > 0) renderTeacherContactPanel();
+        triggerAutoSaveTimer();
+      }
+    }
+
+    function addRetry(key) {
+      if (contactStates[key]) {
+        contactStates[key].count++; contactStates[key].status = "聯繫中"; 
+        let isHelp = contactStates[key].count >= 5 ? true : null;
+        if (isHelp) helpRequestMap[key] = true;
+
+        google.script.run.updateContactStateDelta(key, contactStates[key], isHelp);
+        renderSummaryTable(); renderRescueTable(); renderSchoolOverview(); renderPulloutPage(); if (currentClassStudents.length > 0) renderTeacherContactPanel();
+        triggerAutoSaveTimer();
+      }
+    }
+
+    function switchPage(pageId, btn) {
+      let nowTime = Date.now();
+      let isSessionValid = isUnlockedByPassword && (nowTime < unlockExpiryTime);
+
+      if (pageId === 'adminPage' && !isSessionValid) {
+        let pwd = prompt("🔑 請輸入指揮中心授權密碼進入：");
+        if (pwd === ADMIN_RESET_PASSWORD) {
+          isUnlockedByPassword = true;
+          unlockExpiryTime = Date.now() + (20 * 60 * 1000); 
+          alert("✅ 密碼驗證成功！已取得 20 分鐘指揮中心通行授權。");
+          updateSecurityUI();
+        } else {
+          if (pwd !== null) alert("❌ 密碼錯誤！無法進入指揮中心。");
+          return;
+        }
+      }
+
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+      document.querySelectorAll('.nav-tabs').forEach(nav => {
+        let btns = nav.querySelectorAll('.tab-btn');
+        btns.forEach(b => { if (b.getAttribute('onclick').includes(pageId)) b.classList.add('active'); else b.classList.remove('active'); });
+      });
+
+      triggerSmartPollingLoop();
+    }
+  </script>
+</body>
+</html>

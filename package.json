@@ -1,0 +1,38 @@
+{
+  "name": "qingshui-disaster-system",
+  "version": "20.4.0",
+  "private": true,
+  "description": "新北市土城區清水國小校園災難與演練即時點名通報系統 V20.4 - Vercel & Firebase Firestore & Supabase Auth",
+  "type": "module",
+  "scripts": {
+    "start": "node -e \"console.log('Use vercel dev or serve public to run locally')\"",
+    "build": "node -e \"console.log('Vercel static build: ready')\"",
+    "seed:firestore": "node scripts/seed-firestore.mjs",
+    "seed:dry-run": "node scripts/seed-firestore.mjs --dry-run",
+    "test:seed": "node scripts/seed-firestore.mjs --dry-run",
+    "check": "node --check scripts/seed-firestore.mjs && node --check public/js/config.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "firebase": "^10.12.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "school-safety",
+    "disaster-preparedness",
+    "roll-call",
+    "realtime",
+    "firebase",
+    "firestore",
+    "supabase",
+    "offline-first"
+  ],
+  "author": "新北市清水國小",
+  "license": "UNLICENSED"
+}

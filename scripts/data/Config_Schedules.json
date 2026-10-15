@@ -1,0 +1,262 @@
+[
+  {
+    "groupName": "一",
+    "className": "all",
+    "mon_am": true, "mon_pm1": false, "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": false, "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "週二全天，其餘半天"
+  },
+  {
+    "groupName": "二",
+    "className": "all",
+    "mon_am": true, "mon_pm1": false, "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": false, "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "週二全天，其餘半天"
+  },
+  {
+    "groupName": "三",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "週一二四全天"
+  },
+  {
+    "groupName": "四",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "週一二四全天"
+  },
+  {
+    "groupName": "五",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "週一二四五全天"
+  },
+  {
+    "groupName": "六",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "週一二四五全天"
+  },
+  {
+    "groupName": "課後班",
+    "className": "一甲A",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "低年級下午課後 (一、三、四、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "一乙A",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "低年級下午課後 (一、三、四、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "二甲A",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "低年級下午課後 (一、三、四、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "二乙A",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "低年級下午課後 (一、三、四、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "三甲",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "中年級下午課後 (三、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "中乙",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": true,  "fri_night": false,
+    "description": "中年級下午課後 (三、五延托)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "四甲",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "中年級下午課後 (三、五)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "四乙",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": true,  "fri_pm2": true,  "fri_night": false,
+    "description": "中年級下午課後 (三、五延托)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "五甲",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "高年級下午課後 (週三)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "高乙",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "高年級下午課後 (週三)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "六甲",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "高年級下午課後 (週三)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "六乙",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "高年級下午課後 (週三)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "一乙B",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "課後B班 (週一至五 16:00-17:40)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "二乙B",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": true,  "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": true,  "tue_night": false,
+    "wed_am": false, "wed_pm1": true,  "wed_pm2": true,  "wed_night": false,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": true,  "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": true,  "fri_night": false,
+    "description": "課後B班 (週一至五 16:00-17:40)"
+  },
+  {
+    "groupName": "幼兒園",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true, "mon_pm2": true, "mon_night": true,
+    "tue_am": true, "tue_pm1": true, "tue_pm2": true, "tue_night": true,
+    "wed_am": true, "wed_pm1": true, "wed_pm2": true, "wed_night": true,
+    "thu_am": true, "thu_pm1": true, "thu_pm2": true, "thu_night": true,
+    "fri_am": true, "fri_pm1": true, "fri_pm2": true, "fri_night": true,
+    "description": "幼兒園延托 (週一至五 16:00-18:30)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "星光一",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": false, "mon_night": true,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": true,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": true,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": false, "thu_night": true,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": true,
+    "description": "星光夜托班 (週一至五 17:40-18:30)"
+  },
+  {
+    "groupName": "課後班",
+    "className": "星光二",
+    "mon_am": false, "mon_pm1": false, "mon_pm2": false, "mon_night": true,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": true,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": true,
+    "thu_am": false, "thu_pm1": false, "thu_pm2": false, "thu_night": true,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": true,
+    "description": "星光夜托班 (週一至五 17:40-18:30)"
+  },
+  {
+    "groupName": "學習扶助班",
+    "className": "學2甲",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "學習扶助班 (週一、週四 12:40-16:00)"
+  },
+  {
+    "groupName": "學習扶助班",
+    "className": "學2乙",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "學習扶助班 (週一、週四 12:40-16:00)"
+  },
+  {
+    "groupName": "緊急應變小組",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true, "mon_pm2": true, "mon_night": true,
+    "tue_am": true, "tue_pm1": true, "tue_pm2": true, "tue_night": true,
+    "wed_am": true, "wed_pm1": true, "wed_pm2": true, "wed_night": true,
+    "thu_am": true, "thu_pm1": true, "thu_pm2": true, "thu_night": true,
+    "fri_am": true, "fri_pm1": true, "fri_pm2": true, "fri_night": true,
+    "description": "平日全時段在校應變"
+  }
+]

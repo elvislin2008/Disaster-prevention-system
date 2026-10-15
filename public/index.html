@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>清水國小校園災難與演練即時點名通報系統 V20.4</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- 全站緊急鎖定遮蔽浮層 -->
+  <div id="siteLockedOverlay" class="site-locked-overlay">
+    <div style="font-size: 3.5rem; margin-bottom: 12px;">🔒</div>
+    <h2 style="color: #ffc107; margin-bottom: 8px;">因應個資保護，防災點名系統未啟用</h2>
+    <p style="font-size: 0.95rem; color: #ced4da; max-width: 400px; line-height: 1.5;">本系統學生基本聯絡資訊與點名看板目前已鎖定防護。若為授權演練或災難指揮人員，請點擊下方按鈕解鎖。</p>
+    <button onclick="toggleSiteLock()" style="margin-top: 16px; padding: 8px 18px; background: #dc3545; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🔑 輸入指揮中心授權密碼解鎖重開</button>
+  </div>
+
+  <!-- 頂部無侵入式狀態欄：離線指示徽章與 Supabase 帳號身分標籤 -->
+  <div class="top-nav-bar" id="topNavBar">
+    <div id="offlineStatusBadge"></div>
+    <div id="authNavBadge"></div>
+  </div>
+
+  <!-- ========================================================================
+       分頁 1：📋 老師點名頁面 (#teacherPage)
+       ======================================================================== -->
+  <div id="teacherPage" class="page active">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+
+    <!-- 年級與班級雙層選擇卡片 -->
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:4px;">
+        <div style="font-size:0.85rem; font-weight:bold; color:#1F4E79;">1. 請點選年級/單位：</div>
+        <button class="visitor-toggle-header-btn" onclick="openVisitorModal()">📝 登記校外/臨時人員 (+/-)</button>
+      </div>
+      <div class="btn-grid-selector" id="gradeBtnContainer"></div>
+      <div id="classBtnSection" style="margin-top:8px; display:none;">
+        <div id="classStepLabel" style="font-size:0.85rem; font-weight:bold; color:#155724; margin-bottom:4px;">2. 請點選班級：</div>
+        <div class="class-btn-grid" id="classBtnContainer"></div>
+      </div>
+    </div>
+
+    <!-- 學生名單點名區塊卡片 -->
+    <div class="card" id="studentAreaCard">
+      <div id="placeholderBox" class="placeholder-box">👈 請選擇上方【年級/單位】與【班級】按鈕即可展開點名名單</div>
+      <div id="studentContent" style="display:none;">
+        <div class="stats-bar">
+          <div>應到: <span id="stTotal">0</span></div>
+          <div class="present">實到: <span id="stPresent">0</span></div>
+          <div class="study_center">學習中心: <span id="stStudyCenter">0</span></div>
+          <div class="native_lang">本土語: <span id="stNativeLang">0</span></div>
+          <div class="team">團隊: <span id="stTeam">0</span></div>
+          <div class="leave">請假: <span id="stLeave">0</span></div>
+          <div class="missing">失蹤: <span id="stMissing">0</span></div>
+          <div class="pickedUp">已接回: <span id="stPickedUp">0</span></div>
+        </div>
+        <p style="font-size:0.7rem; color:#666; margin:0 0 5px 0; text-align:center;">
+          💡 切換順序：<span style="color:#155724; font-weight:bold;">實到(綠)</span> ➔ <span style="color:#4a148c; font-weight:bold;">學習中心(紫)</span> ➔ <span style="color:#e65100; font-weight:bold;">本土語(橘)</span> ➔ <span style="color:#00838f; font-weight:bold;">團隊(青)</span> ➔ <span style="color:#856404; font-weight:bold;">請假(黃)</span> ➔ <span style="color:#721c24; font-weight:bold;">失蹤(紅)</span> ➔ <span style="color:#004085; font-weight:bold;">已接回(藍)</span>
+        </p>
+        <div class="matrix-grid-10x3" id="studentGrid"></div>
+        <div id="locationSection" class="location-panel" style="display:none;">
+          <div class="location-panel-title">📍 失蹤學生最後已知位置與建議搜尋地點：</div>
+          <div id="locationList"></div>
+        </div>
+        <div id="teacherContactSection" class="teacher-contact-panel" style="display:none;">
+          <div style="font-size:0.88rem; font-weight:bold; color:#1F4E79; margin-bottom:5px;">📞 本班失蹤學生緊急聯繫追蹤：</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>學生 / 帶班老師</th>
+                  <th>家長電話 (點擊撥號)</th>
+                  <th>導師聯繫進度</th>
+                  <th>指揮中心協助</th>
+                </tr>
+              </thead>
+              <tbody id="teacherContactTable"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="autoSaveMsg" class="auto-save-bar" style="display:none; color:#fd7e14; font-size:0.8rem; font-weight:bold; margin-top:5px; text-align:center;">⏳ 偵測到異動，無新動作 5 秒後將自動同步存檔...</div>
+        <button id="btnSubmitAttendance" class="btn-submit" onclick="submitAttendance(false)">送出點名紀錄 (請送出紀錄)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       分頁 2：🔄 抽離確認頁面 (#pulloutPage)
+       ======================================================================== -->
+  <div id="pulloutPage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn active" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div class="pullout-sub-tabs">
+      <button id="subBtnSC" class="pullout-sub-btn active-sc" onclick="switchPulloutSubTab('SC')">🟣 A 區塊：學習中心</button>
+      <button id="subBtnNL" class="pullout-sub-btn" onclick="switchPulloutSubTab('NL')">🟠 B 區塊：本土語</button>
+      <button id="subBtnTM" class="pullout-sub-btn" onclick="switchPulloutSubTab('TM')"><span style="color:#00838f; font-size:1rem; vertical-align:middle;">●</span> C 區塊：團隊</button>
+    </div>
+    <div id="cardPulloutSC" class="card">
+      <h3 style="margin-top:0; color:#6a1b9a; font-size:1rem; border-bottom:1.5px solid #6a1b9a; padding-bottom:4px;">🟣 A 區塊：學習中心抽離學生安全確認</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>原班級</th>
+              <th>學生姓名</th>
+              <th>帶班導師</th>
+              <th>抽離教室安全確認</th>
+            </tr>
+          </thead>
+          <tbody id="pulloutTableStudyCenter">
+            <tr><td colspan="4" style="text-align:center; color:#888;">目前尚無學習中心抽離學生</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="cardPulloutNL" class="card" style="display:none;">
+      <h3 style="margin-top:0; color:#e65100; font-size:1rem; border-bottom:1.5px solid #e65100; padding-bottom:4px;">🟠 B 區塊：本土語抽離學生安全確認</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>原班級</th>
+              <th>學生姓名</th>
+              <th>帶班導師</th>
+              <th>抽離教室安全確認</th>
+            </tr>
+          </thead>
+          <tbody id="pulloutTableNativeLang">
+            <tr><td colspan="4" style="text-align:center; color:#888;">目前尚無本土語抽離學生</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="cardPulloutTM" class="card" style="display:none;">
+      <h3 style="margin-top:0; color:#00838f; font-size:1rem; border-bottom:1.5px solid #00838f; padding-bottom:4px;"><span style="color:#00838f; font-size:1.1rem; vertical-align:middle;">●</span> C 區塊：團隊抽離學生安全確認</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>原班級</th>
+              <th>學生姓名</th>
+              <th>帶班導師</th>
+              <th>抽離教室安全確認</th>
+            </tr>
+          </thead>
+          <tbody id="pulloutTableTeam">
+            <tr><td colspan="4" style="text-align:center; color:#888;">目前尚無團隊抽離學生</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       分頁 3：🆘 危難救助頁面 (#rescuePage)
+       ======================================================================== -->
+  <div id="rescuePage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn active" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div class="rescue-sub-tabs">
+      <button id="subBtnRescueA" class="rescue-sub-btn active-rescue" onclick="switchRescueSubTab('A')">🚨 A 區塊：傷病處置與搜救</button>
+      <button id="subBtnRescueB" class="rescue-sub-btn" onclick="switchRescueSubTab('B')">🏢 B 區塊：建物安全檢核</button>
+    </div>
+    <div id="cardRescueA" class="card">
+      <h3 style="margin-top:0; color:#dc3545; font-size:1rem;">🚨 A 區塊：危難救助與急救傷病處置</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>班級</th>
+              <th>學生姓名 (原狀態)</th>
+              <th>搜救狀態與發現地點</th>
+              <th>危急處置與檢傷分類卡</th>
+            </tr>
+          </thead>
+          <tbody id="rescueTableBody">
+            <tr><td colspan="4" style="text-align:center; color:#888;">目前尚無救助中案件</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="cardRescueB" class="card" style="display:none;">
+      <h3 style="margin-top:0; color:#1F4E79; font-size:1rem;">🏢 B 區塊：校園建築安全 8 大指標檢核回報</h3>
+      <div class="building-grid" id="buildingCheckGrid"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       分頁 4：🏫 指揮中心頁面 (#adminPage)
+       ======================================================================== -->
+  <div id="adminPage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 危難救助</button>
+      <button class="tab-btn active" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div id="overviewTopAnchor"></div>
+
+    <!-- 四大狀態看板卡片 (全校人數, 應到人數, 實到人數, 未到/協尋人數) -->
+    <div class="status-cards-container">
+      <div class="card-total" id="cardTotal">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">全校人數</div>
+        <div id="statCardTotal" style="font-size:1.3rem; font-weight:900; color:#1F4E79;">0</div>
+      </div>
+      <div class="card-expected" id="cardExpected">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">應到人數</div>
+        <div id="statCardExpected" style="font-size:1.3rem; font-weight:900; color:#007bff;">0</div>
+      </div>
+      <div class="card-present" id="cardPresent">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">實到人數</div>
+        <div id="statCardPresent" style="font-size:1.3rem; font-weight:900; color:#28a745;">0</div>
+      </div>
+      <div class="card-absent" id="cardAbsent">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">未到/協尋人數</div>
+        <div id="statCardAbsent" style="font-size:1.3rem; font-weight:900; color:#dc3545;">0</div>
+      </div>
+    </div>
+
+    <!-- 全校點名概況與操作控制列 -->
+    <div class="card">
+      <div class="header-compact-row">
+        <span class="header-title-text">📊 全校點名概況</span>
+        <select id="simTimeSelect" class="sim-select-inline" onchange="onSimTimeChange(this.value)">
+          <option value="auto">⏳ 動態時間</option>
+          <option value="mon_am">🕒 星期一 (09:00全校在校)</option>
+          <option value="mon_pm1">🕒 星期一 (14:00一二放學,課照一段)</option>
+          <option value="mon_pm2">🕒 星期一 (16:30全放學,課照二段)</option>
+          <option value="tue_pm">🕒 星期二 (14:00全校全天在校)</option>
+          <option value="wed_pm1">🕒 星期三 (14:00全校半天,課照一段)</option>
+          <option value="wed_pm2">🕒 星期三 (16:30全放學,課照二段)</option>
+          <option value="thu_am">🕒 星期四 (09:00全校在校)</option>
+          <option value="thu_pm1">🕒 星期四 (14:00一二放學,三至六全天)</option>
+          <option value="thu_pm2">🕒 星期四 (16:30全放學,課照二段)</option>
+          <option value="thu_night">🌙 星期四 星光班 (17:40-18:30)</option>
+          <option value="fri_pm">🕒 星期五 (14:00一二三四放學)</option>
+          <option value="night">🌙 星光班時段 (17:40-18:30)</option>
+        </select>
+        <button id="btnBgToggle" class="btn-bg-toggle" onclick="toggleBgTheme()">🖼️ 底圖: C版</button>
+        <button class="btn-stress-inline" onclick="executeBackendStressTest()">⚡ 壓測</button>
+        <button class="btn-info-inline" onclick="showLatestStressClassList()">📋 壓測名單</button>
+        <button id="btnSecurityMode" class="btn-mode-toggle" onclick="toggleSecurityMode()">🛡️ 演練防護</button>
+        <button id="btnCloseSite" class="btn-close-site" onclick="toggleSiteLock()">🔒 網站關閉</button>
+        <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
+      </div>
+
+      <!-- 即時口頭報告詞膠囊 -->
+      <div class="speech-stats-box">
+        <div class="speech-stats-title"><span>🎤 全校應出席與出缺席重要統計數據：</span></div>
+        <div class="speech-stats-content" id="speechBoxSchool">全校教職員工及學生應出席 <span class="speech-stats-num" id="spTotal">0</span> 人，請假 <span class="speech-stats-num" id="spLeave">0</span> 人，送醫 <span class="speech-stats-num" id="spHospital">0</span> 人，陪同就醫 <span class="speech-stats-num" id="spEscort">0</span> 人，現場出席人數 <span class="speech-stats-num" id="spPresent">0</span> 人，另有校外人士 <span class="speech-stats-num" id="spVisitor">0</span> 名，報告完畢。<b style="color:#dc3545;">(搜救中 <span class="speech-stats-num" id="spRescuing">0</span> 人)</b></div>
+        <div style="margin-top:6px; padding:4px 6px; background:#f0f7ff; border-radius:6px; font-size:0.78rem; font-weight:bold; color:#1F4E79;">🏢 各棟建物安全檢核動態：<span id="buildingStatusTagContainer"></span></div>
+        <div style="margin-top:6px; padding:6px 8px; border:1px dashed #1F4E79; border-radius:6px; background:#ffffff;">
+          <div style="font-size:0.82rem; font-weight:bold; color:#1F4E79; margin-bottom:4px;">🧮 當前時段在校班級應出席人數加總過程：</div>
+          <div id="calcBreakdownContainer" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;"></div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button id="btnApproveCalc" class="btn-verify-speech" style="background:#28a745; font-size:0.78rem; padding:4px 10px;" onclick="approveCalculatedTotal()">✅ 指揮官核定採納試算數 (<span id="calcTotalLabel">0</span>人)</button>
+            <button class="btn-verify-speech" style="background:#17a2b8; font-size:0.78rem; padding:4px 10px;" onclick="setCustomTotalAttendance()">✏️ 手動自訂修改人數</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全校班級矩陣狀態圖容器 -->
+      <div id="schoolOverviewContainer" style="margin-top:8px;">
+        <div style="color:#666; font-size:0.85rem;">載入全校單位中...</div>
+      </div>
+    </div>
+
+    <!-- 失蹤學生緊急聯繫與搜救追蹤（優先處理） -->
+    <div class="card">
+      <h3 style="margin-top:0; color:#e63946; font-size:1rem;">🚨 失蹤學生緊急聯繫與搜救追蹤（優先處理）</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>班級</th>
+              <th>學生姓名 (原狀態)</th>
+              <th>帶班導師 (點擊撥號)</th>
+              <th>搜救狀態</th>
+              <th>尋獲地點與描述</th>
+              <th>家長姓名 / 電話 (點擊撥號)</th>
+              <th>聯繫狀態與處置人員</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableActive">
+            <tr><td colspan="7" style="text-align:center; color:#888;">目前尚無緊急失蹤案件</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 已完結案件（已尋獲且已完成家長聯繫） -->
+    <div class="card" style="background: rgba(235, 247, 238, 0.92); border: 1px solid #a3e0b5;">
+      <h3 style="margin-top:0; color:#155724; font-size:0.95rem;">✅ 已完結案件（已尋獲且已完成家長聯繫）</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>班級</th>
+              <th>學生姓名</th>
+              <th>帶班導師</th>
+              <th>搜救狀態</th>
+              <th>尋獲地點與描述</th>
+              <th>家長姓名 / 電話</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableDone">
+            <tr><td colspan="7" style="text-align:center; color:#666;">尚無已完結歸檔項目</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="fab-back-top" onclick="scrollToOverviewTop()">⬆️ 回全校看板</button>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 1：校外 / 臨時人員登記視窗 (#visitorModal)
+       ======================================================================== -->
+  <div id="visitorModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card">
+      <div class="modal-header">
+        <span>📝 登記校外 / 臨時人員</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeVisitorModal()">✖</span>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <button id="vSubBtnAdd" class="pullout-sub-btn active-sc" style="flex:1;" onclick="switchVisitorSubTab('add')">➕ 本次新增填報</button>
+          <button id="vSubBtnList" class="pullout-sub-btn" style="flex:1;" onclick="switchVisitorSubTab('list')">📋 校外已登記總表</button>
+        </div>
+        <div id="vTabContentAdd">
+          <div style="font-size:0.78rem; color:#666; margin-bottom:8px;">請按加減鈕點選本次新增之校外人員（預設標示為🟢安全確認）：</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;">
+              <span style="font-size:0.88rem; font-weight:bold;">🎒 轉學 / 臨時學生</span>
+              <div>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('student', -1)">- 1</button>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('student', 1)" style="background:#17a2b8; color:#fff;">+ 1</button>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;">
+              <span style="font-size:0.88rem; font-weight:bold;">🧑🏫 代課老師 / 職員</span>
+              <div>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('teacher', -1)">- 1</button>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('teacher', 1)" style="background:#17a2b8; color:#fff;">+ 1</button>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;">
+              <span style="font-size:0.88rem; font-weight:bold;">👪 志工家長 / 訪客</span>
+              <div>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('parent', -1)">- 1</button>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('parent', 1)" style="background:#17a2b8; color:#fff;">+ 1</button>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; padding:6px 10px; border-radius:8px;">
+              <span style="font-size:0.88rem; font-weight:bold;">🛠️ 維護廠商 / 工程人員</span>
+              <div>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('vendor', -1)">- 1</button>
+                <button class="visitor-btn" onclick="adjustNewVisitorItemCount('vendor', 1)" style="background:#17a2b8; color:#fff;">+ 1</button>
+              </div>
+            </div>
+          </div>
+          <div id="newVisitorItemsContainer" style="margin-top:10px;"></div>
+        </div>
+        <div id="vTabContentList" style="display:none;">
+          <div id="allVisitorItemsContainer"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnSubmitVisitorNew" class="btn-modal-close" style="background:#28a745; padding:8px 20px; font-size:0.92rem;" onclick="submitNewVisitorBatchData()">✅ 確認送出本次填報</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 2：最近一次壓力測試班級名單視窗 (#stressModal)
+       ======================================================================== -->
+  <div id="stressModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card">
+      <div class="modal-header">
+        <span id="modalTitle">📊 最近一次壓力測試班級名單</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeStressModal()">✖</span>
+      </div>
+      <div id="modalBody" class="modal-body">載入名單中...</div>
+      <div class="modal-footer">
+        <button class="btn-modal-copy" style="padding:6px 14px; background:#17a2b8; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="copyStressModalText()">📋 複製完整名單</button>
+        <button class="btn-modal-close" onclick="closeStressModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       客戶端腳本依序載入
+       1. 環境組態 (config.js)
+       2. Supabase 鑑權 (supabase-auth.js)
+       3. Firestore 即時資料服務 (firestore-service.js)
+       4. 離線管理器 (offline-manager.js)
+       5. GAS 仿真適配器 (gas-bridge-adapter.js)
+       6. 前端業務邏輯 (app.js)
+       ======================================================================== -->
+  <script src="js/config.js"></script>
+  <script type="module" src="js/supabase-auth.js"></script>
+  <script type="module" src="js/firestore-service.js"></script>
+  <script type="module" src="js/offline-manager.js"></script>
+  <script type="module" src="js/gas-bridge-adapter.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

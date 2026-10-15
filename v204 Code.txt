@@ -1,0 +1,610 @@
+/**
+ * 校園緊急點名與搜救通報系統 — 後端主程式 (Code.gs)
+ * 版本：V19.5 (發布版本號：195)
+ * 學校：新北市土城區清水國小
+ * 核心升級：
+ * 1. 【版本更新摘要】強制維持第 1 分頁，紀錄由新到舊反序置頂排列。
+ * 2. 【當日點名紀錄】分頁永遠自動定位在【版本更新摘要】正右方（所有日期的最左側）。
+ * 3. 【AttendanceLogs】點名紀錄與【StressTestLogs】壓測履歷，全面改為由新到舊置頂插入。
+ * 4. 嚴格對齊 Config_Schedules 勾選排程，支援通用列與細項列比對。
+ * 5. StudentList 原生年級與班名精準對齊，緊急應變小組內建維護。
+ */
+
+function doGet() {
+  logVersionSummary();
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('清水國小 - 校園緊急點名與搜救通報系統')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * 版本更新摘要自動記錄 (反序排列：由新到舊，最新紀錄永遠在第 2 列置頂)
+ */
+function logVersionSummary() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = "版本更新摘要";
+    var sheet = ss.getSheetByName(sheetName);
+    
+    // 確保 版本更新摘要 永遠維持在整個試算表的第一個分頁 (Index = 1)
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName, 1);
+    } else {
+      ss.setActiveSheet(sheet);
+      ss.moveActiveSheet(1);
+    }
+
+    // 最新版本清單 (由新到舊排序)
+    var versionHistory = [
+      { ver: "V19.5", summary: "全面優化分頁排序：日期檔置於版本摘要右方、點名與壓測日誌改為由新到舊置頂排列、清理冗餘分頁。", deploy: 195 },
+      { ver: "V19.4", summary: "徹底修復年級字串相容（一/一年級雙向吻合），支援課後班多列同名在校比對，修復輪詢覆蓋時間切換之問題。", deploy: 194 },
+      { ver: "V19.3", summary: "全面重構資料驅動排程架構：導入 Config_Schedules 勾選排程，精準適配 StudentList 全校名冊。", deploy: 193 },
+      { ver: "V19.2", summary: "精準修復『學習扶助班』年級與班別配對，綁定週一、四下午 (mon_pm2) 在校時段，並優化隨機 10 班壓力測試。", deploy: 192 },
+      { ver: "V19.0", summary: "重構智慧動態輪詢架構：指揮中心/危難救助升級為 3.5~4 秒極速同步，導師頁放緩至 15 秒省頻寬。", deploy: 190 },
+      { ver: "V18.9", summary: "精準修復校外人員預設『🟢安全確認』未即時寫入後端數量字典之 Bug。", deploy: 189 },
+      { ver: "V18.8", summary: "修復背景 8 秒同步重複洗掉指揮中心解鎖授權之 Bug，導入 20 分鐘 Session 免密碼授權快取。", deploy: 188 }
+    ];
+
+    sheet.clear();
+    sheet.getRange("A1:C1").setValues([["版本", "重點摘要", "發布版本"]])
+         .setFontWeight("bold").setBackground("#1F4E79").setFontColor("#FFFFFF");
+
+    var rowsToWrite = versionHistory.map(function(item) {
+      return [item.ver, item.summary, item.deploy];
+    });
+
+    if (rowsToWrite.length > 0) {
+      sheet.getRange(2, 1, rowsToWrite.length, 3).setValues(rowsToWrite);
+      sheet.setRowHeights(2, rowsToWrite.length, 28);
+    }
+    sheet.autoResizeColumn(1);
+    sheet.autoResizeColumn(3);
+
+  } catch (e) {
+    Logger.log("logVersionSummary Error: " + e.toString());
+  }
+}
+
+/**
+ * 通用輔助函式：將新紀錄反序插入至試算表最上方（第 2 列置頂）
+ */
+function insertRowsAtTop(sheet, rows) {
+  if (!sheet || !rows || rows.length === 0) return;
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  } else {
+    // 在標題列（第1列）後方插入空列，並將最新紀錄填入，舊紀錄自動下移
+    sheet.insertRowsBefore(2, rows.length);
+    sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  }
+}
+
+/**
+ * 讀取 Config_Schedules 排程對照表
+ */
+function getScheduleConfigData() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("Config_Schedules");
+    if (!sheet) return [];
+    
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+
+    var scheduleList = [];
+    var slotCols = [
+      "mon_am", "mon_pm1", "mon_pm2", "mon_night",
+      "tue_am", "tue_pm1", "tue_pm2", "tue_night",
+      "wed_am", "wed_pm1", "wed_pm2", "wed_night",
+      "thu_am", "thu_pm1", "thu_pm2", "thu_night",
+      "fri_am", "fri_pm1", "fri_pm2", "fri_night"
+    ];
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var groupName = String(row[0] || "").trim();
+      var className = String(row[1] || "").trim();
+      if (!groupName) continue;
+
+      var item = { groupName: groupName, className: className };
+      for (var c = 0; c < slotCols.length; c++) {
+        var rawVal = row[c + 2];
+        item[slotCols[c]] = (rawVal === true || String(rawVal).trim().toUpperCase() === "TRUE" || String(rawVal).trim().toUpperCase() === "V");
+      }
+      scheduleList.push(item);
+    }
+    return scheduleList;
+  } catch (e) {
+    Logger.log("getScheduleConfigData Error: " + e.toString());
+    return [];
+  }
+}
+
+/**
+ * 讀取 StudentList 學生與組別名單 (原汁原味精準對齊，無強制竄改年級)
+ */
+function getStudentData() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("StudentList") || ss.getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+
+    var students = [];
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var colA = String(row[0] || "").trim(); // 班級/類別 (一, 六, 幼兒園, 課後班, 學習扶助班, 緊急應變小組)
+      var colB = String(row[1] || "").trim(); // 年級/細項班別 (1, 15, 親親, 一乙B, 中乙, 學2乙, 指揮官)
+      var seat = String(row[2] || "").trim(); // 座號
+      var name = String(row[3] || "").trim(); // 姓名
+      var parent = String(row[4] || "").trim() || "家長"; // 家長姓名
+      var phone = String(row[5] || "").trim();  // 家長電話
+      var teacher = String(row[6] || "").trim(); // 導師姓名
+      var teacherPhone = String(row[7] || "").trim(); // 導師電話
+
+      if (!name) continue;
+
+      var seatNum = parseInt(seat, 10) || i;
+      var seatRaw = seat ? (seat.length === 1 ? "0" + seat : seat) + "號" : (i < 10 ? "0" + i : i) + "號";
+
+      students.push({
+        grade: colA,
+        className: colB,
+        seatNum: seatNum,
+        seatRaw: seatRaw,
+        name: name,
+        parent: parent,
+        phone: phone,
+        teacher: teacher,
+        teacherPhone: teacherPhone
+      });
+    }
+    return students;
+  } catch (e) {
+    Logger.log("getStudentData Error: " + e.toString());
+    return [];
+  }
+}
+
+/**
+ * 取得系統完整狀態快取 (PropertiesService)
+ */
+function getFullSystemState() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    return {
+      classReports: JSON.parse(props.getProperty("CLASS_REPORTS_DATA") || "{}"),
+      searchStatusMap: JSON.parse(props.getProperty("SEARCH_STATUS_MAP") || "{}"),
+      searchNotesMap: JSON.parse(props.getProperty("SEARCH_NOTES_MAP") || "{}"),
+      contactStates: JSON.parse(props.getProperty("CONTACT_STATES") || "{}"),
+      helpRequestMap: JSON.parse(props.getProperty("HELP_REQUEST_MAP") || "{}"),
+      assigneeMap: JSON.parse(props.getProperty("ASSIGNEE_MAP") || "{}"),
+      rescueTriageMap: JSON.parse(props.getProperty("RESCUE_TRIAGE_MAP") || "{}"),
+      pulloutStatusMap: JSON.parse(props.getProperty("PULLOUT_STATUS_MAP") || "{}"),
+      visitorCounts: JSON.parse(props.getProperty("VISITOR_COUNTS") || '{"student":0,"teacher":0,"parent":0,"vendor":0}'),
+      visitorList: JSON.parse(props.getProperty("VISITOR_LIST_DATA") || "[]"),
+      approvedCustomTotal: JSON.parse(props.getProperty("APPROVED_CUSTOM_TOTAL") || "null"),
+      buildingStatusMap: JSON.parse(props.getProperty("BUILDING_STATUS_DATA") || "{}"),
+      securityMode: props.getProperty("SECURITY_MODE") || "drill",
+      simTimeMode: props.getProperty("SIM_TIME_MODE") || "auto"
+    };
+  } catch (e) {
+    return {};
+  }
+}
+
+/**
+ * 增量更新：校外訪客/臨時人員
+ */
+function appendVisitorListDelta(newItems) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var currentList = JSON.parse(props.getProperty("VISITOR_LIST_DATA") || "[]");
+    var rescueMap = JSON.parse(props.getProperty("RESCUE_TRIAGE_MAP") || "{}");
+
+    if (newItems && Array.isArray(newItems) && newItems.length > 0) {
+      newItems.forEach(function(item) {
+        if (!item.status) item.status = "safe";
+        currentList.push(item);
+        if (item.status === "missing") {
+          var sKey = "校外人士_" + item.title;
+          rescueMap[sKey] = {
+            status: "searching", triage: "none", note: item.note || "",
+            locationFound: "📌 校外失蹤 (" + item.title + " " + (item.note || '') + ")", escortCount: 0
+          };
+        }
+      });
+      var visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+      currentList.forEach(function(v) { if (visitorCounts[v.type] !== undefined) visitorCounts[v.type]++; });
+      props.setProperty("VISITOR_LIST_DATA", JSON.stringify(currentList));
+      props.setProperty("VISITOR_COUNTS", JSON.stringify(visitorCounts));
+      props.setProperty("RESCUE_TRIAGE_MAP", JSON.stringify(rescueMap));
+    }
+    return { success: true, visitorList: currentList, visitorCounts: visitorCounts, rescueTriageMap: rescueMap };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 增量更新：單班點名回報
+ */
+function updateClassReportDelta(classKey, singleReport) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var classReports = JSON.parse(props.getProperty("CLASS_REPORTS_DATA") || "{}");
+    classReports[classKey] = singleReport;
+    props.setProperty("CLASS_REPORTS_DATA", JSON.stringify(classReports));
+    var singleWrap = {}; singleWrap[classKey] = singleReport;
+    logAttendanceToSheet(singleWrap);
+    return { success: true, classReports: classReports };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 增量更新：抽離確認狀態
+ */
+function updatePulloutStatusDelta(studentKey, statusVal, rescueData) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var pulloutMap = JSON.parse(props.getProperty("PULLOUT_STATUS_MAP") || "{}");
+    pulloutMap[studentKey] = statusVal;
+    props.setProperty("PULLOUT_STATUS_MAP", JSON.stringify(pulloutMap));
+    var rescueMap = JSON.parse(props.getProperty("RESCUE_TRIAGE_MAP") || "{}");
+    if (rescueData) {
+      rescueMap[studentKey] = rescueData;
+      props.setProperty("RESCUE_TRIAGE_MAP", JSON.stringify(rescueMap));
+    }
+    return { success: true, pulloutStatusMap: pulloutMap, rescueTriageMap: rescueMap };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 增量更新：搜救與檢傷轉介
+ */
+function updateRescueStatusDelta(studentKey, rescueData, searchDoneVal) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var rescueMap = JSON.parse(props.getProperty("RESCUE_TRIAGE_MAP") || "{}");
+    var searchMap = JSON.parse(props.getProperty("SEARCH_STATUS_MAP") || "{}");
+    var pulloutMap = JSON.parse(props.getProperty("PULLOUT_STATUS_MAP") || "{}");
+    if (rescueData !== undefined && rescueData !== null) rescueMap[studentKey] = rescueData;
+    if (searchDoneVal !== undefined && searchDoneVal !== null) {
+      searchMap[studentKey] = searchDoneVal;
+      if (searchDoneVal && pulloutMap[studentKey]) {
+        pulloutMap[studentKey] = 'safe';
+        props.setProperty("PULLOUT_STATUS_MAP", JSON.stringify(pulloutMap));
+      }
+    }
+    props.setProperty("RESCUE_TRIAGE_MAP", JSON.stringify(rescueMap));
+    props.setProperty("SEARCH_STATUS_MAP", JSON.stringify(searchMap));
+    return { success: true, rescueTriageMap: rescueMap, searchStatusMap: searchMap, pulloutStatusMap: pulloutMap };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 增量更新：建物安全巡檢
+ */
+function updateBuildingStatusDelta(bName, bData) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var buildingMap = JSON.parse(props.getProperty("BUILDING_STATUS_DATA") || "{}");
+    if (bName === "ALL") buildingMap = bData; else buildingMap[bName] = bData;
+    if (buildingMap["ALL"]) delete buildingMap["ALL"];
+    props.setProperty("BUILDING_STATUS_DATA", JSON.stringify(buildingMap));
+    return { success: true, buildingStatusMap: buildingMap };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 增量更新：家長聯繫追蹤
+ */
+function updateContactStateDelta(studentKey, stateObj, isHelpReq) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var contactMap = JSON.parse(props.getProperty("CONTACT_STATES") || "{}");
+    var helpMap = JSON.parse(props.getProperty("HELP_REQUEST_MAP") || "{}");
+    if (stateObj) contactMap[studentKey] = stateObj;
+    if (isHelpReq !== undefined && isHelpReq !== null) helpMap[studentKey] = isHelpReq;
+    props.setProperty("CONTACT_STATES", JSON.stringify(contactMap));
+    props.setProperty("HELP_REQUEST_MAP", JSON.stringify(helpMap));
+    return { success: true, contactStates: contactMap, helpRequestMap: helpMap };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+/**
+ * 批次儲存系統完整狀態
+ */
+function saveFullSystemState(stateData) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var props = PropertiesService.getScriptProperties();
+    var keys = ["classReports", "searchStatusMap", "searchNotesMap", "contactStates", "helpRequestMap", "assigneeMap", "rescueTriageMap", "pulloutStatusMap", "visitorCounts", "visitorList", "approvedCustomTotal"];
+    var propKeys = ["CLASS_REPORTS_DATA", "SEARCH_STATUS_MAP", "SEARCH_NOTES_MAP", "CONTACT_STATES", "HELP_REQUEST_MAP", "ASSIGNEE_MAP", "RESCUE_TRIAGE_MAP", "PULLOUT_STATUS_MAP", "VISITOR_COUNTS", "VISITOR_LIST_DATA", "APPROVED_CUSTOM_TOTAL"];
+    for(var i=0; i<keys.length; i++) {
+      if(stateData[keys[i]] !== undefined) props.setProperty(propKeys[i], JSON.stringify(stateData[keys[i]]));
+    }
+    if (stateData.buildingStatusMap) {
+      if (stateData.buildingStatusMap["ALL"]) delete stateData.buildingStatusMap["ALL"];
+      props.setProperty("BUILDING_STATUS_DATA", JSON.stringify(stateData.buildingStatusMap));
+    }
+    if (stateData.securityMode) props.setProperty("SECURITY_MODE", stateData.securityMode);
+    if (stateData.simTimeMode) props.setProperty("SIM_TIME_MODE", stateData.simTimeMode);
+    if (stateData.classReports) logAttendanceToSheet(stateData.classReports);
+    return { success: true };
+  } catch (e) { return { success: false, error: e.toString() }; } finally { lock.releaseLock(); }
+}
+
+function saveBuildingStatus(buildingData) { return updateBuildingStatusDelta("ALL", buildingData); }
+
+function clearAllReports() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var keys = ["CLASS_REPORTS_DATA", "BUILDING_STATUS_DATA", "LAST_STRESS_TEST_CLASSES", "SEARCH_STATUS_MAP", "SEARCH_NOTES_MAP", "CONTACT_STATES", "HELP_REQUEST_MAP", "ASSIGNEE_MAP", "RESCUE_TRIAGE_MAP", "PULLOUT_STATUS_MAP", "VISITOR_COUNTS", "VISITOR_LIST_DATA", "APPROVED_CUSTOM_TOTAL", "SECURITY_MODE", "SIM_TIME_MODE"];
+    keys.forEach(function(k) { props.deleteProperty(k); });
+    return { success: true };
+  } catch (e) { return { success: false, error: e.toString() }; }
+}
+
+/**
+ * 記錄點名日誌至試算表 (AttendanceLogs 與 當日 YYYYMMDD 分頁)
+ * 日期分頁永遠置於【版本更新摘要】右側第一位（所有日期最左側），且紀錄由新到舊排列
+ */
+function logAttendanceToSheet(reportsData) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var verSheet = ss.getSheetByName("版本更新摘要");
+    var targetDateIndex = verSheet ? verSheet.getIndex() + 1 : 2;
+
+    // 1. 處理 AttendanceLogs 總表
+    var logSheet = ss.getSheetByName("AttendanceLogs");
+    if (!logSheet) {
+      logSheet = ss.insertSheet("AttendanceLogs");
+      logSheet.appendRow(["時間戳記", "年級班級", "應到人數", "實到人數", "請假人數", "失蹤人數", "失蹤名單與地點備註"]);
+      logSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#1F4E79").setFontColor("#FFFFFF");
+    }
+
+    // 2. 處理當日分頁 (YYYYMMDD)
+    var dateSheetName = Utilities.formatDate(new Date(), "GMT+8", "yyyyMMdd");
+    var dateSheet = ss.getSheetByName(dateSheetName);
+    if (!dateSheet) {
+      dateSheet = ss.insertSheet(dateSheetName, targetDateIndex);
+      dateSheet.appendRow(["時間戳記", "年級班級", "應到人數", "實到人數", "請假人數", "失蹤人數", "失蹤名單與地點備註"]);
+      dateSheet.getRange("A1:G1").setFontWeight("bold").setBackground("#28A745").setFontColor("#FFFFFF");
+    } else {
+      if (dateSheet.getIndex() !== targetDateIndex) {
+        ss.setActiveSheet(dateSheet);
+        ss.moveActiveSheet(targetDateIndex);
+      }
+    }
+
+    var timeStamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    var rowsToAppend = [];
+    for (var key in reportsData) {
+      var rep = reportsData[key];
+      var missingInfo = rep.missing ? rep.missing.map(function(m) {
+        var loc = m.locationTag || m.locationNote ? "(" + (m.locationTag || '') + " " + (m.locationNote || '') + ")" : '';
+        return m.seatRaw + " " + m.name + loc;
+      }).join("; ") : '';
+      rowsToAppend.push([timeStamp, key, rep.total || 0, rep.presentCount || 0, rep.leave ? rep.leave.length : 0, rep.missing ? rep.missing.length : 0, missingInfo]);
+    }
+
+    // 由新到舊置頂插入
+    if (rowsToAppend.length > 0) {
+      insertRowsAtTop(logSheet, rowsToAppend);
+      insertRowsAtTop(dateSheet, rowsToAppend);
+    }
+  } catch (e) {
+    Logger.log("logAttendanceToSheet Error: " + e.toString());
+  }
+}
+
+/**
+ * 壓力測試 (依當前時段動態篩選在校生，異常名額精準限額，壓測日誌同步由新到舊置頂)
+ */
+function runStressTest(simTimeMode, activeKeys) {
+  var startTime = new Date().getTime();
+  simTimeMode = simTimeMode || "mon_am";
+  var students = getStudentData();
+
+  if (!students || students.length === 0) {
+    return { success: false, error: "StudentList 尚無學生數據，無法進行壓力測試。" };
+  }
+
+  var schedConfig = getScheduleConfigData();
+  var activeKeySet = new Set();
+
+  function isGroupMatch(rG, tG) {
+    if (rG === tG) return true;
+    return rG.replace(/年級$/, '') === tG.replace(/年級$/, '');
+  }
+
+  var classGroup = {};
+  students.forEach(function(s) {
+    var key = s.grade + " " + s.className;
+    if (!classGroup[key]) classGroup[key] = [];
+    classGroup[key].push(s);
+  });
+
+  for (var cKey in classGroup) {
+    var sList = classGroup[cKey];
+    var g = sList[0].grade;
+    var c = sList[0].className;
+
+    if (g.includes("緊急") || g.includes("應變")) {
+      activeKeySet.add(cKey);
+      continue;
+    }
+
+    if (schedConfig && schedConfig.length > 0) {
+      var gRow = schedConfig.find(function(item) {
+        var rG = String(item.groupName).trim();
+        var rC = String(item.className || "").trim().toLowerCase();
+        return isGroupMatch(rG, g) && (rC === "" || rC === "all" || rC === "全部");
+      });
+      if (gRow && gRow[simTimeMode] === true) {
+        activeKeySet.add(cKey);
+        continue;
+      }
+      var isMatched = schedConfig.some(function(item) {
+        return isGroupMatch(String(item.groupName).trim(), g) &&
+               String(item.className).trim() === c &&
+               item[simTimeMode] === true;
+      });
+      if (isMatched) {
+        activeKeySet.add(cKey);
+      }
+    } else {
+      activeKeySet.add(cKey);
+    }
+  }
+
+  var finalActiveKeys = Array.from(activeKeySet);
+  if (activeKeys && Array.isArray(activeKeys) && activeKeys.length > 0) {
+    finalActiveKeys = finalActiveKeys.filter(function(k) { return activeKeys.includes(k); });
+  }
+
+  if (finalActiveKeys.length === 0) {
+    return { success: false, error: "時段 [" + simTimeMode + "] 無任何在校班級，無需進行壓力測試。" };
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty("SEARCH_STATUS_MAP"); props.deleteProperty("SEARCH_NOTES_MAP");
+  props.deleteProperty("CONTACT_STATES"); props.deleteProperty("HELP_REQUEST_MAP");
+  props.deleteProperty("ASSIGNEE_MAP"); props.deleteProperty("RESCUE_TRIAGE_MAP");
+  props.deleteProperty("PULLOUT_STATUS_MAP");
+
+  props.setProperty("LAST_STRESS_TEST_CLASSES", JSON.stringify({
+    simTimeMode: simTimeMode, totalActiveClassesInTime: finalActiveKeys.length,
+    selectedClassesCount: finalActiveKeys.length, classList: finalActiveKeys
+  }));
+
+  var mockReports = {};
+  var mockPulloutMap = {};
+  var mockRescueMap = {};
+  var mockContactStates = {};
+  var mockHelpRequests = {};
+
+  var missingQuota = 2;
+  var hospitalQuota = 2;
+  var pulloutQuota = 1;
+  var missedCallQuota = 1;
+  var totalTestedStudents = 0;
+
+  finalActiveKeys.forEach(function(classKey) {
+    var sList = classGroup[classKey] || [];
+    totalTestedStudents += sList.length;
+    var gName = sList[0].grade;
+    var cName = sList[0].className;
+    var mockMissing = [], mockLeave = [], mockPickedUp = [], mockStudyCenter = [], mockNativeLang = [], mockTeam = [];
+
+    sList.forEach(function(student) {
+      var sKey = classKey + "_" + student.seatRaw;
+
+      if (missingQuota > 0 && Math.random() < 0.05) {
+        mockMissing.push(Object.assign({}, student, {
+          locationTag: "📌 操場側邊廁所",
+          locationNote: "避難集合清查未到"
+        }));
+        mockRescueMap[sKey] = {
+          status: "searching", triage: "none", note: "操場廁所失蹤",
+          locationFound: "📌 操場廁所", escortCount: 0
+        };
+        missingQuota--;
+      }
+      else if (hospitalQuota > 0 && Math.random() < 0.05) {
+        var triageLevel = (hospitalQuota === 2) ? "yellow" : "green";
+        mockRescueMap[sKey] = {
+          status: "injured", triage: triageLevel, note: triageLevel === "yellow" ? "下樓梯擦撞骨折" : "手臂輕微擦傷",
+          locationFound: "🚑 救護站處置中", escortCount: triageLevel === "yellow" ? 1 : 0
+        };
+        hospitalQuota--;
+      }
+      else if (pulloutQuota > 0 && Math.random() < 0.04) {
+        mockStudyCenter.push(student);
+        mockPulloutMap[sKey] = 'pending';
+        pulloutQuota--;
+      }
+      else if (missedCallQuota > 0 && Math.random() < 0.04) {
+        mockContactStates[sKey] = { status: "聯繫中", count: 5 };
+        mockHelpRequests[sKey] = true;
+        missedCallQuota--;
+      }
+    });
+
+    var presentCount = sList.length - mockMissing.length - mockLeave.length - mockPickedUp.length - mockStudyCenter.length - mockNativeLang.length - mockTeam.length;
+    mockReports[classKey] = {
+      grade: gName, className: cName, total: sList.length, presentCount: Math.max(0, presentCount),
+      leave: mockLeave, pickedUp: mockPickedUp, studyCenter: mockStudyCenter, nativeLang: mockNativeLang, team: mockTeam, missing: mockMissing
+    };
+  });
+
+  props.setProperty("CLASS_REPORTS_DATA", JSON.stringify(mockReports));
+  props.setProperty("PULLOUT_STATUS_MAP", JSON.stringify(mockPulloutMap));
+  props.setProperty("RESCUE_TRIAGE_MAP", JSON.stringify(mockRescueMap));
+  props.setProperty("CONTACT_STATES", JSON.stringify(mockContactStates));
+  props.setProperty("HELP_REQUEST_MAP", JSON.stringify(mockHelpRequests));
+
+  // 寫入點名總表與當日分頁
+  logAttendanceToSheet(mockReports);
+
+  // 記錄至 StressTestLogs 分頁 (新紀錄置頂)
+  var totalDurationMs = new Date().getTime() - startTime;
+  var durationSec = (totalDurationMs / 1000).toFixed(2);
+  logStressTestRecord(simTimeMode, finalActiveKeys.length, totalTestedStudents, durationSec);
+
+  return {
+    success: true,
+    totalActiveClassesInTime: finalActiveKeys.length,
+    totalClasses: finalActiveKeys.length,
+    totalStudents: totalTestedStudents,
+    totalDurationSec: durationSec,
+    classList: finalActiveKeys,
+    message: "壓力測試完成！共測試 " + finalActiveKeys.length + " 班。"
+  };
+}
+
+/**
+ * 獨立記錄壓測履歷至 StressTestLogs 分頁 (由新到舊置頂)
+ */
+function logStressTestRecord(simTimeMode, classCount, studentCount, durationSec) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var stressSheet = ss.getSheetByName("StressTestLogs");
+    if (!stressSheet) {
+      stressSheet = ss.insertSheet("StressTestLogs");
+      stressSheet.appendRow(["測試時間", "演練時段代碼", "測試班級數", "模擬學生人數", "執行耗時(秒)", "模擬異常摘要"]);
+      stressSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#6F42C1").setFontColor("#FFFFFF");
+    }
+    var timeStamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    var row = [timeStamp, simTimeMode, classCount, studentCount, durationSec, "失蹤2人、送醫2人(黃卡1/綠卡1)、抽離1人、未接1人"];
+    insertRowsAtTop(stressSheet, [row]);
+  } catch (e) {
+    Logger.log("logStressTestRecord Error: " + e.toString());
+  }
+}
+
+function getLatestStressTestClassList() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var val = props.getProperty("LAST_STRESS_TEST_CLASSES");
+    return val ? JSON.parse(val) : { error: "目前尚無任何壓力測試紀錄。" };
+  } catch (e) {
+    return { error: e.toString() };
+  }
+}
