@@ -430,6 +430,10 @@ function updateGradeDropdown() {
 
   let grades = [...new Set(allStudents.map(d => d.grade))].filter(Boolean);
   let activeGrades = grades.filter(g => isClassActiveAtTime(g, ""));
+  // 關鍵防護：若當前時段為非在校時段（例如晚間演練測試、假日測試），activeGrades 為空時預設展示全部年級，確保測試時隨時可見！
+  if (activeGrades.length === 0) {
+    activeGrades = grades;
+  }
   activeGrades.sort((a, b) => (gradeSortOrder[a] || 99) - (gradeSortOrder[b] || 99));
 
   if (selectedGradeOpt && !activeGrades.includes(selectedGradeOpt)) {
@@ -479,7 +483,10 @@ function onGradeChange() {
   label.innerText = (gVal.includes("應變") || gVal.includes("緊急")) ? "2. 請點選組別/職稱：" : "2. 請點選班級：";
 
   let classes = [...new Set(allStudents.filter(d => d.grade === gVal).map(d => d.className))].filter(Boolean);
-  classes = classes.filter(c => isClassActiveAtTime(gVal, c));
+  let activeClasses = classes.filter(c => isClassActiveAtTime(gVal, c));
+  if (activeClasses.length > 0) {
+    classes = activeClasses;
+  }
   classes.sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
 
   if (classes.length === 0) {
@@ -1978,7 +1985,11 @@ function renderSchoolOverview() {
   // 2. 嚴格依據 Config 表篩選「當前時段有班級在校」的年級
   let gradeList = Object.keys(gradeGroupMap).filter(g => isClassActiveAtTime(g, ""));
   if (gradeList.length === 0) {
-    container.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:10px; text-align:center; background:#e8f4f8; border-radius:6px;">⚠️ 當前時段全校均非在校時間（無班級在校）。</div>';
+    container.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:12px; text-align:center; background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; line-height:1.6;">' +
+      '⚠️ 當前真實時間非在校時段（全校放學中）。<br>' +
+      '👉 如需進行防災演練測試，請在上方時段選單切換至【🕒 星期一 (09:00全校在校)】。<br>' +
+      '<button onclick="const sel = document.getElementById(\'simTimeSelect\'); if(sel){sel.value=\'mon_am\';} onSimTimeChange(\'mon_am\');" style="margin-top:8px; padding:6px 14px; background:#1F4E79; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔘 一鍵切換為【週一 上午 (全校在校)】進行演練</button>' +
+      '</div>';
     const setNum = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
     setNum("spTotal", 0);
     setNum("spLeave", 0);
@@ -2972,9 +2983,13 @@ function initApp() {
   }
 }
 
-// 自動繫結至 window.onload
+// 自動繫結至 window.onload (相容 ES Module 延遲載入)
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', initApp);
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 }
 
 // ==============================================================================

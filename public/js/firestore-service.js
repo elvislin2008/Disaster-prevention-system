@@ -520,30 +520,96 @@ export class FirestoreService {
   // ============================================================================
 
   doc(collName, docId) {
+    const cleanId = sanitizeDocId(docId);
+    if (this._isCloudLive && this.db && typeof this.db.collection === 'function') {
+      try {
+        const cloudRef = this.db.collection(collName).doc(cleanId);
+        cloudRef.collName = collName;
+        cloudRef.docId = cleanId;
+        return cloudRef;
+      } catch (e) {
+        console.warn('[FirestoreService] 建立雲端文件參照失敗，回退至本地：', e);
+      }
+    }
     return this.localStore.doc(collName, docId);
   }
 
   collection(collName) {
+    if (this._isCloudLive && this.db && typeof this.db.collection === 'function') {
+      try {
+        const cloudColl = this.db.collection(collName);
+        cloudColl.collName = collName;
+        return cloudColl;
+      } catch (e) {
+        console.warn('[FirestoreService] 建立雲端集合參照失敗，回退至本地：', e);
+      }
+    }
     return this.localStore.collection(collName);
   }
 
   async getDoc(docRef) {
+    if (this._isCloudLive && docRef && typeof docRef.get === 'function') {
+      try {
+        const snap = await docRef.get();
+        return snap;
+      } catch (e) {
+        console.warn('[FirestoreService] 雲端 getDoc 異常，回退至本地快取：', e);
+      }
+    }
     return this.localStore.getDoc(docRef);
   }
 
   async setDoc(docRef, data, options = {}) {
+    try {
+      this.localStore.setDoc(docRef, data, options).catch(() => {});
+    } catch (e) {}
+
+    if (this._isCloudLive && docRef && typeof docRef.set === 'function') {
+      try {
+        return await docRef.set(data, options);
+      } catch (e) {
+        console.warn('[FirestoreService] 雲端 setDoc 失敗，已保留本地：', e);
+      }
+    }
     return this.localStore.setDoc(docRef, data, options);
   }
 
   async deleteDoc(docRef) {
+    try {
+      this.localStore.deleteDoc(docRef).catch(() => {});
+    } catch (e) {}
+
+    if (this._isCloudLive && docRef && typeof docRef.delete === 'function') {
+      try {
+        return await docRef.delete();
+      } catch (e) {
+        console.warn('[FirestoreService] 雲端 deleteDoc 失敗：', e);
+      }
+    }
     return this.localStore.deleteDoc(docRef);
   }
 
   async getDocs(collectionRef) {
+    if (this._isCloudLive && collectionRef && typeof collectionRef.get === 'function') {
+      try {
+        const snap = await collectionRef.get();
+        return snap;
+      } catch (e) {
+        console.warn('[FirestoreService] 雲端 getDocs 異常，回退至本地快取：', e);
+      }
+    }
     return this.localStore.getDocs(collectionRef);
   }
 
   onSnapshot(targetRef, onNext, onError) {
+    if (this._isCloudLive && targetRef && typeof targetRef.onSnapshot === 'function') {
+      try {
+        const unsub = targetRef.onSnapshot(onNext, onError);
+        return this._registerSubscription(unsub);
+      } catch (e) {
+        console.warn('[FirestoreService] 雲端 onSnapshot 異常，回退至本地：', e);
+      }
+    }
     const unsub = this.localStore.onSnapshot(targetRef, onNext, onError);
     return this._registerSubscription(unsub);
   }
