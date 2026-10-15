@@ -2763,122 +2763,113 @@ function syncRemoteState(deltaOrFull) {
   let shouldRenderTeacherPanel = currentClassStudents.length > 0;
   let shouldRenderMatrix = currentClassStudents.length > 0;
 
-  // 1. 班級點名細粒度增量 ({ type: 'class_reports', reports } 或 batch)
-  if (eventType === 'class_reports' || eventType === 'batch') {
-    const r = deltaOrFull.reports || deltaOrFull.classReports;
-    if (r && typeof r === 'object') {
-      classReports = { ...classReports, ...r };
-      shouldRenderOverview = true;
-      shouldRenderSummary = true;
-      shouldRenderRescue = true;
-    }
+  // 1. 班級點名細粒度增量 (支援 class_reports, batch, 或直接攜帶鍵值之複合載荷)
+  const r = deltaOrFull.reports || deltaOrFull.classReports;
+  if (r && typeof r === 'object' && (eventType === 'class_reports' || eventType === 'batch' || Object.keys(r).length > 0)) {
+    classReports = { ...classReports, ...r };
+    shouldRenderOverview = true;
+    shouldRenderSummary = true;
+    shouldRenderRescue = true;
   }
 
-  // 2. 抽離學生細粒度增量 ({ type: 'pullouts', pullouts } 或 batch)
-  if (eventType === 'pullouts' || eventType === 'batch') {
-    const p = deltaOrFull.pullouts || deltaOrFull.pulloutStatusMap;
-    if (p && typeof p === 'object') {
-      pulloutStatusMap = { ...pulloutStatusMap, ...p };
-      shouldRenderPullout = true;
-      shouldRenderOverview = true;
-      shouldRenderRescue = true;
-      shouldRenderSummary = true;
-    }
+  // 2. 抽離學生細粒度增量 (支援 pullouts, batch, 或直接攜帶鍵值之複合載荷)
+  const p = deltaOrFull.pullouts || deltaOrFull.pulloutStatusMap;
+  if (p && typeof p === 'object' && (eventType === 'pullouts' || eventType === 'batch' || Object.keys(p).length > 0)) {
+    pulloutStatusMap = { ...pulloutStatusMap, ...p };
+    shouldRenderPullout = true;
+    shouldRenderOverview = true;
+    shouldRenderRescue = true;
+    shouldRenderSummary = true;
   }
 
-  // 3. 搜救檢傷細粒度增量 ({ type: 'rescues', rescues } 或 batch)
-  if (eventType === 'rescues' || eventType === 'batch') {
-    const r = deltaOrFull.rescues || deltaOrFull.rescueTriageMap;
-    if (r && typeof r === 'object') {
-      rescueTriageMap = { ...rescueTriageMap, ...r };
-      const newSearchStatus = { ...searchStatusMap };
-      for (const [k, v] of Object.entries(r)) {
-        if (v && v.searchDone) newSearchStatus[k] = true;
-        if (v && v.note) searchNotesMap[k] = v.note;
-      }
-      searchStatusMap = newSearchStatus;
-      shouldRenderRescue = true;
-      shouldRenderSummary = true;
-      shouldRenderOverview = true;
-      shouldRenderPullout = true;
+  // 3. 搜救檢傷細粒度增量 (支援 rescues, batch, 或直接攜帶鍵值之複合載荷)
+  const rescuePayload = deltaOrFull.rescues || deltaOrFull.rescueTriageMap;
+  if (rescuePayload && typeof rescuePayload === 'object' && (eventType === 'rescues' || eventType === 'batch' || Object.keys(rescuePayload).length > 0)) {
+    rescueTriageMap = { ...rescueTriageMap, ...rescuePayload };
+    const newSearchStatus = { ...searchStatusMap };
+    for (const [k, v] of Object.entries(rescuePayload)) {
+      if (v && v.searchDone) newSearchStatus[k] = true;
+      if (v && v.note) searchNotesMap[k] = v.note;
     }
+    searchStatusMap = newSearchStatus;
+    shouldRenderRescue = true;
+    shouldRenderSummary = true;
+    shouldRenderOverview = true;
+    shouldRenderPullout = true;
   }
 
-  // 4. 家長聯繫與求助標記 ({ type: 'contacts', contacts, helpRequests } 或 batch)
-  if (eventType === 'contacts' || eventType === 'batch') {
-    const c = deltaOrFull.contacts || deltaOrFull.contactStates;
-    const h = deltaOrFull.helpRequests || deltaOrFull.helpRequestMap;
+  // 4. 家長聯繫與求助標記 (支援 contacts, batch, 或直接攜帶鍵值之複合載荷)
+  const c = deltaOrFull.contacts || deltaOrFull.contactStates;
+  const h = deltaOrFull.helpRequests || deltaOrFull.helpRequestMap;
+  const hasContacts = c && typeof c === 'object' && (eventType === 'contacts' || eventType === 'batch' || Object.keys(c).length > 0);
+  const hasHelpRequests = h && typeof h === 'object' && (eventType === 'contacts' || eventType === 'batch' || Object.keys(h).length > 0);
+  if (hasContacts || hasHelpRequests) {
     if (c && typeof c === 'object') contactStates = { ...contactStates, ...c };
     if (h && typeof h === 'object') helpRequestMap = { ...helpRequestMap, ...h };
     shouldRenderSummary = true;
     shouldRenderOverview = true;
   }
 
-  // 5. 校外與臨時人員登記 ({ type: 'visitors', visitors } 或 batch)
-  if (eventType === 'visitors' || eventType === 'batch') {
-    const v = deltaOrFull.visitors || deltaOrFull.visitorList;
-    if (v) {
-      visitorList = Array.isArray(v) ? [...v] : Object.values(v);
-      visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
-      visitorList.forEach(item => {
-        const cat = item.category || item.type || 'parent';
-        if (visitorCounts[cat] !== undefined) {
-          visitorCounts[cat] += (Number(item.count) || 1);
-        }
-      });
-      if (typeof renderAllVisitorListItems === 'function') {
-        renderAllVisitorListItems();
+  // 5. 校外與臨時人員登記 (支援 visitors, batch, 或直接攜帶鍵值之複合載荷)
+  const v = deltaOrFull.visitors || deltaOrFull.visitorList;
+  const hasVisitors = v && (eventType === 'visitors' || (Array.isArray(v) ? v.length > 0 : (typeof v === 'object' && Object.keys(v).length > 0)));
+  if (hasVisitors) {
+    visitorList = Array.isArray(v) ? [...v] : Object.values(v);
+    visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+    visitorList.forEach(item => {
+      const cat = item.category || item.type || 'parent';
+      if (visitorCounts[cat] !== undefined) {
+        visitorCounts[cat] += (Number(item.count) || 1);
       }
-      shouldRenderOverview = true;
+    });
+    if (typeof renderAllVisitorListItems === 'function') {
+      renderAllVisitorListItems();
     }
+    shouldRenderOverview = true;
   }
 
-  // 6. 建物巡檢細粒度增量 ({ type: 'buildings', buildings } 或 batch)
-  if (eventType === 'buildings' || eventType === 'batch') {
-    const b = deltaOrFull.buildings || deltaOrFull.buildingStatusMap;
-    if (b && typeof b === 'object') {
-      for (const [name, data] of Object.entries(b)) {
-        if (name === "ALL") continue;
-        buildingStatusMap[name] = Object.assign({}, buildingStatusMap[name] || {}, data);
-      }
-      if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"];
-      const defaultBuildingsList = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
-      defaultBuildingsList.forEach(name => {
-        if (!buildingStatusMap[name]) buildingStatusMap[name] = {};
-      });
-      shouldRenderBuilding = true;
-      shouldRenderOverview = true;
+  // 6. 建物巡檢細粒度增量 (支援 buildings, batch, 或直接攜帶鍵值之複合載荷)
+  const b = deltaOrFull.buildings || deltaOrFull.buildingStatusMap;
+  if (b && typeof b === 'object' && (eventType === 'buildings' || eventType === 'batch' || Object.keys(b).length > 0)) {
+    for (const [name, data] of Object.entries(b)) {
+      if (name === "ALL") continue;
+      buildingStatusMap[name] = Object.assign({}, buildingStatusMap[name] || {}, data);
     }
+    if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"];
+    const defaultBuildingsList = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
+    defaultBuildingsList.forEach(name => {
+      if (!buildingStatusMap[name]) buildingStatusMap[name] = {};
+    });
+    shouldRenderBuilding = true;
+    shouldRenderOverview = true;
   }
 
-  // 7. 系統全域組態增量 ({ type: 'system_state', state } 或 batch)
-  if (eventType === 'system_state' || eventType === 'batch') {
-    const s = deltaOrFull.state || deltaOrFull.systemState;
-    if (s && typeof s === 'object') {
-      if (s.visitorCounts) visitorCounts = { ...s.visitorCounts };
-      if (s.approvedCustomTotal !== undefined) approvedCustomTotal = s.approvedCustomTotal;
-      if (s.siteLocked !== undefined) isSiteLocked = Boolean(s.siteLocked);
-      if (s.securityMode) {
-        securityMode = s.securityMode;
-        if (securityMode === "disaster") isUnlockedByPassword = true;
-        updateSecurityUI();
-      }
-      let timeSinceSwitch = (typeof window !== 'undefined' && window.lastTimeSwitchTimestamp) ? (Date.now() - window.lastTimeSwitchTimestamp) : 999999;
-      if (s.simTimeMode && timeSinceSwitch > 5000) {
-        if (simTimeMode !== s.simTimeMode) {
-          simTimeMode = s.simTimeMode;
-          if (typeof document !== 'undefined') {
-            let selectEl = document.getElementById("simTimeSelect");
-            if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
-          }
-          updateGradeDropdown();
-        }
-      }
-      shouldRenderOverview = true;
-      shouldRenderPullout = true;
-      shouldRenderSummary = true;
-      shouldRenderRescue = true;
+  // 7. 系統全域組態增量 (支援 system_state, batch, 或直接攜帶鍵值之複合載荷)
+  const s = deltaOrFull.state || deltaOrFull.systemState;
+  if (s && typeof s === 'object' && (eventType === 'system_state' || eventType === 'batch' || Object.keys(s).length > 0)) {
+    if (s.visitorCounts && (eventType === 'system_state' || (!visitorList || visitorList.length === 0))) visitorCounts = { ...s.visitorCounts };
+    if (s.approvedCustomTotal !== undefined) approvedCustomTotal = s.approvedCustomTotal;
+    if (s.siteLocked !== undefined) isSiteLocked = Boolean(s.siteLocked);
+    if (s.securityMode) {
+      securityMode = s.securityMode;
+      if (securityMode === "disaster") isUnlockedByPassword = true;
+      updateSecurityUI();
     }
+    let timeSinceSwitch = (typeof window !== 'undefined' && window.lastTimeSwitchTimestamp) ? (Date.now() - window.lastTimeSwitchTimestamp) : 999999;
+    if (s.simTimeMode && timeSinceSwitch > 5000) {
+      if (simTimeMode !== s.simTimeMode) {
+        simTimeMode = s.simTimeMode;
+        if (typeof document !== 'undefined') {
+          let selectEl = document.getElementById("simTimeSelect");
+          if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+        }
+        updateGradeDropdown();
+      }
+    }
+    shouldRenderOverview = true;
+    shouldRenderPullout = true;
+    shouldRenderSummary = true;
+    shouldRenderRescue = true;
   }
 
   // 同步暴露至全域物件 (確保測試與除錯可直接訪問最新狀態)

@@ -392,6 +392,23 @@ describe('Integration Tests: Real-time Sync & OfflineManager Pipeline (Findings 
       assert.ok(state.classReports['三 1']);
       assert.equal(state.pulloutStatusMap['三 1_01號'], 'team');
     });
+
+    it('1.8 Concurrent multi-collection burst writes within 20ms merge into batch and apply ALL collections without loss', async () => {
+      unsubRealtime = adapter.initRealtimeSync((delta) => {
+        syncRemoteState(delta);
+      });
+
+      await Promise.all([
+        firestore.setPullout('一 1_01號', { studentKey: '一 1_01號', status: 'missing' }),
+        firestore.setRescue('一 1_01號', { triage: 'red', status: 'missing' })
+      ]);
+
+      await new Promise(r => setTimeout(r, 60));
+
+      const state = getAppCurrentState();
+      assert.equal(state.pulloutStatusMap['一 1_01號'], 'missing', 'Pullout must be updated');
+      assert.ok(state.rescueTriageMap['一 1_01號'], 'Rescue must be updated');
+    });
   });
 
   // ============================================================================
