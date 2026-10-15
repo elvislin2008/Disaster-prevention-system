@@ -727,6 +727,11 @@ export class OfflineManager {
    * 通用變更記錄器 (0ms 寫入本地快取，斷網入列，連網即發)
    */
   async recordMutation(collection, key, data, options = { merge: true }, action = 'set') {
+    // 確保底層儲存庫在首次呼叫前已完全初始化
+    if (!this._initialized) {
+      await this.init();
+    }
+
     const cleanData = deepClone(data);
     const cacheKey = `${collection}/${key}`;
     const timestamp = Date.now();
@@ -796,6 +801,15 @@ export class OfflineManager {
         key
       };
     } catch (err) {
+      // 若呼叫端要求顯式拋出錯誤（供 withFailureHandler 攔截與單元測試校驗）
+      if (options && options.rethrow) {
+        if (this.storage) {
+          mutation.id = await this.storage.enqueueMutation(mutation);
+        }
+        await this._refreshPendingBadge();
+        throw err;
+      }
+
       // 網路突發中斷：自動轉為離線模式並排入本機佇列
       this.isOnline = false;
       if (this.storage) {
@@ -897,7 +911,7 @@ export class OfflineManager {
     if (pending.length === 0) {
       this.retryCount = 0;
       this.updateBadge(STATUS_TEXTS.ONLINE);
-      return { status: 'empty', drainedCount: 0 };
+      return { status: 'empty', success: true, drainedCount: 0 };
     }
 
     this.isDraining = true;
@@ -936,6 +950,7 @@ export class OfflineManager {
         this._notifyStatusChange();
         return {
           status: 'error',
+          success: false,
           error: err,
           drainedCount,
           remaining: pending.length - drainedCount
@@ -958,8 +973,36 @@ export class OfflineManager {
 
     return {
       status: 'success',
+      success: true,
       drainedCount,
       remaining
+    };
+  }
+
+  getStatusBadge(isOnline = this.isOnline, pendingCount = null, retryCount = this.retryCount) {
+    let count = 0;
+    if (pendingCount !== null) {
+      count = pendingCount;
+    } else if (this.storage && this.storage.memoryQueue) {
+      count = this.storage.memoryQueue.filter(m => m.status === 'pending').length;
+    } else if (this.badgeElement && this.badgeElement.textContent) {
+      const match = this.badgeElement.textContent.match(/(\d+)筆待傳/);
+      count = match ? parseInt(match[1], 10) : 0;
+    }
+
+    const text = getStatusBadge(isOnline, count, retryCount);
+    let status = 'online';
+    if (retryCount >= 3) status = 'error';
+    else if (!isOnline) status = 'offline';
+    else if (count > 0) status = 'syncing';
+
+    return {
+      isOnline,
+      pendingCount: count,
+      retryCount,
+      text,
+      status,
+      toString() { return text; }
     };
   }
 

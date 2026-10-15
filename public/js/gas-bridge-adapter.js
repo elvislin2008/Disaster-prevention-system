@@ -27,6 +27,7 @@
  */
 
 import { firestoreService } from './firestore-service.js';
+import { offlineManager as defaultOfflineManager } from './offline-manager.js';
 
 // ------------------------------------------------------------------------------
 // 常數與規範定義
@@ -357,15 +358,23 @@ class GasRunner {
     }
   }
 
-  // 4. 更新單班點名增量
+  // 4. 更新單班點名增量 (寫入持久化 IndexedDB，在線直發，斷網排隊)
   async updateClassReportDelta(classKey, singleReport) {
     try {
-      const fs = this._adapter.getFirestore();
-      await fs.setClassReport(classKey, singleReport, { merge: true });
+      const om = this._adapter.getOfflineManager();
+      let res = null;
+      if (om && typeof om.recordClassReport === 'function') {
+        res = await om.recordClassReport(classKey, singleReport, { merge: true, rethrow: true });
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setClassReport(classKey, singleReport, { merge: true });
+      }
+
       this._resolve({
         success: true,
         classKey,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...(res || {})
       });
     } catch (e) {
       this._reject(e);
@@ -375,27 +384,43 @@ class GasRunner {
   // 5. 更新抽離學生狀態增量 (失蹤連動轉入 rescues，鐵律 4 保護)
   async updatePulloutStatusDelta(studentKey, statusVal, rescueData) {
     try {
-      const fs = this._adapter.getFirestore();
-      await fs.setPullout(studentKey, {
+      const om = this._adapter.getOfflineManager();
+      const pulloutPayload = {
         studentKey,
         status: statusVal,
         updatedAt: Date.now()
-      }, { merge: true });
+      };
 
-      // 只有抽離教師標註為 missing 時，才納入搜救清單 (鐵律 4)
-      if (statusVal === 'missing' && rescueData) {
-        await fs.setRescue(studentKey, {
-          ...rescueData,
-          status: 'missing',
-          searchDone: false,
-          updatedAt: Date.now()
-        }, { merge: true });
+      let res = null;
+      if (om && typeof om.recordPullout === 'function') {
+        res = await om.recordPullout(studentKey, pulloutPayload, { merge: true, rethrow: true });
+        if (statusVal === 'missing' && rescueData) {
+          const rescuePayload = {
+            ...rescueData,
+            status: 'missing',
+            searchDone: false,
+            updatedAt: Date.now()
+          };
+          await om.recordRescue(studentKey, rescuePayload, { merge: true, rethrow: true });
+        }
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setPullout(studentKey, pulloutPayload, { merge: true });
+        if (statusVal === 'missing' && rescueData) {
+          await fs.setRescue(studentKey, {
+            ...rescueData,
+            status: 'missing',
+            searchDone: false,
+            updatedAt: Date.now()
+          }, { merge: true });
+        }
       }
 
       this._resolve({
         success: true,
         studentKey,
-        status: statusVal
+        status: statusVal,
+        ...(res || {})
       });
     } catch (e) {
       this._reject(e);
@@ -405,26 +430,38 @@ class GasRunner {
   // 6. 更新危難搜救與檢傷增量 (尋獲連動抽離 safe)
   async updateRescueStatusDelta(targetKey, rescueData, searchDoneVal) {
     try {
-      const fs = this._adapter.getFirestore();
+      const om = this._adapter.getOfflineManager();
       const payload = {
         ...(rescueData || {}),
         searchDone: Boolean(searchDoneVal),
         updatedAt: Date.now()
       };
-      await fs.setRescue(targetKey, payload, { merge: true });
 
-      // 若確認尋獲，抽離狀態同步標註為 safe
-      if (searchDoneVal) {
-        await fs.setPullout(targetKey, {
-          status: 'safe',
-          updatedAt: Date.now()
-        }, { merge: true });
+      let res = null;
+      if (om && typeof om.recordRescue === 'function') {
+        res = await om.recordRescue(targetKey, payload, { merge: true, rethrow: true });
+        if (searchDoneVal) {
+          await om.recordPullout(targetKey, {
+            status: 'safe',
+            updatedAt: Date.now()
+          }, { merge: true, rethrow: true });
+        }
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setRescue(targetKey, payload, { merge: true });
+        if (searchDoneVal) {
+          await fs.setPullout(targetKey, {
+            status: 'safe',
+            updatedAt: Date.now()
+          }, { merge: true });
+        }
       }
 
       this._resolve({
         success: true,
         targetKey,
-        payload
+        payload,
+        ...(res || {})
       });
     } catch (e) {
       this._reject(e);
@@ -434,18 +471,27 @@ class GasRunner {
   // 7. 更新家長聯繫狀態與指揮中心協助通報
   async updateContactStateDelta(studentKey, stateObj, isHelpReq) {
     try {
-      const fs = this._adapter.getFirestore();
-      await fs.setContact(studentKey, {
+      const om = this._adapter.getOfflineManager();
+      const payload = {
         ...(stateObj || {}),
         isHelpReq: Boolean(isHelpReq),
         updatedAt: Date.now()
-      }, { merge: true });
+      };
+
+      let res = null;
+      if (om && typeof om.recordContact === 'function') {
+        res = await om.recordContact(studentKey, payload, { merge: true, rethrow: true });
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setContact(studentKey, payload, { merge: true });
+      }
 
       this._resolve({
         success: true,
         studentKey,
         count: stateObj?.count || 0,
-        isHelpReq: Boolean(isHelpReq)
+        isHelpReq: Boolean(isHelpReq),
+        ...(res || {})
       });
     } catch (e) {
       this._reject(e);
@@ -455,16 +501,25 @@ class GasRunner {
   // 8. 更新單棟建築物檢核狀態
   async updateBuildingStatusDelta(bName, bData) {
     try {
-      const fs = this._adapter.getFirestore();
-      await fs.setBuilding(bName, {
+      const om = this._adapter.getOfflineManager();
+      const payload = {
         buildingName: bName,
         ...(bData || {}),
         updatedAt: Date.now()
-      }, { merge: true });
+      };
+
+      let res = null;
+      if (om && typeof om.recordBuilding === 'function') {
+        res = await om.recordBuilding(bName, payload, { merge: true, rethrow: true });
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setBuilding(bName, payload, { merge: true });
+      }
 
       this._resolve({
         success: true,
-        buildingName: bName
+        buildingName: bName,
+        ...(res || {})
       });
     } catch (e) {
       this._reject(e);
@@ -474,22 +529,40 @@ class GasRunner {
   // 9. 新增校外或臨時人員登記
   async appendVisitorListDelta(newItems) {
     try {
+      const om = this._adapter.getOfflineManager();
       const fs = this._adapter.getFirestore();
       const items = Array.isArray(newItems) ? newItems : [newItems];
+
       for (const item of items) {
         const id = item.id || `vis_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        await fs.setVisitor(id, { ...item, id }, { merge: true });
-        // 若訪客通報失蹤，連動加入搜救清單
-        if (item.status === 'missing') {
-          await fs.setRescue(id, {
-            targetKey: id,
-            name: item.title || item.name || '校外人員',
-            status: 'searching',
-            triage: 'none',
-            escortCount: 0,
-            searchDone: false,
-            updatedAt: Date.now()
-          }, { merge: true });
+        const visitorPayload = { ...item, id, updatedAt: Date.now() };
+
+        if (om && typeof om.recordVisitor === 'function') {
+          await om.recordVisitor(id, visitorPayload, { merge: true, rethrow: true });
+          if (item.status === 'missing') {
+            await om.recordRescue(id, {
+              targetKey: id,
+              name: item.title || item.name || '校外人員',
+              status: 'searching',
+              triage: 'none',
+              escortCount: 0,
+              searchDone: false,
+              updatedAt: Date.now()
+            }, { merge: true, rethrow: true });
+          }
+        } else {
+          await fs.setVisitor(id, visitorPayload, { merge: true });
+          if (item.status === 'missing') {
+            await fs.setRescue(id, {
+              targetKey: id,
+              name: item.title || item.name || '校外人員',
+              status: 'searching',
+              triage: 'none',
+              escortCount: 0,
+              searchDone: false,
+              updatedAt: Date.now()
+            }, { merge: true });
+          }
         }
       }
 
@@ -505,19 +578,31 @@ class GasRunner {
   // 10. 全量儲存系統狀態
   async saveFullSystemState(stateData) {
     try {
-      const fs = this._adapter.getFirestore();
-      await fs.setSystemState(stateData, { merge: true });
+      const om = this._adapter.getOfflineManager();
+      if (om && typeof om.recordSystemState === 'function') {
+        await om.recordSystemState(stateData, { merge: true, rethrow: true });
+      } else {
+        const fs = this._adapter.getFirestore();
+        await fs.setSystemState(stateData, { merge: true });
+      }
       this._resolve({ success: true });
     } catch (e) {
       this._reject(e);
     }
   }
 
-  // 11. 指揮官一鍵重置清空所有演練點名數據
+  // 11. 指揮官一鍵重置清空所有演練點名數據 (連動清空離線佇列)
   async clearAllReports() {
     try {
       const fs = this._adapter.getFirestore();
       await fs.clearAllData();
+
+      const om = this._adapter.getOfflineManager();
+      if (om) {
+        if (typeof om.clearQueue === 'function') await om.clearQueue();
+        if (typeof om.clearAllCache === 'function') await om.clearAllCache();
+      }
+
       this._resolve({ success: true, cleared: true });
     } catch (e) {
       this._reject(e);
@@ -527,11 +612,16 @@ class GasRunner {
   // 12. 批次儲存全部建物檢核狀態 (對應 L1384 saveBuildingStatus)
   async saveBuildingStatus(buildingData) {
     try {
+      const om = this._adapter.getOfflineManager();
       const fs = this._adapter.getFirestore();
       if (buildingData && typeof buildingData === 'object') {
         for (const [bName, bData] of Object.entries(buildingData)) {
           if (bName === 'ALL') continue;
-          await fs.setBuilding(bName, bData, { merge: true });
+          if (om && typeof om.recordBuilding === 'function') {
+            await om.recordBuilding(bName, bData, { merge: true, rethrow: true });
+          } else {
+            await fs.setBuilding(bName, bData, { merge: true });
+          }
         }
       }
       this._resolve({ success: true });
@@ -695,12 +785,29 @@ export class GASBridgeAdapter {
     this.options = options;
     this.firestore = options.firestore || firestoreService;
     this.supabase = options.supabase || null;
+    this.offlineManager = options.offlineManager || defaultOfflineManager;
     this._activeSyncUnsub = null;
     this._syncBatchTimer = null;
   }
 
   getFirestore() {
     return this.options.firestore || this.firestore || firestoreService;
+  }
+
+  getOfflineManager() {
+    const om = this.options.offlineManager ||
+      this.offlineManager ||
+      (typeof window !== 'undefined' && window.OfflineManager) ||
+      (typeof globalThis !== 'undefined' && globalThis.OfflineManager) ||
+      defaultOfflineManager;
+
+    if (om) {
+      const fs = this.getFirestore();
+      if (fs) {
+        om.firestoreService = fs;
+      }
+    }
+    return om;
   }
 
   /**
@@ -721,6 +828,10 @@ export class GASBridgeAdapter {
     });
   }
 
+  getScriptRunner() {
+    return this.createRunner();
+  }
+
   /**
    * 徹底拔除舊版 3.5s~15s 輪詢：
    * 使用 Firestore onSnapshot 即時監聽推播，實現毫秒級雙向同步
@@ -736,13 +847,27 @@ export class GASBridgeAdapter {
     const fs = this.getFirestore();
     const unsubs = [];
 
-    // 批次防抖彙整更新事件 (20ms 微視窗，防止跨集合同時更新引發多次重繪風暴)
+    // 批次防抖彙整更新事件 (20ms 微視窗，聚合多集合連動，防止跨集合同時更新引發多次重繪風暴與事件丟失)
+    let pendingBatch = null;
+
     const scheduleBatchUpdate = (changeInfo) => {
+      if (!pendingBatch) {
+        pendingBatch = { ...changeInfo };
+      } else {
+        if (pendingBatch.type !== changeInfo.type) {
+          pendingBatch.type = 'batch';
+        }
+        Object.assign(pendingBatch, changeInfo);
+      }
+
       if (this._syncBatchTimer) clearTimeout(this._syncBatchTimer);
-      this._syncBatchTimer = setTimeout(async () => {
+      this._syncBatchTimer = setTimeout(() => {
+        const toDispatch = pendingBatch;
+        pendingBatch = null;
+        this._syncBatchTimer = null;
         try {
-          if (typeof onUpdateCallback === 'function') {
-            onUpdateCallback(changeInfo);
+          if (typeof onUpdateCallback === 'function' && toDispatch) {
+            onUpdateCallback(toDispatch);
           }
         } catch (e) {
           console.error('[GASBridgeAdapter] Realtime update callback failed:', e);
@@ -750,37 +875,76 @@ export class GASBridgeAdapter {
       }, 20);
     };
 
-    // 註冊 7 大集合的即時推播監聽
+    // 註冊 7 大集合的即時推播監聽，派發雙鍵相容結構 (支援 reports 與 classReports 等標準變數名)
     unsubs.push(fs.subscribeClassReports((reports) => {
-      scheduleBatchUpdate({ type: 'class_reports', reports });
+      scheduleBatchUpdate({
+        type: 'class_reports',
+        reports,
+        classReports: reports
+      });
     }));
 
     unsubs.push(fs.subscribePullouts((pullouts) => {
-      scheduleBatchUpdate({ type: 'pullouts', pullouts });
+      scheduleBatchUpdate({
+        type: 'pullouts',
+        pullouts,
+        pulloutStatusMap: pullouts
+      });
     }));
 
     unsubs.push(fs.subscribeRescues((rescues) => {
-      scheduleBatchUpdate({ type: 'rescues', rescues });
+      const searchStatus = {};
+      for (const [key, val] of Object.entries(rescues || {})) {
+        if (val && val.searchDone) searchStatus[key] = true;
+      }
+      scheduleBatchUpdate({
+        type: 'rescues',
+        rescues,
+        rescueTriageMap: rescues,
+        searchStatusMap: searchStatus
+      });
     }));
 
     unsubs.push(fs.subscribeContacts((contactData) => {
-      scheduleBatchUpdate({ type: 'contacts', ...contactData });
+      scheduleBatchUpdate({
+        type: 'contacts',
+        contacts: contactData.contacts,
+        helpRequests: contactData.helpRequests,
+        contactStates: contactData.contacts,
+        helpRequestMap: contactData.helpRequests
+      });
     }));
 
     unsubs.push(fs.subscribeVisitors((visitors) => {
-      scheduleBatchUpdate({ type: 'visitors', visitors });
+      scheduleBatchUpdate({
+        type: 'visitors',
+        visitors,
+        visitorList: visitors
+      });
     }));
 
     unsubs.push(fs.subscribeBuildings((buildings) => {
-      scheduleBatchUpdate({ type: 'buildings', buildings });
+      scheduleBatchUpdate({
+        type: 'buildings',
+        buildings,
+        buildingStatusMap: buildings
+      });
     }));
 
     unsubs.push(fs.subscribeSystemState((state) => {
-      scheduleBatchUpdate({ type: 'system_state', state });
+      scheduleBatchUpdate({
+        type: 'system_state',
+        state,
+        systemState: state
+      });
     }));
 
     const unsubscribeAll = () => {
-      if (this._syncBatchTimer) clearTimeout(this._syncBatchTimer);
+      if (this._syncBatchTimer) {
+        clearTimeout(this._syncBatchTimer);
+        this._syncBatchTimer = null;
+      }
+      pendingBatch = null;
       for (const unsub of unsubs) {
         try { unsub(); } catch (e) { /* ignore */ }
       }

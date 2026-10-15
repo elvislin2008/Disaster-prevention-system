@@ -501,9 +501,81 @@ function onGradeChange() {
   sec.style.display = "block";
 }
 
-function onClassClick(cVal) {
+// ==============================================================================
+// RBAC 班級編輯權限防護查驗 (Finding 4 恪遵規格與 8888 覆蓋)
+// ==============================================================================
+function checkClassEditPermission(gVal, cVal) {
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+  if (!auth || typeof auth.getUserRole !== 'function') {
+    return { canEdit: true, role: 'anonymous' };
+  }
+  const role = auth.getUserRole();
+  // 總指揮官或演練 8888 覆蓋：具備全校 90 班編輯特權
+  if (role === 'commander') {
+    return { canEdit: true, role: 'commander' };
+  }
+  // 導師角色：嚴格限於其指派之單一班級
+  if (role === 'teacher') {
+    const allowed = typeof auth.canEditClass === 'function' && auth.canEditClass(gVal, cVal);
+    return { canEdit: Boolean(allowed), role: 'teacher' };
+  }
+  // 未登入訪客 (操場離線演習應急模式)：不予鎖定，維持現場可用性
+  if (role === 'visitor') {
+    return { canEdit: true, role: 'visitor' };
+  }
+  // 其他角色 (pullout_teacher, medical, patrol 等)：非指揮官且非帶班導師，唯讀檢視
+  return { canEdit: false, role };
+}
+
+/**
+ * 取得 app.js 當前全域狀態快照 (供測試與即時監控使用)
+ */
+function getAppState() {
+  return {
+    classReports: { ...classReports },
+    pulloutStatusMap: { ...pulloutStatusMap },
+    rescueTriageMap: { ...rescueTriageMap },
+    searchStatusMap: { ...searchStatusMap },
+    searchNotesMap: { ...searchNotesMap },
+    contactStates: { ...contactStates },
+    helpRequestMap: { ...helpRequestMap },
+    assigneeMap: { ...assigneeMap },
+    visitorCounts: { ...visitorCounts },
+    visitorList: [ ...visitorList ],
+    buildingStatusMap: { ...buildingStatusMap },
+    approvedCustomTotal,
+    securityMode,
+    simTimeMode,
+    currentClassStudents: [ ...currentClassStudents ],
+    studentStatusMap: { ...studentStatusMap },
+    selectedGradeOpt,
+    selectedClassBtn
+  };
+}
+
+/**
+ * 開啟班級點名視窗
+ */
+function openClassRollCall(grade, className) {
+  if (grade) selectedGradeOpt = grade;
+  if (className) selectedClassBtn = className;
+  return onClassClick(className || selectedClassBtn, grade || selectedGradeOpt);
+}
+
+function onClassClick(cVal, gValOverride) {
   if (typeof document === 'undefined') return;
+  if (gValOverride) selectedGradeOpt = gValOverride;
   let gVal = selectedGradeOpt;
+  // 若未指定年級但學生名冊能推斷該班級所屬年級
+  if (!gVal && cVal && allStudents.length > 0) {
+    const matched = allStudents.find(d => d.className === cVal);
+    if (matched && matched.grade) {
+      gVal = matched.grade;
+      selectedGradeOpt = gVal;
+    }
+  }
+  selectedClassBtn = cVal;
   if (!cVal || !gVal) return;
 
   currentClassStudents = allStudents.filter(d => d.grade === gVal && d.className === cVal);
@@ -542,11 +614,44 @@ function onClassClick(cVal) {
   });
 
   renderMatrix();
+
+  // Finding 4: UI Guard 權限校驗與按鈕/警示條控制
+  const perm = checkClassEditPermission(gVal, cVal);
+  let warnBox = document.getElementById("teacherClassAuthWarn");
   let btnSubmit = document.getElementById("btnSubmitAttendance");
-  if (btnSubmit) {
-    btnSubmit.innerText = "送出點名紀錄 (請送出紀錄)";
-    btnSubmit.classList.remove("saved");
+
+  if (!perm.canEdit) {
+    if (!warnBox) {
+      warnBox = document.createElement("div");
+      warnBox.id = "teacherClassAuthWarn";
+      warnBox.className = "teacher-class-auth-warn";
+      warnBox.style.cssText = "padding:8px 14px; margin-bottom:10px; border-radius:6px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; font-size:0.83rem; font-weight:bold; display:flex; align-items:center; justify-content:space-between;";
+      const grid = document.getElementById("studentGrid");
+      if (grid && grid.parentNode) {
+        grid.parentNode.insertBefore(warnBox, grid);
+      }
+    }
+    warnBox.innerHTML = `<span>🔒 <b>唯讀檢視模式</b>：您目前為【${perm.role === 'teacher' ? '導師' : perm.role}】，非 <b>${gVal} ${cleanClassLabel(cVal, gVal)}</b> 之帶班導師，點名操作已鎖定為唯讀檢視。<br><span style="font-size:0.75rem; font-weight:normal; color:#666;">若需代為點名，請洽總指揮官或點擊右上角輸入演練通行碼 (8888) 解鎖。</span></span>`;
+    warnBox.style.display = "flex";
+
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.style.opacity = "0.55";
+      btnSubmit.style.cursor = "not-allowed";
+      btnSubmit.innerText = "🔒 唯讀檢視中 (非本班帶班導師)";
+      btnSubmit.classList.remove("saved");
+    }
+  } else {
+    if (warnBox) warnBox.style.display = "none";
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.style.opacity = "";
+      btnSubmit.style.cursor = "";
+      btnSubmit.innerText = "送出點名紀錄 (請送出紀錄)";
+      btnSubmit.classList.remove("saved");
+    }
   }
+
   let phBox = document.getElementById("placeholderBox");
   if (phBox) phBox.style.display = "none";
   let stContent = document.getElementById("studentContent");
@@ -643,10 +748,23 @@ function renderMatrix() {
       if (noteText) noteHtml = '<span class="found-note-tag">🔍 ' + noteText + '</span>';
     }
 
-    btn.className = "seat-btn " + statusClass;
+    const perm = checkClassEditPermission(gVal, cVal);
+
+    btn.className = "seat-btn " + statusClass + (!perm.canEdit ? " readonly-seat" : "");
     btn.innerHTML = '<span class="seat-title">' + s.seatRaw + '</span><span class="name">' + s.name + '</span><span class="status-label">' + statusText + '</span>' + noteHtml;
+    if (!perm.canEdit) {
+      btn.style.cursor = "not-allowed";
+      btn.title = "唯讀檢視模式（非本班帶班導師）";
+    }
 
     btn.onclick = function() {
+      if (!perm.canEdit) {
+        if (typeof alert !== 'undefined') {
+          alert(`⚠️ 唯讀檢視模式：您非 ${gVal} ${cVal} 帶班導師，無法修改點名狀態。\n若需代為點名，請使用總指揮官帳號登入或輸入 8888 演練通行碼。`);
+        }
+        return;
+      }
+
       if (status === 'present') {
         studentStatusMap[s.seatRaw] = 'study_center';
         if (!pulloutStatusMap[studentKey]) pulloutStatusMap[studentKey] = 'pending';
@@ -905,6 +1023,15 @@ function submitAttendance(isAuto) {
   let gVal = selectedGradeOpt;
   let cVal = selectedClassBtn;
   let key = gVal + " " + cVal;
+
+  // Finding 4: 點名送出權限守門員
+  const perm = checkClassEditPermission(gVal, cVal);
+  if (!perm.canEdit) {
+    if (!isAuto && typeof alert !== 'undefined') {
+      alert(`⚠️ 權限不足：您非 ${gVal} ${cVal} 帶班導師，無法送出點名紀錄。`);
+    }
+    return false;
+  }
 
   let leaveStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'leave');
   let pickedUpStudents = currentClassStudents.filter(s => studentStatusMap[s.seatRaw] === 'pickedUp');
@@ -2523,25 +2650,52 @@ function switchPage(pageId, btn) {
 // ==============================================================================
 function loadSavedFullState(state) {
   if (!state) return;
-  classReports = state.classReports || {};
-  searchStatusMap = state.searchStatusMap || {};
-  searchNotesMap = state.searchNotesMap || {};
-  contactStates = state.contactStates || {};
-  helpRequestMap = state.helpRequestMap || {};
-  assigneeMap = state.assigneeMap || {};
-  rescueTriageMap = state.rescueTriageMap || {};
-  pulloutStatusMap = state.pulloutStatusMap || {};
-  visitorCounts = state.visitorCounts || { student: 0, teacher: 0, parent: 0, vendor: 0 };
-  if (state.visitorList) visitorList = state.visitorList;
+
+  // 1. 班級點名 (相容 classReports 與 CLASS_REPORTS_DATA)
+  if (state.classReports !== undefined) classReports = state.classReports || {};
+  else if (state.CLASS_REPORTS_DATA !== undefined) classReports = state.CLASS_REPORTS_DATA || {};
+
+  // 2. 搜救狀態與備註 (相容 searchStatusMap 與 SEARCH_STATUS_MAP)
+  if (state.searchStatusMap !== undefined) searchStatusMap = state.searchStatusMap || {};
+  else if (state.SEARCH_STATUS_MAP !== undefined) searchStatusMap = state.SEARCH_STATUS_MAP || {};
+  if (state.searchNotesMap !== undefined) searchNotesMap = state.searchNotesMap || {};
+
+  // 3. 家長聯繫與求助標記 (相容 contactStates 與 CONTACT_STATES)
+  if (state.contactStates !== undefined) contactStates = state.contactStates || {};
+  else if (state.CONTACT_STATES !== undefined) contactStates = state.CONTACT_STATES || {};
+  if (state.helpRequestMap !== undefined) helpRequestMap = state.helpRequestMap || {};
+  else if (state.HELP_REQUEST_MAP !== undefined) helpRequestMap = state.HELP_REQUEST_MAP || {};
+
+  // 4. 任務指派與檢傷分類
+  if (state.assigneeMap !== undefined) assigneeMap = state.assigneeMap || {};
+  if (state.rescueTriageMap !== undefined) rescueTriageMap = state.rescueTriageMap || {};
+  else if (state.RESCUE_TRIAGE_MAP !== undefined) rescueTriageMap = state.RESCUE_TRIAGE_MAP || {};
+
+  // 5. 抽離追蹤狀態
+  if (state.pulloutStatusMap !== undefined) pulloutStatusMap = state.pulloutStatusMap || {};
+  else if (state.PULLOUT_STATUS_MAP !== undefined) pulloutStatusMap = state.PULLOUT_STATUS_MAP || {};
+
+  // 6. 訪客數據
+  if (state.visitorCounts !== undefined) visitorCounts = state.visitorCounts || { student: 0, teacher: 0, parent: 0, vendor: 0 };
+  if (state.visitorList !== undefined) visitorList = state.visitorList || [];
+  else if (state.VISITOR_LIST_DATA !== undefined) visitorList = state.VISITOR_LIST_DATA || [];
+
   if (state.approvedCustomTotal !== undefined) approvedCustomTotal = state.approvedCustomTotal;
+
+  // 7. 建物巡檢狀態 (保留既有建物資料並補齊 6 大建物)
   if (state.buildingStatusMap && Object.keys(state.buildingStatusMap).length > 0) {
-    buildingStatusMap = state.buildingStatusMap;
+    for (const [name, data] of Object.entries(state.buildingStatusMap)) {
+      if (name === "ALL") continue;
+      buildingStatusMap[name] = Object.assign({}, buildingStatusMap[name] || {}, data);
+    }
     if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"];
   }
   const defaultBuildingsList = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
   defaultBuildingsList.forEach(b => {
     if (!buildingStatusMap[b]) buildingStatusMap[b] = {};
   });
+
+  // 8. 演練防護與密碼鎖定
   if (state.securityMode) {
     securityMode = state.securityMode;
     if (securityMode === "disaster") isUnlockedByPassword = true;
@@ -2562,6 +2716,19 @@ function loadSavedFullState(state) {
     }
   }
 
+  // 同步暴露至全域物件 (確保測試與除錯可直接訪問最新狀態)
+  if (typeof window !== 'undefined') {
+    window.classReports = classReports;
+    window.pulloutStatusMap = pulloutStatusMap;
+    window.rescueTriageMap = rescueTriageMap;
+    window.contactStates = contactStates;
+    window.searchStatusMap = searchStatusMap;
+    window.searchNotesMap = searchNotesMap;
+    window.buildingStatusMap = buildingStatusMap;
+    window.visitorList = visitorList;
+    window.visitorCounts = visitorCounts;
+  }
+
   renderSchoolOverview();
   renderPulloutPage();
   renderSummaryTable();
@@ -2569,10 +2736,172 @@ function loadSavedFullState(state) {
   renderBuildingGrid();
 }
 
-function syncRemoteState(state) {
-  if (!state) return;
-  loadSavedFullState(state);
-  if (currentClassStudents.length > 0) renderTeacherContactPanel();
+/**
+ * 遠端狀態同步入口：支援細粒度增量 Delta Patching 與相容全量 Full State 載入
+ * 徹底解決即時推播導致的未包含資料表清空洗白 (Finding 1)
+ * @param {Object} deltaOrFull 來自 Firestore 推播之增量事件或全域系統狀態物件
+ */
+function syncRemoteState(deltaOrFull) {
+  if (!deltaOrFull || typeof deltaOrFull !== 'object') return;
+
+  // 判定是否為細粒度增量事件 (帶有 type 標籤)
+  const isDelta = Boolean(deltaOrFull.type);
+
+  if (!isDelta) {
+    // 全量狀態或相容 GAS 結構，調用已強固化的 loadSavedFullState
+    loadSavedFullState(deltaOrFull);
+    if (currentClassStudents.length > 0) renderTeacherContactPanel();
+    return;
+  }
+
+  const eventType = deltaOrFull.type;
+  let shouldRenderOverview = false;
+  let shouldRenderPullout = false;
+  let shouldRenderSummary = false;
+  let shouldRenderRescue = false;
+  let shouldRenderBuilding = false;
+  let shouldRenderTeacherPanel = currentClassStudents.length > 0;
+  let shouldRenderMatrix = currentClassStudents.length > 0;
+
+  // 1. 班級點名細粒度增量 ({ type: 'class_reports', reports } 或 batch)
+  if (eventType === 'class_reports' || eventType === 'batch') {
+    const r = deltaOrFull.reports || deltaOrFull.classReports;
+    if (r && typeof r === 'object') {
+      classReports = { ...classReports, ...r };
+      shouldRenderOverview = true;
+      shouldRenderSummary = true;
+      shouldRenderRescue = true;
+    }
+  }
+
+  // 2. 抽離學生細粒度增量 ({ type: 'pullouts', pullouts } 或 batch)
+  if (eventType === 'pullouts' || eventType === 'batch') {
+    const p = deltaOrFull.pullouts || deltaOrFull.pulloutStatusMap;
+    if (p && typeof p === 'object') {
+      pulloutStatusMap = { ...pulloutStatusMap, ...p };
+      shouldRenderPullout = true;
+      shouldRenderOverview = true;
+      shouldRenderRescue = true;
+      shouldRenderSummary = true;
+    }
+  }
+
+  // 3. 搜救檢傷細粒度增量 ({ type: 'rescues', rescues } 或 batch)
+  if (eventType === 'rescues' || eventType === 'batch') {
+    const r = deltaOrFull.rescues || deltaOrFull.rescueTriageMap;
+    if (r && typeof r === 'object') {
+      rescueTriageMap = { ...rescueTriageMap, ...r };
+      const newSearchStatus = { ...searchStatusMap };
+      for (const [k, v] of Object.entries(r)) {
+        if (v && v.searchDone) newSearchStatus[k] = true;
+        if (v && v.note) searchNotesMap[k] = v.note;
+      }
+      searchStatusMap = newSearchStatus;
+      shouldRenderRescue = true;
+      shouldRenderSummary = true;
+      shouldRenderOverview = true;
+      shouldRenderPullout = true;
+    }
+  }
+
+  // 4. 家長聯繫與求助標記 ({ type: 'contacts', contacts, helpRequests } 或 batch)
+  if (eventType === 'contacts' || eventType === 'batch') {
+    const c = deltaOrFull.contacts || deltaOrFull.contactStates;
+    const h = deltaOrFull.helpRequests || deltaOrFull.helpRequestMap;
+    if (c && typeof c === 'object') contactStates = { ...contactStates, ...c };
+    if (h && typeof h === 'object') helpRequestMap = { ...helpRequestMap, ...h };
+    shouldRenderSummary = true;
+    shouldRenderOverview = true;
+  }
+
+  // 5. 校外與臨時人員登記 ({ type: 'visitors', visitors } 或 batch)
+  if (eventType === 'visitors' || eventType === 'batch') {
+    const v = deltaOrFull.visitors || deltaOrFull.visitorList;
+    if (v) {
+      visitorList = Array.isArray(v) ? [...v] : Object.values(v);
+      visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+      visitorList.forEach(item => {
+        const cat = item.category || item.type || 'parent';
+        if (visitorCounts[cat] !== undefined) {
+          visitorCounts[cat] += (Number(item.count) || 1);
+        }
+      });
+      if (typeof renderAllVisitorListItems === 'function') {
+        renderAllVisitorListItems();
+      }
+      shouldRenderOverview = true;
+    }
+  }
+
+  // 6. 建物巡檢細粒度增量 ({ type: 'buildings', buildings } 或 batch)
+  if (eventType === 'buildings' || eventType === 'batch') {
+    const b = deltaOrFull.buildings || deltaOrFull.buildingStatusMap;
+    if (b && typeof b === 'object') {
+      for (const [name, data] of Object.entries(b)) {
+        if (name === "ALL") continue;
+        buildingStatusMap[name] = Object.assign({}, buildingStatusMap[name] || {}, data);
+      }
+      if (buildingStatusMap["ALL"]) delete buildingStatusMap["ALL"];
+      const defaultBuildingsList = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
+      defaultBuildingsList.forEach(name => {
+        if (!buildingStatusMap[name]) buildingStatusMap[name] = {};
+      });
+      shouldRenderBuilding = true;
+      shouldRenderOverview = true;
+    }
+  }
+
+  // 7. 系統全域組態增量 ({ type: 'system_state', state } 或 batch)
+  if (eventType === 'system_state' || eventType === 'batch') {
+    const s = deltaOrFull.state || deltaOrFull.systemState;
+    if (s && typeof s === 'object') {
+      if (s.visitorCounts) visitorCounts = { ...s.visitorCounts };
+      if (s.approvedCustomTotal !== undefined) approvedCustomTotal = s.approvedCustomTotal;
+      if (s.siteLocked !== undefined) isSiteLocked = Boolean(s.siteLocked);
+      if (s.securityMode) {
+        securityMode = s.securityMode;
+        if (securityMode === "disaster") isUnlockedByPassword = true;
+        updateSecurityUI();
+      }
+      let timeSinceSwitch = (typeof window !== 'undefined' && window.lastTimeSwitchTimestamp) ? (Date.now() - window.lastTimeSwitchTimestamp) : 999999;
+      if (s.simTimeMode && timeSinceSwitch > 5000) {
+        if (simTimeMode !== s.simTimeMode) {
+          simTimeMode = s.simTimeMode;
+          if (typeof document !== 'undefined') {
+            let selectEl = document.getElementById("simTimeSelect");
+            if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+          }
+          updateGradeDropdown();
+        }
+      }
+      shouldRenderOverview = true;
+      shouldRenderPullout = true;
+      shouldRenderSummary = true;
+      shouldRenderRescue = true;
+    }
+  }
+
+  // 同步暴露至全域物件 (確保測試與除錯可直接訪問最新狀態)
+  if (typeof window !== 'undefined') {
+    window.classReports = classReports;
+    window.pulloutStatusMap = pulloutStatusMap;
+    window.rescueTriageMap = rescueTriageMap;
+    window.contactStates = contactStates;
+    window.searchStatusMap = searchStatusMap;
+    window.searchNotesMap = searchNotesMap;
+    window.buildingStatusMap = buildingStatusMap;
+    window.visitorList = visitorList;
+    window.visitorCounts = visitorCounts;
+  }
+
+  // 執行對應畫面重新繪製 (避免多餘的全量 DOM 銷毀重建)
+  if (shouldRenderOverview) renderSchoolOverview();
+  if (shouldRenderPullout) renderPulloutPage();
+  if (shouldRenderSummary) renderSummaryTable();
+  if (shouldRenderRescue) renderRescueTable();
+  if (shouldRenderBuilding) renderBuildingGrid();
+  if (shouldRenderTeacherPanel) renderTeacherContactPanel();
+  if (shouldRenderMatrix && typeof renderMatrix === 'function') renderMatrix();
 }
 
 function saveFullSystemStateToBackend() {
@@ -2723,6 +3052,9 @@ const exportedAppMethods = {
   updateStatus,
   addRetry,
   switchPage,
+  checkClassEditPermission,
+  openClassRollCall,
+  getAppState,
   loadSavedFullState,
   syncRemoteState,
   saveFullSystemStateToBackend,
@@ -2801,6 +3133,9 @@ export {
   updateStatus,
   addRetry,
   switchPage,
+  checkClassEditPermission,
+  openClassRollCall,
+  getAppState,
   loadSavedFullState,
   syncRemoteState,
   saveFullSystemStateToBackend,
