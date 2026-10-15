@@ -32,14 +32,14 @@
 
   // Firebase Web SDK 組態 (支援 onSnapshot 推播與 IndexedDB 離線快取)
   const firebaseConfig = {
-    apiKey: "AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc",
+  apiKey: "AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc",
   authDomain: "disaster-prevention-syst-7169e.firebaseapp.com",
   projectId: "disaster-prevention-syst-7169e",
   storageBucket: "disaster-prevention-syst-7169e.firebasestorage.app",
   messagingSenderId: "391331231714",
   appId: "1:391331231714:web:da88778ec3faed7f1b2bbb",
   measurementId: "G-GLP9HWHBFB"
-  };
+};
 
   // Supabase Auth 組態 (負責教職員與指揮官帳號、Session 與身分權限管理 - R6)
   const supabaseConfig = {
