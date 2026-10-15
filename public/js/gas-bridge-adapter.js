@@ -171,13 +171,16 @@ function createStandardSchedulesFallback() {
   return schedules;
 }
 
-// 產生標準學生名冊保底資料 (90 班，每班預設 28 人)
+// 產生標準學生名冊保底資料 (180 班，每班 30~40 人)
 function createStandardStudentsFallback() {
   const students = [];
-  for (const grade of CANONICAL_REGULAR_GRADES) {
-    for (let c = 1; c <= 15; c++) {
+  const regularGrades = Array.from(CANONICAL_REGULAR_GRADES);
+  for (let gIdx = 0; gIdx < regularGrades.length; gIdx++) {
+    const grade = regularGrades[gIdx];
+    for (let c = 1; c <= 30; c++) {
       const className = String(c);
-      for (let s = 1; s <= 28; s++) {
+      const studentsPerClass = 30 + ((c * 7 + gIdx * 13) % 11); // 30 ~ 40 人
+      for (let s = 1; s <= studentsPerClass; s++) {
         const seatRaw = (s < 10 ? '0' + s : String(s)) + '號';
         const id = `${grade}_${className}_${seatRaw}`;
         students.push({
@@ -188,9 +191,9 @@ function createStandardStudentsFallback() {
           seatRaw,
           name: `學生_${grade}${className}_${seatRaw}`,
           parent: `家長_${grade}${className}_${seatRaw}`,
-          phone: `0912-${String(100 + c).padStart(3, '0')}-${String(s).padStart(3, '0')}`,
+          phone: `0912-${String(100 + (c % 100)).padStart(3, '0')}-${String(s).padStart(3, '0')}`,
           teacher: `${grade}年級${className}班導師`,
-          teacherPhone: `0988-${String(200 + c).padStart(3, '0')}-000`,
+          teacherPhone: `0988-${String(200 + (c % 100)).padStart(3, '0')}-000`,
           classKey: `${grade} ${className}`,
           isActive: true
         });
@@ -854,10 +857,11 @@ export class GASBridgeAdapter {
       if (!pendingBatch) {
         pendingBatch = { ...changeInfo };
       } else {
-        if (pendingBatch.type !== changeInfo.type) {
+        const isMultiType = (pendingBatch.type !== changeInfo.type) || (pendingBatch.type === 'batch');
+        Object.assign(pendingBatch, changeInfo);
+        if (isMultiType) {
           pendingBatch.type = 'batch';
         }
-        Object.assign(pendingBatch, changeInfo);
       }
 
       if (this._syncBatchTimer) clearTimeout(this._syncBatchTimer);

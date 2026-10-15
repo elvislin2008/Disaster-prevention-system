@@ -5,11 +5,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SURNAMES = ['林', '陳', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊', '許', '鄭', '謝', '洪', '郭', '邱', '曾', '廖', '賴', '徐', '周', '葉', '蘇', '莊', '江'];
-const GIVEN_NAMES = ['宏澤', '雅婷', '家豪', '冠宇', '宇軒', '宗翰', '詩涵', '思婷', '佳穎', '柏翰', '品妤', '子晴', '彥廷', '承翰', '欣妤', '俊傑', '子軒', '佩萱', '欣蓉', '博文', '子翔', '若瑄', '詠晴', '浩宇', '晨睿', '品妍', '宥廷', '恩碩', '予樂', '宥辰'];
+const SURNAMES = ['林', '陳', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊', '許', '鄭', '謝', '洪', '郭', '邱', '曾', '廖', '賴', '徐', '周', '葉', '蘇', '莊', '江', '何', '蕭', '羅', '高', '潘'];
+const GIVEN_NAMES = ['宏澤', '雅婷', '家豪', '冠宇', '宇軒', '宗翰', '詩涵', '思婷', '佳穎', '柏翰', '品妤', '子晴', '彥廷', '承翰', '欣妤', '俊傑', '子軒', '佩萱', '欣蓉', '博文', '子翔', '若瑄', '詠晴', '浩宇', '晨睿', '品妍', '宥廷', '恩碩', '予樂', '宥辰', '承恩', '羽彤', '安琪', '凱文', '芷晴', '冠廷', '亮宇', '依晨', '語婕', '皓哲'];
 
 function getRandomItem(arr, index) {
-  return arr[index % arr.length];
+  return arr[Math.abs(index) % arr.length];
 }
 
 function padZero(num) {
@@ -27,13 +27,16 @@ const regularGrades = ['一', '二', '三', '四', '五', '六'];
 const students = [];
 let globalIndex = 1;
 
-// 1. 常態班級: 一至六年級，各 1~15 班，每班 25 人
-for (const grade of regularGrades) {
-  for (let c = 1; c <= 15; c++) {
+// 1. 常態班級: 6 個年級，每個年級 30 個班級，每班 30~40 人
+for (let gIdx = 0; gIdx < regularGrades.length; gIdx++) {
+  const grade = regularGrades[gIdx];
+  for (let c = 1; c <= 30; c++) {
     const className = String(c);
     const teacherName = `${getRandomItem(SURNAMES, c * 3 + grade.charCodeAt(0))}老師`;
-    const teacherPhone = `0988-${padZero(c * 5)}-${padZero(c * 7 + 10)}`;
-    const studentsPerClass = 25;
+    const teacherPhone = `0988-${padZero((c * 5) % 100)}-${padZero((c * 7 + 10) % 100)}`;
+
+    // 每班 30 ~ 40 人 (介於 30 至 40 人之間)
+    const studentsPerClass = 30 + ((c * 7 + gIdx * 13) % 11);
 
     for (let s = 1; s <= studentsPerClass; s++) {
       const seatNum = s;
@@ -63,27 +66,29 @@ for (const grade of regularGrades) {
   }
 }
 
-// 2. 幼兒園: 親親班 20 人
-const kindergartenClass = '親親';
-for (let s = 1; s <= 20; s++) {
-  const seatNum = s;
-  const seatRaw = `${padZero(s)}號`;
-  const name = `${getRandomItem(SURNAMES, globalIndex)}${getRandomItem(GIVEN_NAMES, globalIndex + s)}`;
-  students.push({
-    id: `幼兒園_${kindergartenClass}_${seatRaw}`,
-    grade: '幼兒園',
-    className: kindergartenClass,
-    seatNum,
-    seatRaw,
-    name,
-    parent: `${name}家長`,
-    phone: generatePhone(globalIndex),
-    teacher: '林幼師',
-    teacherPhone: '0988-111-222',
-    classKey: `幼兒園 ${kindergartenClass}`,
-    isActive: true
-  });
-  globalIndex++;
+// 2. 幼兒園: 親親班、糖糖班 各 25 人
+const kindergartenClasses = ['親親', '糖糖'];
+for (const kClass of kindergartenClasses) {
+  for (let s = 1; s <= 25; s++) {
+    const seatNum = s;
+    const seatRaw = `${padZero(s)}號`;
+    const name = `${getRandomItem(SURNAMES, globalIndex)}${getRandomItem(GIVEN_NAMES, globalIndex + s)}`;
+    students.push({
+      id: `幼兒園_${kClass}_${seatRaw}`,
+      grade: '幼兒園',
+      className: kClass,
+      seatNum,
+      seatRaw,
+      name,
+      parent: `${name}家長`,
+      phone: generatePhone(globalIndex),
+      teacher: `${kClass}幼師`,
+      teacherPhone: '0988-111-222',
+      classKey: `幼兒園 ${kClass}`,
+      isActive: true
+    });
+    globalIndex++;
+  }
 }
 
 // 3. 課後班各班
@@ -94,7 +99,7 @@ const afterSchoolClasses = [
 ];
 
 for (const cName of afterSchoolClasses) {
-  for (let s = 1; s <= 12; s++) {
+  for (let s = 1; s <= 15; s++) {
     const seatNum = s;
     const seatRaw = `${padZero(s)}號`;
     const name = `${getRandomItem(SURNAMES, globalIndex)}${getRandomItem(GIVEN_NAMES, globalIndex + s)}`;
@@ -117,9 +122,9 @@ for (const cName of afterSchoolClasses) {
 }
 
 // 4. 學習扶助班
-const assistClasses = ['學2甲', '學2乙'];
+const assistClasses = ['學2甲', '學2乙', '學3甲', '學4甲'];
 for (const aName of assistClasses) {
-  for (let s = 1; s <= 10; s++) {
+  for (let s = 1; s <= 12; s++) {
     const seatNum = s;
     const seatRaw = `${padZero(s)}號`;
     const name = `${getRandomItem(SURNAMES, globalIndex)}${getRandomItem(GIVEN_NAMES, globalIndex + s)}`;
@@ -176,7 +181,20 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
 
-const outFile = path.join(outDir, 'StudentList.json');
-fs.writeFileSync(outFile, JSON.stringify(students, null, 2), 'utf8');
+// 輸出 JSON
+const jsonOutFile = path.join(outDir, 'StudentList.json');
+fs.writeFileSync(jsonOutFile, JSON.stringify(students, null, 2), 'utf8');
 
-console.log(`✅ 已產出 StudentList.json，共 ${students.length} 筆學生與教職員名冊資料。`);
+// 輸出 CSV (對齊試算表欄 A~H 規格)
+const csvHeader = '群組類別,班別名稱,座號,姓名,家長姓名,家長電話,帶班導師,導師電話\n';
+const csvRows = students.map(s => {
+  return `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${s.parent}","${s.phone}","${s.teacher}","${s.teacherPhone}"`;
+}).join('\n');
+
+const csvOutFile = path.join(outDir, 'StudentList.csv');
+fs.writeFileSync(csvOutFile, '\uFEFF' + csvHeader + csvRows, 'utf8'); // 加入 UTF-8 BOM 方便 Excel 開啟不亂碼
+
+console.log(`✅ 已產出 StudentList.json 與 StudentList.csv：`);
+console.log(`   - 涵蓋 6 個年級，各 30 個班級 (共 180 個常態班)`);
+console.log(`   - 每班人數：30 ~ 40 人`);
+console.log(`   - 全校名冊總人數：${students.length} 筆`);
