@@ -32,13 +32,13 @@
 
   // Firebase Web SDK 組態 (支援 onSnapshot 推播與 IndexedDB 離線快取)
   const firebaseConfig = {
-    apiKey: localFirebaseOverride.apiKey || env.FIREBASE_API_KEY || env.VITE_FIREBASE_API_KEY || 'AIzaSyExampleApiKey1234567890abcdef',
-    authDomain: localFirebaseOverride.authDomain || env.FIREBASE_AUTH_DOMAIN || env.VITE_FIREBASE_AUTH_DOMAIN || 'qingshui-disaster.firebaseapp.com',
-    projectId: localFirebaseOverride.projectId || env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || 'qingshui-disaster',
-    storageBucket: localFirebaseOverride.storageBucket || env.FIREBASE_STORAGE_BUCKET || env.VITE_FIREBASE_STORAGE_BUCKET || 'qingshui-disaster.appspot.com',
-    messagingSenderId: localFirebaseOverride.messagingSenderId || env.FIREBASE_MESSAGING_SENDER_ID || env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
-    appId: localFirebaseOverride.appId || env.FIREBASE_APP_ID || env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890abcdef',
-    measurementId: localFirebaseOverride.measurementId || env.FIREBASE_MEASUREMENT_ID || env.VITE_FIREBASE_MEASUREMENT_ID || 'G-ABCDEF1234'
+    apiKey: "AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc",
+  authDomain: "disaster-prevention-syst-7169e.firebaseapp.com",
+  projectId: "disaster-prevention-syst-7169e",
+  storageBucket: "disaster-prevention-syst-7169e.firebasestorage.app",
+  messagingSenderId: "391331231714",
+  appId: "1:391331231714:web:da88778ec3faed7f1b2bbb",
+  measurementId: "G-GLP9HWHBFB"
   };
 
   // Supabase Auth 組態 (負責教職員與指揮官帳號、Session 與身分權限管理 - R6)
