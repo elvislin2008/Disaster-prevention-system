@@ -821,6 +821,14 @@ export class SupabaseAuth {
           <button id="authModalCloseBtn" type="button" style="background:transparent;border:none;color:#fff;font-size:1.2rem;cursor:pointer;">&times;</button>
         </div>
         <div class="modal-body" style="padding:16px;">
+          <!-- 快捷提示列 -->
+          <div style="background:#e8f4f8;border:1px solid #bee5eb;border-radius:6px;padding:8px 10px;font-size:0.8rem;color:#0c5460;margin-bottom:12px;line-height:1.4;">
+            💡 <b>演練測試無須註冊：</b><br>
+            • 點上方<b>【8888 應變通行碼】</b>即可一鍵解鎖全校指揮官特權<br>
+            • 或點下方「👉 填入指揮官/導師」免打字測試<br>
+            • 或直接點擊下方<b>【關閉】</b>以訪客身分查看與點名
+          </div>
+
           <div style="display:flex;gap:8px;margin-bottom:12px;border-bottom:1px solid #eee;padding-bottom:8px;">
             <button id="authTabEmailBtn" type="button" style="flex:1;padding:6px;border:none;background:#1F4E79;color:#fff;border-radius:4px;font-weight:bold;cursor:pointer;">帳號登入</button>
             <button id="authTabPasscodeBtn" type="button" style="flex:1;padding:6px;border:1px solid #1F4E79;background:#fff;color:#1F4E79;border-radius:4px;font-weight:bold;cursor:pointer;">8888 應變通行碼</button>
@@ -828,6 +836,10 @@ export class SupabaseAuth {
 
           <!-- Email Form -->
           <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:6px;margin-bottom:2px;">
+              <button id="quickFillCmdBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入指揮官</button>
+              <button id="quickFillTeaBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入導師</button>
+            </div>
             <div>
               <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">電子信箱 (Email)</label>
               <input id="authInputEmail" type="email" placeholder="例如: teacher1_1@qs.edu.tw" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
@@ -843,16 +855,16 @@ export class SupabaseAuth {
           <!-- Passcode Form -->
           <form id="authPasscodeForm" style="display:none;flex-direction:column;gap:10px;">
             <div>
-              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">演練應變通行碼 (4 碼)</label>
-              <input id="authInputPasscode" type="password" maxlength="6" placeholder="8888" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:1.1rem;text-align:center;letter-spacing:4px;" required />
+              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">演練應變通行碼 (預設 8888)</label>
+              <input id="authInputPasscode" type="password" maxlength="6" value="8888" placeholder="8888" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:1.1rem;text-align:center;letter-spacing:4px;" required />
             </div>
             <div id="authPasscodeError" style="color:#dc3545;font-size:0.8rem;display:none;"></div>
-            <button id="authSubmitPasscodeBtn" type="submit" style="padding:10px;background:#fd7e14;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:6px;">解鎖演練指揮官模式 (20分鐘)</button>
+            <button id="authSubmitPasscodeBtn" type="submit" style="padding:10px;background:#fd7e14;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:6px;">一鍵解鎖演練指揮官模式 (20分鐘)</button>
           </form>
         </div>
         <div class="modal-footer" style="padding:8px 16px;background:#f8f9fa;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:0.72rem;color:#666;">支援操場斷網離線快取</span>
-          <button id="authModalCancelBtn" type="button" style="padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.8rem;cursor:pointer;">關閉</button>
+          <button id="authModalCancelBtn" type="button" style="padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.8rem;cursor:pointer;">關閉 (以訪客使用)</button>
         </div>
       </div>
     `;
@@ -888,6 +900,26 @@ export class SupabaseAuth {
         tabEmail.style.color = '#1F4E79';
         formPasscode.style.display = 'flex';
         formEmail.style.display = 'none';
+      };
+    }
+
+    const fillCmd = modalOverlay.querySelector('#quickFillCmdBtn');
+    if (fillCmd) {
+      fillCmd.onclick = () => {
+        const emailEl = modalOverlay.querySelector('#authInputEmail');
+        const passEl = modalOverlay.querySelector('#authInputPassword');
+        if (emailEl) emailEl.value = 'commander@qs.edu.tw';
+        if (passEl) passEl.value = 'cmd123456';
+      };
+    }
+
+    const fillTea = modalOverlay.querySelector('#quickFillTeaBtn');
+    if (fillTea) {
+      fillTea.onclick = () => {
+        const emailEl = modalOverlay.querySelector('#authInputEmail');
+        const passEl = modalOverlay.querySelector('#authInputPassword');
+        if (emailEl) emailEl.value = 'teacher1_1@qs.edu.tw';
+        if (passEl) passEl.value = 'tea123456';
       };
     }
 
