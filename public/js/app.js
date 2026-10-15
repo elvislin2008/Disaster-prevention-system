@@ -190,6 +190,7 @@ function toggleBgTheme() {
 // ==============================================================================
 function toggleSiteLock() {
   if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("操作網站關閉鎖定")) return;
   let overlay = document.getElementById("siteLockedOverlay");
   let btn = document.getElementById("btnCloseSite");
 
@@ -204,36 +205,28 @@ function toggleSiteLock() {
       saveFullSystemStateToBackend();
     }
   } else {
-    let pwd = prompt("🔑 請輸入指揮中心授權密碼解除全站鎖定：");
-    if (pwd === ADMIN_RESET_PASSWORD || (window.AuthManager && window.AuthManager.getUserRole() === 'commander')) {
-      isSiteLocked = false;
-      if (overlay) overlay.classList.remove("active");
-      if (btn) {
-        btn.innerText = "🔒 網站關閉";
-        btn.classList.remove("locked");
-      }
-      alert("✅ 網站解鎖成功，恢復正常運作。");
-      updateSecurityUI();
-      saveFullSystemStateToBackend();
-    } else if (pwd !== null) {
-      alert("❌ 密碼錯誤！");
+    isSiteLocked = false;
+    if (overlay) overlay.classList.remove("active");
+    if (btn) {
+      btn.innerText = "🔒 網站關閉";
+      btn.classList.remove("locked");
     }
+    alert("✅ 網站解鎖成功，恢復正常運作。");
+    updateSecurityUI();
+    saveFullSystemStateToBackend();
   }
 }
 
 function toggleSecurityMode() {
+  if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("切換演練防護與危難模式")) return;
+
   if (securityMode === "drill") {
-    let hasCommanderAuth = (window.AuthManager && window.AuthManager.getUserRole() === 'commander');
-    let pwd = hasCommanderAuth ? ADMIN_RESET_PASSWORD : prompt("🔑 請輸入指揮中心授權密碼切換為【危難全開模式】：");
-    if (pwd === ADMIN_RESET_PASSWORD || hasCommanderAuth) {
-      securityMode = "disaster";
-      isUnlockedByPassword = true;
-      updateSecurityUI();
-      saveFullSystemStateToBackend();
-      alert("🚨 已切換為【危難模式】！所有功能與家長個資聯繫電話全面解鎖。");
-    } else if (pwd !== null) {
-      alert("❌ 密碼錯誤！無法切換模式。");
-    }
+    securityMode = "disaster";
+    isUnlockedByPassword = true;
+    updateSecurityUI();
+    saveFullSystemStateToBackend();
+    alert("🚨 已切換為【危難模式】！所有功能與家長個資聯繫電話全面解鎖。");
   } else {
     securityMode = "drill";
     isUnlockedByPassword = false;
@@ -1835,6 +1828,7 @@ function submitNewVisitorBatchData() {
 // ==============================================================================
 function executeBackendStressTest() {
   if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("執行併發壓力測試")) return;
   let currentSimMode = document.getElementById("simTimeSelect")?.value || "mon_am";
   if (!confirm("⚠️ 確定要執行當前在校班級併發壓力測試嗎？\n系統將自動對實際在校班級進行模擬點名寫入。")) return;
 
@@ -1921,42 +1915,37 @@ function copyStressModalText() {
 // 指揮官全校數據重置
 // ==============================================================================
 function resetAllDataWithPassword() {
-  let pwd = prompt("🔑 請輸入指揮中心授權管理密碼：");
-  if (pwd === null) return;
-  let isAuthorized = (pwd === ADMIN_RESET_PASSWORD) || (window.AuthManager && window.AuthManager.getUserRole() === 'commander');
+  if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("執行全校重置")) return;
 
-  if (isAuthorized) {
-    if (confirm("⚠️ 密碼驗證成功！確定要清空並重置全校點名紀錄與建築物檢核狀態嗎？")) {
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run.withSuccessHandler(function() {
-          classReports = {};
-          contactStates = {};
-          searchStatusMap = {};
-          searchNotesMap = {};
-          helpRequestMap = {};
-          assigneeMap = {};
-          rescueTriageMap = {};
-          pulloutStatusMap = {};
-          visitorList = [];
-          visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
-          buildingStatusMap = {
-            "慈愛樓": {}, "至善樓": {}, "維揚樓": {}, "樂群樓": {}, "弘德樓": {}, "中山樓": {}
-          };
-          renderSchoolOverview();
-          renderPulloutPage();
-          renderSummaryTable();
-          renderRescueTable();
-          renderBuildingGrid();
-          if (currentClassStudents.length > 0) {
-            currentClassStudents.forEach(s => studentStatusMap[s.seatRaw] = 'present');
-            renderMatrix();
-          }
-          alert("✅ 全校點名紀錄與建築物檢核狀態已成功歸零重置！");
-        }).clearAllReports();
-      }
+  if (confirm("⚠️ 確定要清空並重置全校點名紀錄與建築物檢核狀態嗎？此動作不可撤銷！")) {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(function() {
+        classReports = {};
+        contactStates = {};
+        searchStatusMap = {};
+        searchNotesMap = {};
+        helpRequestMap = {};
+        assigneeMap = {};
+        rescueTriageMap = {};
+        pulloutStatusMap = {};
+        visitorList = [];
+        visitorCounts = { student: 0, teacher: 0, parent: 0, vendor: 0 };
+        buildingStatusMap = {
+          "慈愛樓": {}, "至善樓": {}, "維揚樓": {}, "樂群樓": {}, "弘德樓": {}, "中山樓": {}
+        };
+        renderSchoolOverview();
+        renderPulloutPage();
+        renderSummaryTable();
+        renderRescueTable();
+        renderBuildingGrid();
+        if (currentClassStudents.length > 0) {
+          currentClassStudents.forEach(s => studentStatusMap[s.seatRaw] = 'present');
+          renderMatrix();
+        }
+        alert("✅ 全校點名紀錄與建築物檢核狀態已成功歸零重置！");
+      }).clearAllReports();
     }
-  } else {
-    alert("❌ 密碼錯誤！無法執行重置動作。");
   }
 }
 
@@ -2302,6 +2291,7 @@ function renderSchoolOverview() {
 
 function approveCalculatedTotal() {
   if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("核定採納試算人數")) return;
   let calcVal = parseInt(document.getElementById("calcTotalLabel")?.innerText || "0", 10) || 0;
   approvedCustomTotal = calcVal;
   renderSchoolOverview();
@@ -2310,6 +2300,8 @@ function approveCalculatedTotal() {
 }
 
 function setCustomTotalAttendance() {
+  if (typeof document === 'undefined') return;
+  if (!checkCommanderAccess("手動修改全校在校人數")) return;
   let val = prompt("✏️ 請輸入全校自訂應出席總人數：", approvedCustomTotal !== null ? String(approvedCustomTotal) : "2143");
   if (val !== null && val.trim() !== "" && !isNaN(Number(val))) {
     let parsed = Number(val);
@@ -2617,25 +2609,38 @@ function addRetry(key) {
 }
 
 // ==============================================================================
-// 主分頁切換與指揮官 20 分鐘 Session 授權
 // ==============================================================================
-function switchPage(pageId, btn) {
-  if (typeof document === 'undefined') return;
+// 指揮中心嚴格權限閘門 (嚴格帳號密碼機制：未登入者無法使用指揮中心功能)
+// ==============================================================================
+function checkCommanderAccess(actionName = "使用指揮中心功能") {
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+
+  const isUserLoggedIn = auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
+  const isCommanderUser = auth && typeof auth.getUserRole === 'function' && auth.getUserRole() === 'commander';
+  const isDrillValid = auth && typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
   let nowTime = Date.now();
   let isSessionValid = isUnlockedByPassword && (nowTime < unlockExpiryTime);
 
-  // 指揮中心權限鑑權：若已透過 Supabase 登入為 commander，直接放行；否則校驗 8888 密碼
-  let isCommanderUser = (typeof window !== 'undefined' && window.AuthManager && window.AuthManager.getUserRole() === 'commander');
+  if (isUserLoggedIn || isCommanderUser || isDrillValid || isSessionValid) {
+    return true;
+  }
 
-  if (pageId === 'adminPage' && !isSessionValid && !isCommanderUser) {
-    let pwd = prompt("🔑 請輸入指揮中心授權密碼進入：");
-    if (pwd === ADMIN_RESET_PASSWORD) {
-      isUnlockedByPassword = true;
-      unlockExpiryTime = Date.now() + (20 * 60 * 1000);
-      alert("✅ 密碼驗證成功！已取得 20 分鐘指揮中心通行授權。");
-      updateSecurityUI();
-    } else {
-      if (pwd !== null) alert("❌ 密碼錯誤！無法進入指揮中心。");
+  if (auth && typeof auth.openLoginModal === 'function') {
+    auth.openLoginModal();
+  }
+  alert(`🔒 權限受限：您必須先登入帳號密碼才能${actionName}！`);
+  return false;
+}
+
+// 主分頁切換與指揮官權限閘門
+// ==============================================================================
+function switchPage(pageId, btn) {
+  if (typeof document === 'undefined') return;
+
+  // 嚴格權限防護：未登入者切換至指揮中心一律攔截並要求登入
+  if (pageId === 'adminPage') {
+    if (!checkCommanderAccess("進入指揮中心")) {
       return;
     }
   }

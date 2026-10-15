@@ -272,5 +272,21 @@ describe('Unit Tests: SupabaseAuth & AuthManager (Milestone 2)', () => {
       assert.equal(typeof AuthManager.login, 'function');
       assert.equal(typeof AuthManager.getUserRole, 'function');
     });
+
+    it('5.2 Pre-seeded commander poyilin59@gmail.com logs in successfully with admin123', async () => {
+      const { data, error } = await auth.login('poyilin59@gmail.com', 'admin123');
+      assert.equal(error, null);
+      assert.equal(data.user.email, 'poyilin59@gmail.com');
+      assert.equal(auth.getUserRole(), 'commander');
+      assert.equal(auth.isAuthenticated(), true);
+    });
+
+    it('5.3 Registering a new commander account succeeds and authenticates', async () => {
+      const { data, error } = await auth.register('testcommander@test.com', 'testpwd123', '測試指揮官', 'commander');
+      assert.equal(error, null);
+      assert.equal(data.user.email, 'testcommander@test.com');
+      assert.equal(auth.getUserRole(), 'commander');
+      assert.equal(auth.isAuthenticated(), true);
+    });
   });
 });

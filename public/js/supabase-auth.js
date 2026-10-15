@@ -13,7 +13,8 @@
 
 const STORAGE_KEYS = {
   SESSION: 'APP_AUTH_SESSION',
-  DRILL_EXPIRY: 'APP_AUTH_DRILL_EXPIRY'
+  DRILL_EXPIRY: 'APP_AUTH_DRILL_EXPIRY',
+  REGISTERED_USERS: 'APP_AUTH_REGISTERED_USERS'
 };
 
 // 系統標準角色清單 (RBAC)
@@ -43,6 +44,14 @@ const ROLE_DISPLAY_NAMES = {
 
 // 離線演練或本機開發保底預設帳號庫
 const SEED_ACCOUNTS = new Map([
+  ['poyilin59@gmail.com', {
+    password: 'admin123',
+    user: {
+      id: 'usr_poyi_001',
+      email: 'poyilin59@gmail.com',
+      user_metadata: { role: 'commander', name: '總指揮官' }
+    }
+  }],
   ['commander@qs.edu.tw', {
     password: 'cmd123456',
     user: {
@@ -280,6 +289,29 @@ export class SupabaseAuth {
       };
     }
 
+    // 2.5 檢查自訂註冊帳號庫 (LocalStorage)
+    const registered = this._getRegisteredUsers();
+    const regUser = registered[trimmedEmail];
+    if (regUser && regUser.password === password) {
+      const session = {
+        access_token: `jwt_${regUser.id}_${Date.now()}`,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: {
+          id: regUser.id,
+          email: regUser.email,
+          user_metadata: { ...regUser.user_metadata }
+        }
+      };
+      this.currentSession = session;
+      this._saveSessionToStorage(session);
+      this._notifyAuthState('SIGNED_IN', session);
+      this.renderAuthBadge();
+      return {
+        data: { user: session.user, session },
+        error: null
+      };
+    }
+
     // 3. 檢查本機離線快取是否吻合 (斷網在操場登入上次使用者)
     if (this.currentSession &&
         this.currentSession.user &&
@@ -294,6 +326,89 @@ export class SupabaseAuth {
       data: { user: null, session: null },
       error: new Error('Invalid login credentials')
     };
+  }
+
+  /**
+   * 註冊新帳號並自動登入 (支援操場 LocalStorage 快取與雲端 Firestore 同步)
+   */
+  async register(email, password, name = '總指揮官', role = 'commander', extra = {}) {
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return {
+        data: { user: null, session: null },
+        error: new Error('請輸入電子信箱與密碼')
+      };
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+      return {
+        data: { user: null, session: null },
+        error: new Error('電子信箱格式無效')
+      };
+    }
+
+    if (password.length < 6) {
+      return {
+        data: { user: null, session: null },
+        error: new Error('密碼長度至少需 6 個字元')
+      };
+    }
+
+    const registered = this._getRegisteredUsers();
+    const newUser = {
+      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      email: trimmedEmail,
+      password: password,
+      user_metadata: {
+        name: (name && name.trim()) || (role === 'commander' ? '總指揮官' : '教職員'),
+        role: role || 'commander',
+        ...extra
+      },
+      createdAt: Date.now()
+    };
+
+    registered[trimmedEmail] = newUser;
+    this._saveRegisteredUsers(registered);
+
+    // 異步寫入 Firestore
+    try {
+      const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                 (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+      if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+        fs.setDoc(fs.doc('users', trimmedEmail), {
+          email: trimmedEmail,
+          password: password,
+          name: newUser.user_metadata.name,
+          role: newUser.user_metadata.role,
+          createdAt: newUser.createdAt
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    return this.login(trimmedEmail, password);
+  }
+
+  isAuthenticated() {
+    return Boolean(this.currentSession && this.currentSession.user && this.currentSession.user.email);
+  }
+
+  _getRegisteredUsers() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch (e) {}
+    return this._memRegisteredUsers || {};
+  }
+
+  _saveRegisteredUsers(obj) {
+    this._memRegisteredUsers = Object.assign({}, obj);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(obj));
+      }
+    } catch (e) {}
   }
 
   /**
@@ -823,36 +938,66 @@ export class SupabaseAuth {
         <div class="modal-body" style="padding:16px;">
           <!-- 快捷提示列 -->
           <div style="background:#e8f4f8;border:1px solid #bee5eb;border-radius:6px;padding:8px 10px;font-size:0.8rem;color:#0c5460;margin-bottom:12px;line-height:1.4;">
-            💡 <b>演練測試無須註冊：</b><br>
-            • 點上方<b>【8888 應變通行碼】</b>即可一鍵解鎖全校指揮官特權<br>
-            • 或點下方「👉 填入指揮官/導師」免打字測試<br>
-            • 或直接點擊下方<b>【關閉】</b>以訪客身分查看與點名
+            🔒 <b>指揮中心權限管制專區：</b><br>
+            • 請輸入指揮官或教職員帳號密碼以解鎖指揮中心功能。<br>
+            • 若尚未設定密碼，請點選<b>【註冊新帳號】</b>立即自訂密碼啟用！
           </div>
 
-          <div style="display:flex;gap:8px;margin-bottom:12px;border-bottom:1px solid #eee;padding-bottom:8px;">
-            <button id="authTabEmailBtn" type="button" style="flex:1;padding:6px;border:none;background:#1F4E79;color:#fff;border-radius:4px;font-weight:bold;cursor:pointer;">帳號登入</button>
-            <button id="authTabPasscodeBtn" type="button" style="flex:1;padding:6px;border:1px solid #1F4E79;background:#fff;color:#1F4E79;border-radius:4px;font-weight:bold;cursor:pointer;">8888 應變通行碼</button>
+          <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid #eee;padding-bottom:8px;">
+            <button id="authTabEmailBtn" type="button" style="flex:1;padding:7px;border:none;background:#1F4E79;color:#fff;border-radius:4px;font-weight:bold;cursor:pointer;font-size:0.85rem;">🔑 帳號登入</button>
+            <button id="authTabRegisterBtn" type="button" style="flex:1;padding:7px;border:1px solid #1F4E79;background:#fff;color:#1F4E79;border-radius:4px;font-weight:bold;cursor:pointer;font-size:0.85rem;">📝 註冊新帳號</button>
+            <button id="authTabPasscodeBtn" type="button" style="padding:7px 10px;border:1px solid #6c757d;background:#fff;color:#6c757d;border-radius:4px;font-weight:bold;cursor:pointer;font-size:0.75rem;">8888演練</button>
           </div>
 
-          <!-- Email Form -->
+          <!-- 1. 登入表單 (Login Form) -->
           <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
             <div style="display:flex;gap:6px;margin-bottom:2px;">
-              <button id="quickFillCmdBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入指揮官</button>
-              <button id="quickFillTeaBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入導師</button>
+              <button id="quickFillCmdBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入指揮官 (poyilin59)</button>
+              <button id="quickFillTeaBtn" type="button" style="flex:1;padding:5px;background:#e9ecef;border:1px solid #ced4da;border-radius:4px;font-size:0.75rem;cursor:pointer;font-weight:bold;color:#495057;">👉 填入一年一班導師</button>
             </div>
             <div>
               <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">電子信箱 (Email)</label>
-              <input id="authInputEmail" type="email" placeholder="例如: teacher1_1@qs.edu.tw" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+              <input id="authInputEmail" type="email" value="poyilin59@gmail.com" placeholder="例如: poyilin59@gmail.com" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
             </div>
             <div>
               <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">密碼</label>
-              <input id="authInputPassword" type="password" placeholder="輸入密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+              <input id="authInputPassword" type="password" placeholder="請輸入密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+              <div style="font-size:0.75rem;color:#6c757d;margin-top:3px;">
+                💡 預設指揮官密碼為 <b>admin123</b>（或點上方【註冊新帳號】自訂密碼）
+              </div>
             </div>
             <div id="authLoginError" style="color:#dc3545;font-size:0.8rem;display:none;"></div>
-            <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#28a745;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:6px;">登入系統</button>
+            <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#28a745;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">🔓 登入指揮中心</button>
           </form>
 
-          <!-- Passcode Form -->
+          <!-- 2. 註冊新帳號表單 (Register Form) -->
+          <form id="authRegisterForm" style="display:none;flex-direction:column;gap:10px;">
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">電子信箱 (Email)</label>
+              <input id="authRegEmail" type="email" value="poyilin59@gmail.com" placeholder="例如: poyilin59@gmail.com" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+            </div>
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">自訂密碼 (至少 6 碼)</label>
+              <input id="authRegPassword" type="password" placeholder="請設定您的登入密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+            </div>
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">使用者姓名 / 稱謂</label>
+              <input id="authRegName" type="text" value="總指揮官" placeholder="例如: 總指揮官 或 林老師" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+            </div>
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">系統身分權限</label>
+              <select id="authRegRole" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;background:#fff;">
+                <option value="commander" selected>總指揮官 (具備全校指揮中心最高特權)</option>
+                <option value="teacher">班級導師 (負責班級點名)</option>
+                <option value="medical">緊急救護組員</option>
+                <option value="patrol">建物巡檢組員</option>
+              </select>
+            </div>
+            <div id="authRegError" style="color:#dc3545;font-size:0.8rem;display:none;"></div>
+            <button id="authSubmitRegBtn" type="submit" style="padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">✨ 立即建立帳號並登入</button>
+          </form>
+
+          <!-- 3. 演練應變碼表單 (Passcode Form) -->
           <form id="authPasscodeForm" style="display:none;flex-direction:column;gap:10px;">
             <div>
               <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">演練應變通行碼 (預設 8888)</label>
@@ -864,7 +1009,7 @@ export class SupabaseAuth {
         </div>
         <div class="modal-footer" style="padding:8px 16px;background:#f8f9fa;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:0.72rem;color:#666;">支援操場斷網離線快取</span>
-          <button id="authModalCancelBtn" type="button" style="padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.8rem;cursor:pointer;">關閉 (以訪客使用)</button>
+          <button id="authModalCancelBtn" type="button" style="padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.8rem;cursor:pointer;">關閉</button>
         </div>
       </div>
     `;
@@ -875,41 +1020,45 @@ export class SupabaseAuth {
     const closeBtn = modalOverlay.querySelector('#authModalCloseBtn');
     const cancelBtn = modalOverlay.querySelector('#authModalCancelBtn');
     const tabEmail = modalOverlay.querySelector('#authTabEmailBtn');
+    const tabRegister = modalOverlay.querySelector('#authTabRegisterBtn');
     const tabPasscode = modalOverlay.querySelector('#authTabPasscodeBtn');
     const formEmail = modalOverlay.querySelector('#authEmailForm');
+    const formRegister = modalOverlay.querySelector('#authRegisterForm');
     const formPasscode = modalOverlay.querySelector('#authPasscodeForm');
 
     const handleClose = () => this.closeLoginModal();
     if (closeBtn) closeBtn.onclick = handleClose;
     if (cancelBtn) cancelBtn.onclick = handleClose;
 
-    if (tabEmail && tabPasscode && formEmail && formPasscode) {
-      tabEmail.onclick = () => {
-        tabEmail.style.background = '#1F4E79';
-        tabEmail.style.color = '#fff';
-        tabPasscode.style.background = '#fff';
-        tabPasscode.style.color = '#1F4E79';
-        formEmail.style.display = 'flex';
-        formPasscode.style.display = 'none';
-      };
+    const activateTab = (activeTab, activeForm) => {
+      [tabEmail, tabRegister, tabPasscode].forEach(t => {
+        if (!t) return;
+        t.style.background = '#fff';
+        t.style.color = '#1F4E79';
+        t.style.border = '1px solid #1F4E79';
+      });
+      [formEmail, formRegister, formPasscode].forEach(f => {
+        if (f) f.style.display = 'none';
+      });
+      if (activeTab) {
+        activeTab.style.background = '#1F4E79';
+        activeTab.style.color = '#fff';
+        activeTab.style.border = 'none';
+      }
+      if (activeForm) activeForm.style.display = 'flex';
+    };
 
-      tabPasscode.onclick = () => {
-        tabPasscode.style.background = '#fd7e14';
-        tabPasscode.style.color = '#fff';
-        tabEmail.style.background = '#fff';
-        tabEmail.style.color = '#1F4E79';
-        formPasscode.style.display = 'flex';
-        formEmail.style.display = 'none';
-      };
-    }
+    if (tabEmail && formEmail) tabEmail.onclick = () => activateTab(tabEmail, formEmail);
+    if (tabRegister && formRegister) tabRegister.onclick = () => activateTab(tabRegister, formRegister);
+    if (tabPasscode && formPasscode) tabPasscode.onclick = () => activateTab(tabPasscode, formPasscode);
 
     const fillCmd = modalOverlay.querySelector('#quickFillCmdBtn');
     if (fillCmd) {
       fillCmd.onclick = () => {
         const emailEl = modalOverlay.querySelector('#authInputEmail');
         const passEl = modalOverlay.querySelector('#authInputPassword');
-        if (emailEl) emailEl.value = 'commander@qs.edu.tw';
-        if (passEl) passEl.value = 'cmd123456';
+        if (emailEl) emailEl.value = 'poyilin59@gmail.com';
+        if (passEl) passEl.value = 'admin123';
       };
     }
 
@@ -932,10 +1081,31 @@ export class SupabaseAuth {
 
         const res = await this.login(email, password);
         if (res.error) {
-          errBox.textContent = '登入失敗：' + res.error.message;
+          errBox.innerHTML = '登入失敗：查無此帳號或密碼錯誤。<br>👉 若您尚未建立密碼，請點上方<b>【註冊新帳號】</b>自訂密碼！';
           errBox.style.display = 'block';
         } else {
           this.closeLoginModal();
+          alert('✅ 歡迎登入指揮中心！身分：' + (res.data?.user?.user_metadata?.name || '指揮官'));
+        }
+      };
+    }
+
+    if (formRegister) {
+      formRegister.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = modalOverlay.querySelector('#authRegEmail').value;
+        const password = modalOverlay.querySelector('#authRegPassword').value;
+        const name = modalOverlay.querySelector('#authRegName').value;
+        const role = modalOverlay.querySelector('#authRegRole').value;
+        const errBox = modalOverlay.querySelector('#authRegError');
+
+        const res = await this.register(email, password, name, role);
+        if (res.error) {
+          errBox.textContent = '註冊失敗：' + res.error.message;
+          errBox.style.display = 'block';
+        } else {
+          this.closeLoginModal();
+          alert('🎉 恭喜！帳號註冊成功並已自動登入！\n\n身分：' + name + ' (' + (ROLE_DISPLAY_NAMES[role] || role) + ')');
         }
       };
     }
