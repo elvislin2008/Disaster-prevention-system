@@ -977,6 +977,13 @@ export class FirestoreService {
     }, onError);
   }
 
+  subscribeStudents(callback, onError) {
+    return this.onSnapshot(this.collection('students'), snap => {
+      const students = snap.docs.map(d => d.data());
+      callback(students, snap);
+    }, onError);
+  }
+
   // ----------------------------------------------------------------------------
   // PROJECT.md 介面契約別名 (subscribeTo*)
   // ----------------------------------------------------------------------------
@@ -987,6 +994,7 @@ export class FirestoreService {
   subscribeToVisitors(cb, err) { return this.subscribeVisitors(cb, err); }
   subscribeToBuildings(cb, err) { return this.subscribeBuildings(cb, err); }
   subscribeToSystemState(cb, err) { return this.subscribeSystemState(cb, err); }
+  subscribeToStudents(cb, err) { return this.subscribeStudents(cb, err); }
 }
 
 // 建立全域單例

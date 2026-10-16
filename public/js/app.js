@@ -578,7 +578,7 @@ function onClassClick(cVal, gValOverride) {
   selectedClassBtn = cVal;
   if (!cVal || !gVal) return;
 
-  currentClassStudents = allStudents.filter(d => d.grade === gVal && d.className === cVal);
+  currentClassStudents = allStudents.filter(d => d.grade === gVal && d.className === cVal && d.status !== 'transferred_out' && d.isActive !== false);
   currentClassStudents.sort((a, b) => (a.seatNum || 0) - (b.seatNum || 0));
 
   studentStatusMap = {};
@@ -749,9 +749,10 @@ function renderMatrix() {
     }
 
     const perm = checkClassEditPermission(gVal, cVal);
+    const transferInTag = s.status === 'transferred_in' ? ' <span style="font-size:0.65rem; background:#2563eb; color:#fff; border-radius:3px; padding:1px 3px; font-weight:normal;">轉入</span>' : '';
 
     btn.className = "seat-btn " + statusClass + (!perm.canEdit ? " readonly-seat" : "");
-    btn.innerHTML = '<span class="seat-title">' + s.seatRaw + '</span><span class="name">' + s.name + '</span><span class="status-label">' + statusText + '</span>' + noteHtml;
+    btn.innerHTML = '<span class="seat-title">' + s.seatRaw + transferInTag + '</span><span class="name">' + s.name + '</span><span class="status-label">' + statusText + '</span>' + noteHtml;
     if (!perm.canEdit) {
       btn.style.cursor = "not-allowed";
       btn.title = "唯讀檢視模式（非本班帶班導師）";
@@ -2344,6 +2345,449 @@ function resetAllDataWithPassword() {
 }
 
 // ==============================================================================
+// 全校師生名冊與學籍在籍管理 (指揮中心專用)
+// 支援即時查看、搜尋、篩選、新轉入登記、標記轉出、在籍狀態切換與 CSV 匯出
+// ==============================================================================
+let rosterCurrentPage = 1;
+const rosterPageSize = 30;
+let rosterFilteredStudents = [];
+
+/**
+ * 開啟師生名冊管理視窗
+ */
+async function openRosterModal() {
+  if (typeof document === 'undefined') return;
+  if (!checkSystemAdminAccess()) return;
+
+  const modal = document.getElementById('rosterModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  // 初始化年級選單
+  const gradeSel = document.getElementById('rosterGradeFilter');
+  if (gradeSel) {
+    const grades = [...new Set(allStudents.map(s => s.grade))].filter(Boolean);
+    grades.sort((a, b) => (gradeSortOrder[a] || 99) - (gradeSortOrder[b] || 99));
+    let opts = '<option value="">全部年級</option>';
+    grades.forEach(g => {
+      opts += `<option value="${g}">${g}${['一','二','三','四','五','六'].includes(g) ? '年級' : ''}</option>`;
+    });
+    gradeSel.innerHTML = opts;
+  }
+
+  rosterCurrentPage = 1;
+  onRosterGradeChange();
+  renderRosterTable();
+}
+
+/**
+ * 關閉師生名冊管理視窗
+ */
+function closeRosterModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('rosterModal');
+  if (modal) modal.style.display = 'none';
+  toggleNewStudentForm(false);
+}
+
+/**
+ * 年級篩選變更時動態更新班級選單
+ */
+function onRosterGradeChange() {
+  if (typeof document === 'undefined') return;
+  const gradeSel = document.getElementById('rosterGradeFilter');
+  const classSel = document.getElementById('rosterClassFilter');
+  if (!gradeSel || !classSel) return;
+
+  const selectedGrade = gradeSel.value;
+  let classes = [];
+  if (selectedGrade) {
+    classes = [...new Set(allStudents.filter(s => s.grade === selectedGrade).map(s => s.className))].filter(Boolean);
+  } else {
+    classes = [...new Set(allStudents.map(s => s.className))].filter(Boolean);
+  }
+  classes.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+
+  let opts = '<option value="">全部班級</option>';
+  classes.forEach(c => {
+    opts += `<option value="${c}">${c}班</option>`;
+  });
+  classSel.innerHTML = opts;
+
+  rosterCurrentPage = 1;
+  renderRosterTable();
+}
+
+/**
+ * 搜尋關鍵字或狀態變更時重新過濾
+ */
+function onRosterFilterChange() {
+  rosterCurrentPage = 1;
+  renderRosterTable();
+}
+
+/**
+ * 切換分頁
+ */
+function changeRosterPage(delta) {
+  const totalPages = Math.ceil(rosterFilteredStudents.length / rosterPageSize) || 1;
+  const targetPage = rosterCurrentPage + delta;
+  if (targetPage >= 1 && targetPage <= totalPages) {
+    rosterCurrentPage = targetPage;
+    renderRosterTable(false);
+  }
+}
+
+/**
+ * 展開或收合登記新轉入學生表單
+ */
+function toggleNewStudentForm(forceState) {
+  if (typeof document === 'undefined') return;
+  const card = document.getElementById('rosterNewStudentCard');
+  if (!card) return;
+  if (typeof forceState === 'boolean') {
+    card.style.display = forceState ? 'block' : 'none';
+  } else {
+    card.style.display = card.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+/**
+ * 提交登記新轉入學生
+ */
+async function submitNewStudentForm() {
+  if (!checkSystemAdminAccess()) return;
+
+  const g = document.getElementById('newStuGrade')?.value || '一';
+  const c = document.getElementById('newStuClass')?.value.trim() || '';
+  const seatInput = document.getElementById('newStuSeat')?.value.trim() || '';
+  const name = document.getElementById('newStuName')?.value.trim() || '';
+  const gender = document.getElementById('newStuGender')?.value || '男';
+  const phone = document.getElementById('newStuPhone')?.value.trim() || '';
+  const teacher = document.getElementById('newStuTeacher')?.value.trim() || `${g}年${c}班導師`;
+  const status = document.getElementById('newStuStatus')?.value || 'transferred_in';
+
+  if (!c || !seatInput || !name) {
+    alert('⚠️ 請填寫完整的班級、座號與學生姓名！');
+    return;
+  }
+
+  const seatNum = parseInt(seatInput) || 0;
+  const seatRaw = seatInput.includes('號') ? seatInput : (seatNum < 10 ? '0' + seatNum : String(seatNum)) + '號';
+  const studentId = `${g}_${c}_${seatRaw}`;
+
+  const studentObj = {
+    id: studentId,
+    grade: g,
+    className: c,
+    seatNum,
+    seatRaw,
+    name,
+    gender,
+    phone,
+    teacher,
+    teacherPhone: '',
+    classKey: `${g} ${c}`,
+    status: status,
+    isActive: status !== 'transferred_out',
+    transferredAt: new Date().toISOString(),
+    isCustomAdded: true
+  };
+
+  // 1. 檢查是否存在相同學號/座號
+  const existingIdx = allStudents.findIndex(s => (s.id === studentId) || (s.grade === g && s.className === c && s.seatRaw === seatRaw));
+  if (existingIdx >= 0) {
+    if (!confirm(`⚠️ 班級【${g} ${c}】座號 ${seatRaw} 目前已有學生【${allStudents[existingIdx].name}】，確定要覆蓋並設為轉入嗎？`)) {
+      return;
+    }
+    allStudents[existingIdx] = { ...allStudents[existingIdx], ...studentObj };
+  } else {
+    allStudents.push(studentObj);
+  }
+
+  if (typeof window !== 'undefined') window.allStudents = allStudents;
+
+  // 2. 存入後端 Firestore
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.setStudent === 'function') {
+      await fs.setStudent(studentId, studentObj);
+    }
+    if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run.saveStudent === 'function') {
+      google.script.run.saveStudent(studentObj);
+    }
+  } catch (err) {
+    console.warn('[RosterManager] 儲存新轉入學生警告:', err);
+  }
+
+  // 3. 更新畫面
+  toggleNewStudentForm(false);
+  const nameEl = document.getElementById('newStuName');
+  if (nameEl) nameEl.value = '';
+  const seatEl = document.getElementById('newStuSeat');
+  if (seatEl) seatEl.value = '';
+  const phoneEl = document.getElementById('newStuPhone');
+  if (phoneEl) phoneEl.value = '';
+
+  renderRosterTable();
+  renderSchoolOverview();
+  renderPulloutPage();
+  updateGradeDropdown();
+  if (selectedClassBtn === c && selectedGradeOpt === g) {
+    onClassClick(c);
+  }
+
+  alert(`🎉 成功登記新轉入學生：【${g} ${c}】${seatRaw} ${name}！`);
+}
+
+/**
+ * 即時更新單一學生在籍狀態 (在籍 / 轉出 / 新轉入)
+ */
+async function updateStudentRosterStatus(studentId, newStatus) {
+  if (!checkSystemAdminAccess()) return;
+
+  const student = allStudents.find(s => s.id === studentId || `${s.grade}_${s.className}_${s.seatRaw}` === studentId);
+  if (!student) {
+    alert('找不到指定學生資料！');
+    return;
+  }
+
+  student.status = newStatus;
+  student.isActive = (newStatus !== 'transferred_out');
+  student.transferredAt = new Date().toISOString();
+
+  // 若標記為轉出，若該生在點名表中，將狀態重置或移除抽離
+  const sKey = `${student.grade} ${student.className}_${student.seatRaw}`;
+  if (newStatus === 'transferred_out') {
+    if (pulloutStatusMap[sKey]) delete pulloutStatusMap[sKey];
+    if (searchStatusMap[sKey]) delete searchStatusMap[sKey];
+  }
+
+  if (typeof window !== 'undefined') window.allStudents = allStudents;
+
+  // 立即存入 Firestore
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.setStudent === 'function') {
+      await fs.setStudent(student.id || studentId, student);
+    }
+    if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run.saveStudent === 'function') {
+      google.script.run.saveStudent(student);
+    }
+  } catch (err) {
+    console.warn('[RosterManager] 更新在籍狀態雲端儲存警告:', err);
+  }
+
+  // 立即連動全校看板與本班點名
+  renderRosterTable(false);
+  renderSchoolOverview();
+  renderPulloutPage();
+  if (selectedGradeOpt === student.grade && selectedClassBtn === student.className) {
+    onClassClick(student.className);
+  }
+
+  const statusMap = {
+    active: '🟢 正常在籍',
+    transferred_out: '🔴 標記轉出 (已離校)',
+    transferred_in: '🔵 新轉入'
+  };
+  console.log('[RosterManager]', `✅ 【${student.grade} ${student.className}】${student.seatRaw} ${student.name} 已更新為【${statusMap[newStatus] || newStatus}】`);
+}
+
+/**
+ * 渲染名冊表格與統計卡片
+ */
+function renderRosterTable(recalculateFiltered = true) {
+  if (typeof document === 'undefined') return;
+
+  const totalEl = document.getElementById('rosterStatTotal');
+  const activeEl = document.getElementById('rosterStatActive');
+  const outEl = document.getElementById('rosterStatOut');
+  const inEl = document.getElementById('rosterStatIn');
+  const tbody = document.getElementById('rosterTableBody');
+  const pageInfo = document.getElementById('rosterPageInfo');
+  const pageCurrent = document.getElementById('rosterPageCurrent');
+  const btnPrev = document.getElementById('btnRosterPrev');
+  const btnNext = document.getElementById('btnRosterNext');
+
+  if (!tbody) return;
+
+  // 1. 全校總計統計更新
+  const total = allStudents.length;
+  const outCount = allStudents.filter(s => s.status === 'transferred_out' || s.isActive === false).length;
+  const inCount = allStudents.filter(s => s.status === 'transferred_in').length;
+  const activeCount = total - outCount;
+
+  if (totalEl) totalEl.innerText = total.toLocaleString();
+  if (activeEl) activeEl.innerText = activeCount.toLocaleString();
+  if (outEl) outEl.innerText = outCount.toLocaleString();
+  if (inEl) inEl.innerText = inCount.toLocaleString();
+
+  // 2. 條件篩選
+  if (recalculateFiltered) {
+    const search = (document.getElementById('rosterSearchInput')?.value || '').trim().toLowerCase();
+    const grade = document.getElementById('rosterGradeFilter')?.value || '';
+    const className = document.getElementById('rosterClassFilter')?.value || '';
+    const status = document.getElementById('rosterStatusFilter')?.value || '';
+
+    rosterFilteredStudents = allStudents.filter(s => {
+      if (grade && s.grade !== grade) return false;
+      if (className && String(s.className) !== String(className)) return false;
+
+      const sStatus = s.status || (s.isActive === false ? 'transferred_out' : 'active');
+      if (status) {
+        if (status === 'transferred_out' && sStatus !== 'transferred_out') return false;
+        if (status === 'transferred_in' && sStatus !== 'transferred_in') return false;
+        if (status === 'active' && (sStatus === 'transferred_out')) return false;
+      }
+
+      if (search) {
+        const text = `${s.grade || ''} ${s.className || ''} ${s.seatRaw || ''} ${s.name || ''} ${s.phone || ''} ${s.parent || ''} ${s.teacher || ''}`.toLowerCase();
+        if (!text.includes(search)) return false;
+      }
+
+      return true;
+    });
+
+    // 依年級、班級、座號排序
+    rosterFilteredStudents.sort((a, b) => {
+      const gDiff = (gradeSortOrder[a.grade] || 99) - (gradeSortOrder[b.grade] || 99);
+      if (gDiff !== 0) return gDiff;
+      const cDiff = String(a.className).localeCompare(String(b.className), undefined, { numeric: true });
+      if (cDiff !== 0) return cDiff;
+      return (a.seatNum || 0) - (b.seatNum || 0);
+    });
+  }
+
+  // 3. 分頁截取
+  const totalItems = rosterFilteredStudents.length;
+  const totalPages = Math.ceil(totalItems / rosterPageSize) || 1;
+  if (rosterCurrentPage > totalPages) rosterCurrentPage = totalPages;
+  if (rosterCurrentPage < 1) rosterCurrentPage = 1;
+
+  const startIdx = (rosterCurrentPage - 1) * rosterPageSize;
+  const pageItems = rosterFilteredStudents.slice(startIdx, startIdx + rosterPageSize);
+
+  if (pageInfo) pageInfo.innerText = `符合條件：共 ${totalItems} 筆 (第 ${startIdx + 1} - ${Math.min(startIdx + rosterPageSize, totalItems)} 筆)`;
+  if (pageCurrent) pageCurrent.innerText = `${rosterCurrentPage} / ${totalPages}`;
+  if (btnPrev) btnPrev.disabled = rosterCurrentPage <= 1;
+  if (btnNext) btnNext.disabled = rosterCurrentPage >= totalPages;
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:#888;">無符合篩選條件的學生資料。</td></tr>';
+    return;
+  }
+
+  // 4. 渲染列
+  let html = '';
+  pageItems.forEach((s, idx) => {
+    const sId = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
+    const currStatus = s.status || (s.isActive === false ? 'transferred_out' : 'active');
+
+    let badgeHtml = '<span style="background:#16a34a; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold;">🟢 正常在籍</span>';
+    if (currStatus === 'transferred_out') {
+      badgeHtml = '<span style="background:#dc2626; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold;">🔴 已轉出</span>';
+    } else if (currStatus === 'transferred_in') {
+      badgeHtml = '<span style="background:#2563eb; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold;">🔵 新轉入</span>';
+    }
+
+    const rowBg = currStatus === 'transferred_out' ? '#fff5f5' : (currStatus === 'transferred_in' ? '#f0f7ff' : (idx % 2 === 0 ? '#fff' : '#fafafa'));
+
+    html += `
+      <tr style="border-bottom:1px solid #e2e8f0; background:${rowBg};">
+        <td style="padding:6px 8px; font-weight:bold; color:#1F4E79;">
+          ${escapeHtml(s.grade)} ${escapeHtml(cleanClassLabel(s.className, s.grade))}
+        </td>
+        <td style="padding:6px 8px; font-weight:bold;">
+          ${escapeHtml(s.seatRaw || (s.seatNum + '號'))}
+        </td>
+        <td style="padding:6px 8px; font-weight:bold; color:#0f172a;">
+          ${escapeHtml(s.name || '')}
+        </td>
+        <td style="padding:6px 8px; color:#475569;">
+          ${escapeHtml(s.gender || '學生')}
+        </td>
+        <td style="padding:6px 8px; color:#334155;">
+          ${escapeHtml(s.phone || '-')}
+        </td>
+        <td style="padding:6px 8px; color:#475569;">
+          ${escapeHtml(s.teacher || '-')}
+        </td>
+        <td style="padding:6px 8px; text-align:center;">
+          ${badgeHtml}
+        </td>
+        <td style="padding:6px 8px; text-align:center;">
+          <select style="padding:3px 6px; border:1px solid #94a3b8; border-radius:4px; font-size:0.78rem; background:#fff; font-weight:bold;" onchange="updateStudentRosterStatus('${sId}', this.value)">
+            <option value="active" ${currStatus === 'active' ? 'selected' : ''}>🟢 設為在籍</option>
+            <option value="transferred_out" ${currStatus === 'transferred_out' ? 'selected' : ''}>🔴 標記轉出</option>
+            <option value="transferred_in" ${currStatus === 'transferred_in' ? 'selected' : ''}>🔵 標記新轉入</option>
+          </select>
+          ${s.isCustomAdded ? `<button type="button" style="padding:2px 6px; margin-left:4px; background:#ef4444; color:#fff; border:none; border-radius:3px; font-size:0.72rem; cursor:pointer;" onclick="deleteRosterStudent('${sId}')">🗑️</button>` : ''}
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+/**
+ * 刪除自訂新增的學生
+ */
+async function deleteRosterStudent(studentId) {
+  if (!checkSystemAdminAccess()) return;
+  const s = allStudents.find(stu => stu.id === studentId || `${stu.grade}_${stu.className}_${stu.seatRaw}` === studentId);
+  if (!s) return;
+
+  if (!confirm(`確定要徹底刪除學生【${s.grade} ${s.className} ${s.name}】的紀錄嗎？`)) return;
+
+  allStudents = allStudents.filter(stu => stu !== s);
+  if (typeof window !== 'undefined') window.allStudents = allStudents;
+
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.deleteDoc === 'function' && typeof fs.doc === 'function') {
+      await fs.deleteDoc(fs.doc('students', studentId));
+    }
+  } catch (err) {
+    console.warn('[RosterManager] 刪除學生警告:', err);
+  }
+
+  renderRosterTable();
+  renderSchoolOverview();
+}
+
+/**
+ * 匯出名冊 CSV (UTF-8 with BOM 確保 Excel 開啟不亂碼)
+ */
+function exportRosterCSV() {
+  if (rosterFilteredStudents.length === 0) {
+    alert('目前篩選條件下無任何名單資料可匯出！');
+    return;
+  }
+
+  let csv = '\uFEFF年級,班級,座號,姓名,性別,在籍狀態,家長電話,導師\n';
+  rosterFilteredStudents.forEach(s => {
+    const statusMap = { active: '正常在籍', transferred_out: '已轉出', transferred_in: '新轉入' };
+    const stLabel = statusMap[s.status] || (s.isActive === false ? '已轉出' : '正常在籍');
+    csv += `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${s.gender || '學生'}","${stLabel}","${s.phone || ''}","${s.teacher || ''}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `清水國小師生在籍名冊_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ==============================================================================
 // 指揮中心四大看板、口頭報告詞膠囊與全校概況矩陣圖
 // ==============================================================================
 function renderSchoolOverview() {
@@ -2357,9 +2801,10 @@ function renderSchoolOverview() {
     return;
   }
 
-  // 1. 群組化所有學生資料
+  // 1. 群組化所有學生資料 (排除已轉出學生)
   let gradeGroupMap = {};
   allStudents.forEach(s => {
+    if (s.status === 'transferred_out' || s.isActive === false) return;
     let gName = s.grade;
     if (!gradeGroupMap[gName]) gradeGroupMap[gName] = new Set();
     gradeGroupMap[gName].add(s.className);
@@ -2469,7 +2914,7 @@ function renderSchoolOverview() {
           });
         }
       } else {
-        let rawCount = allStudents.filter(s => s.grade === gradeName && s.className === cName).length;
+        let rawCount = allStudents.filter(s => s.grade === gradeName && s.className === cName && s.status !== 'transferred_out' && s.isActive !== false).length;
         gTotal += rawCount;
       }
     });
@@ -3403,6 +3848,37 @@ function syncRemoteState(deltaOrFull) {
     shouldRenderRescue = true;
   }
 
+  // 8. 學生名冊細粒度增量 (支援 students 異動即時同步)
+  const stu = deltaOrFull.students;
+  if (stu && Array.isArray(stu)) {
+    const sMap = new Map();
+    allStudents.forEach(s => {
+      const key = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
+      sMap.set(key, s);
+    });
+    stu.forEach(fsS => {
+      const key = fsS.id || `${fsS.grade}_${fsS.className}_${fsS.seatRaw}`;
+      const existing = sMap.get(key);
+      if (existing) {
+        Object.assign(existing, fsS);
+      } else {
+        sMap.set(key, fsS);
+      }
+    });
+    allStudents = Array.from(sMap.values());
+    if (typeof window !== 'undefined') window.allStudents = allStudents;
+    shouldRenderOverview = true;
+    shouldRenderPullout = true;
+    if (selectedClassBtn) {
+      currentClassStudents = allStudents.filter(d => d.grade === selectedGradeOpt && d.className === selectedClassBtn && d.status !== 'transferred_out' && d.isActive !== false);
+      shouldRenderMatrix = true;
+    }
+    const rModal = (typeof document !== 'undefined') ? document.getElementById('rosterModal') : null;
+    if (rModal && rModal.style.display !== 'none' && typeof renderRosterTable === 'function') {
+      renderRosterTable(false);
+    }
+  }
+
   // 同步暴露至全域物件 (確保測試與除錯可直接訪問最新狀態)
   if (typeof window !== 'undefined') {
     window.classReports = classReports;
@@ -3585,6 +4061,17 @@ const exportedAppMethods = {
   saveSingleUserPermission,
   addNewUserPermission,
   deleteSingleUserPermission,
+  openRosterModal,
+  closeRosterModal,
+  onRosterGradeChange,
+  onRosterFilterChange,
+  changeRosterPage,
+  toggleNewStudentForm,
+  submitNewStudentForm,
+  updateStudentRosterStatus,
+  deleteRosterStudent,
+  exportRosterCSV,
+  renderRosterTable,
   resetAllDataWithPassword,
   renderSchoolOverview,
   approveCalculatedTotal,
@@ -3673,6 +4160,17 @@ export {
   saveSingleUserPermission,
   addNewUserPermission,
   deleteSingleUserPermission,
+  openRosterModal,
+  closeRosterModal,
+  onRosterGradeChange,
+  onRosterFilterChange,
+  changeRosterPage,
+  toggleNewStudentForm,
+  submitNewStudentForm,
+  updateStudentRosterStatus,
+  deleteRosterStudent,
+  exportRosterCSV,
+  renderRosterTable,
   resetAllDataWithPassword,
   renderSchoolOverview,
   approveCalculatedTotal,

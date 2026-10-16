@@ -264,17 +264,49 @@ class GasRunner {
   async getStudentData() {
     try {
       const fs = this._adapter.getFirestore();
+      let baseStudents = [];
+      if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
+        baseStudents = window.allStudents;
+      } else if (this._adapter.options.students && this._adapter.options.students.length > 0) {
+        baseStudents = this._adapter.options.students;
+      } else {
+        baseStudents = createStandardStudentsFallback();
+      }
+
       let students = await fs.getStudents();
       if (!students || students.length === 0) {
-        if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
-          students = window.allStudents;
-        } else if (this._adapter.options.students && this._adapter.options.students.length > 0) {
-          students = this._adapter.options.students;
-        } else {
-          students = createStandardStudentsFallback();
-        }
+        students = baseStudents;
+      } else if (students.length < baseStudents.length) {
+        // 部分更新/異動記錄合併：以 ID 為索引將 Firestore 中的異動記錄精準覆蓋至基本名單
+        const studentMap = new Map();
+        baseStudents.forEach(s => {
+          const key = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
+          studentMap.set(key, { ...s });
+        });
+        students.forEach(fsS => {
+          const key = fsS.id || `${fsS.grade}_${fsS.className}_${fsS.seatRaw}`;
+          const existing = studentMap.get(key);
+          if (existing) {
+            studentMap.set(key, { ...existing, ...fsS });
+          } else {
+            studentMap.set(key, fsS);
+          }
+        });
+        students = Array.from(studentMap.values());
       }
       this._resolve(students);
+    } catch (e) {
+      this._reject(e);
+    }
+  }
+
+  // 1.1 儲存單一學生學籍與在籍狀態異動
+  async saveStudent(studentData) {
+    try {
+      const fs = this._adapter.getFirestore();
+      const sId = studentData.id || `${studentData.grade}_${studentData.className}_${studentData.seatRaw}`;
+      await fs.setStudent(sId, studentData);
+      this._resolve({ success: true, id: sId });
     } catch (e) {
       this._reject(e);
     }
@@ -942,6 +974,15 @@ export class GASBridgeAdapter {
         systemState: state
       });
     }));
+
+    if (typeof fs.subscribeStudents === 'function') {
+      unsubs.push(fs.subscribeStudents((students) => {
+        scheduleBatchUpdate({
+          type: 'students',
+          students
+        });
+      }));
+    }
 
     const unsubscribeAll = () => {
       if (this._syncBatchTimer) {

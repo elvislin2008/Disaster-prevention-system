@@ -265,6 +265,7 @@
         <button id="btnSecurityMode" class="btn-mode-toggle" onclick="toggleSecurityMode()">🛡️ 演練防護</button>
         <button id="btnCloseSite" class="btn-close-site" onclick="toggleSiteLock()">🔒 網站關閉</button>
         <button id="btnUserPermissions" class="btn-info-inline" style="background:#6f42c1; color:#fff;" onclick="openUserPermissionModal()">👥 權限設定</button>
+        <button id="btnRosterManager" class="btn-info-inline" style="background:#0284c7; color:#fff;" onclick="openRosterModal()">🎓 師生名冊管理</button>
         <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
       </div>
 
@@ -279,7 +280,8 @@
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button id="btnApproveCalc" class="btn-verify-speech" style="background:#28a745; font-size:0.78rem; padding:4px 10px;" onclick="approveCalculatedTotal()">✅ 指揮官核定採納試算數 (<span id="calcTotalLabel">0</span>人)</button>
             <button class="btn-verify-speech" style="background:#17a2b8; font-size:0.78rem; padding:4px 10px;" onclick="setCustomTotalAttendance()">✏️ 手動自訂修改人數</button>
-            <button class="btn-verify-speech" style="background:#6f42c1; font-size:0.78rem; padding:4px 10px;" onclick="openUserPermissionModal()">👥 教職員權限管理</button>
+            <button class="btn-verify-speech" style="background:#6f42c1; font-size:0.78rem; padding:4px 10px;" onclick="openUserPermissionModal()">👥 權限設定</button>
+            <button class="btn-verify-speech" style="background:#0284c7; font-size:0.78rem; padding:4px 10px;" onclick="openRosterModal()">🎓 師生在籍管理</button>
           </div>
         </div>
       </div>
@@ -476,6 +478,157 @@
       </div>
       <div class="modal-footer" style="padding:10px 16px; background:#f8f9fa; border-top:1px solid #dee2e6; display:flex; justify-content:flex-end;">
         <button class="btn-modal-close" style="padding:6px 16px;" onclick="closeUserPermissionModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 4：全校師生名冊與學籍在籍管理視窗 (#rosterModal - 指揮中心專用)
+       ======================================================================== -->
+  <div id="rosterModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card" style="max-width: 960px; width: 95%;">
+      <div class="modal-header" style="background:#0284c7; color:#fff;">
+        <span style="font-weight:bold;">🎓 全校師生名冊與在籍管理 (指揮中心專用)</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeRosterModal()">✖</span>
+      </div>
+      <div class="modal-body" style="padding:16px; max-height:80vh; overflow-y:auto;">
+        <!-- 狀態統計膠囊條 -->
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div style="flex:1; min-width:130px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:8px 12px; text-align:center;">
+            <div style="font-size:0.75rem; color:#0369a1; font-weight:bold;">全校名冊總額</div>
+            <div id="rosterStatTotal" style="font-size:1.3rem; font-weight:900; color:#0284c7;">0</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:8px 12px; text-align:center;">
+            <div style="font-size:0.75rem; color:#15803d; font-weight:bold;">🟢 正常在籍</div>
+            <div id="rosterStatActive" style="font-size:1.3rem; font-weight:900; color:#16a34a;">0</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 12px; text-align:center;">
+            <div style="font-size:0.75rem; color:#b91c1c; font-weight:bold;">🔴 已轉出 / 離校</div>
+            <div id="rosterStatOut" style="font-size:1.3rem; font-weight:900; color:#dc2626;">0</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; text-align:center;">
+            <div style="font-size:0.75rem; color:#1d4ed8; font-weight:bold;">🔵 新轉入學生</div>
+            <div id="rosterStatIn" style="font-size:1.3rem; font-weight:900; color:#2563eb;">0</div>
+          </div>
+        </div>
+
+        <!-- 說明提示 -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; font-size:0.8rem; color:#475569; margin-bottom:12px; line-height:1.4;">
+          💡 <b>在籍狀態連動說明：</b><br>
+          • 標記為<b>【🔴 轉出】</b>者：系統自動從操場避難點名矩陣與應出席人數中排除，絕不列入失蹤搜救。<br>
+          • 標記為<b>【🔵 新轉入】</b>者：自動排入該班點名矩陣，即時參與操場避難點名與全校出席統計。
+        </div>
+
+        <!-- 搜尋與過濾工具列 -->
+        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          <input id="rosterSearchInput" type="text" placeholder="🔍 搜尋姓名、座號、班級、電話或導師..." oninput="onRosterFilterChange()" style="flex:2; min-width:180px; padding:6px 10px; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem;" />
+          <select id="rosterGradeFilter" onchange="onRosterGradeChange()" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem; background:#fff;">
+            <option value="">全部年級</option>
+          </select>
+          <select id="rosterClassFilter" onchange="onRosterFilterChange()" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem; background:#fff;">
+            <option value="">全部班級</option>
+          </select>
+          <select id="rosterStatusFilter" onchange="onRosterFilterChange()" style="flex:1; min-width:120px; padding:6px 8px; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem; background:#fff;">
+            <option value="">全部在籍狀態</option>
+            <option value="active">🟢 正常在籍</option>
+            <option value="transferred_out">🔴 已轉出 / 離校</option>
+            <option value="transferred_in">🔵 新轉入學生</option>
+          </select>
+          <button type="button" class="btn-verify-speech" style="background:#16a34a; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="toggleNewStudentForm()">➕ 登記新轉入</button>
+          <button type="button" class="btn-verify-speech" style="background:#0284c7; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="exportRosterCSV()">📥 匯出 CSV</button>
+        </div>
+
+        <!-- 登記新轉入學生折疊卡片 -->
+        <div id="rosterNewStudentCard" style="display:none; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:0.88rem; font-weight:bold; color:#065f46; margin-bottom:8px;">➕ 登記新轉入學生 / 人員</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:10px;">
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">年級 *</label>
+              <select id="newStuGrade" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem; background:#fff;">
+                <option value="一">一年級</option>
+                <option value="二">二年級</option>
+                <option value="三">三年級</option>
+                <option value="四">四年級</option>
+                <option value="五">五年級</option>
+                <option value="六">六年級</option>
+                <option value="幼兒園">幼兒園</option>
+                <option value="緊急應變小組">緊急應變小組</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">班級代碼 * (例: 1, 甲)</label>
+              <input id="newStuClass" type="text" placeholder="例: 1 或 2" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">座號 * (例: 35)</label>
+              <input id="newStuSeat" type="number" min="1" max="99" placeholder="例: 35" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">學生姓名 *</label>
+              <input id="newStuName" type="text" placeholder="例: 林小華" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">性別</label>
+              <select id="newStuGender" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem; background:#fff;">
+                <option value="男">男</option>
+                <option value="女">女</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">家長電話</label>
+              <input id="newStuPhone" type="text" placeholder="例: 0912-345-678" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">導師姓名</label>
+              <input id="newStuTeacher" type="text" placeholder="例: 王老師" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#065f46; font-weight:bold; margin-bottom:2px;">入籍狀態</label>
+              <select id="newStuStatus" style="width:100%; padding:5px 8px; border:1px solid #6ee7b7; border-radius:4px; font-size:0.82rem; background:#fff;">
+                <option value="transferred_in">🔵 新轉入</option>
+                <option value="active">🟢 正常在籍</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn-verify-speech" style="background:#6c757d; color:#fff; padding:6px 14px; font-size:0.82rem;" onclick="toggleNewStudentForm(false)">取消</button>
+            <button type="button" class="btn-verify-speech" style="background:#059669; color:#fff; padding:6px 14px; font-size:0.82rem;" onclick="submitNewStudentForm()">💾 確認新增並立即入籍</button>
+          </div>
+        </div>
+
+        <!-- 名冊表格清單 -->
+        <div class="table-wrapper" style="border:1px solid #cbd5e1; border-radius:6px; overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+            <thead>
+              <tr style="background:#0284c7; color:#fff; text-align:left;">
+                <th style="padding:6px 8px;">年級 / 班級</th>
+                <th style="padding:6px 8px;">座號</th>
+                <th style="padding:6px 8px;">姓名</th>
+                <th style="padding:6px 8px;">身分/性別</th>
+                <th style="padding:6px 8px;">家長電話</th>
+                <th style="padding:6px 8px;">導師</th>
+                <th style="padding:6px 8px; text-align:center;">在籍狀態</th>
+                <th style="padding:6px 8px; text-align:center;">及時狀態更改 (下拉切換)</th>
+              </tr>
+            </thead>
+            <tbody id="rosterTableBody">
+              <tr><td colspan="8" style="text-align:center; padding:12px; color:#888;">載入師生名冊中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分頁控制列 -->
+        <div id="rosterPagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:0.82rem; color:#475569;">
+          <div id="rosterPageInfo">顯示 0 筆</div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" id="btnRosterPrev" class="btn-verify-speech" style="padding:4px 10px; background:#e2e8f0; color:#334155; font-size:0.78rem;" onclick="changeRosterPage(-1)">◀ 上一頁</button>
+            <span id="rosterPageCurrent" style="padding:4px 8px; font-weight:bold;">1 / 1</span>
+            <button type="button" id="btnRosterNext" class="btn-verify-speech" style="padding:4px 10px; background:#e2e8f0; color:#334155; font-size:0.78rem;" onclick="changeRosterPage(1)">下一頁 ▶</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding:10px 16px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
+        <button class="btn-modal-close" style="padding:6px 16px;" onclick="closeRosterModal()">關閉</button>
       </div>
     </div>
   </div>
