@@ -127,6 +127,26 @@ export class MockSupabaseAuth {
     return this.getUserRole() === 'commander';
   }
 
+  canAccessPullout() {
+    const role = this.getUserRole();
+    return role === 'commander' || role === 'pullout_teacher';
+  }
+
+  canAccessRescue() {
+    const role = this.getUserRole();
+    return role === 'commander' || role === 'medical' || role === 'rescue_officer';
+  }
+
+  canAccessPatrol() {
+    const role = this.getUserRole();
+    return role === 'commander' || role === 'patrol' || role === 'inspector';
+  }
+
+  canAccessVisitor() {
+    const role = this.getUserRole();
+    return role === 'commander' || role === 'visitor_manager';
+  }
+
   // Drill Passcode 8888 Override
   verifyDrillPasscode(passcode) {
     if (String(passcode).trim() === '8888') {

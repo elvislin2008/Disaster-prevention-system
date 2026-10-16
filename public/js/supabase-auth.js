@@ -771,6 +771,14 @@ export class SupabaseAuth {
   }
 
   /**
+   * 是否具備訪客登記權限
+   */
+  canAccessVisitor() {
+    const role = this.getUserRole();
+    return role === 'commander' || role === 'visitor_manager';
+  }
+
+  /**
    * 是否可解鎖個資遮蔽電話 (指揮官或災難全開模式)
    */
   canUnlockMaskedPhones(securityMode) {

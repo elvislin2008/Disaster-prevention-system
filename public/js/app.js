@@ -1187,6 +1187,21 @@ function renderPulloutPage() {
 }
 
 function updatePulloutStatus(sKey, statusVal, typeLabel) {
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+
+  if (auth && typeof auth.getUserRole === 'function') {
+    const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
+    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
+    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const canPullout = typeof auth.canAccessPullout === 'function' && auth.canAccessPullout();
+
+    if (!hasCommanderAccess && !canPullout) {
+      alert('⛔ 權限受限：僅限【抽離專責教師】或【總指揮官】可更新抽離確認狀態！');
+      return;
+    }
+  }
+
   pulloutStatusMap[sKey] = statusVal;
   let rescueData = null;
 
@@ -1229,6 +1244,37 @@ function updatePulloutStatus(sKey, statusVal, typeLabel) {
 // 危難救助與建物巡檢頁
 // ==============================================================================
 function switchRescueSubTab(tabType) {
+  if (typeof document === 'undefined') return;
+
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+
+  if (auth && typeof auth.getUserRole === 'function') {
+    const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
+    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
+    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const canRescue = typeof auth.canAccessRescue === 'function' && auth.canAccessRescue();
+    const canPatrol = typeof auth.canAccessPatrol === 'function' && auth.canAccessPatrol();
+    const role = auth.getUserRole();
+    const roleTitle = ROLE_NAME_ZH[role] || '一般訪客';
+
+    // 切換 A 區塊 (傷病處置與搜救) 嚴格查驗：僅限救護官或總指揮官
+    if (tabType === 'A') {
+      if (!hasCommanderAccess && !canRescue) {
+        alert(`⛔ 存取被拒絕：【A 區：傷病處置與搜救】僅限緊急救護官或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+        return;
+      }
+    }
+
+    // 切換 B 區塊 (建物安全檢核) 嚴格查驗：僅限巡檢組或總指揮官
+    if (tabType === 'B') {
+      if (!hasCommanderAccess && !canPatrol) {
+        alert(`⛔ 存取被拒絕：【B 區：校園建築安全檢核】僅限建物巡檢組或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+        return;
+      }
+    }
+  }
+
   activeRescueSubTab = tabType;
   if (typeof document === 'undefined') return;
   let btnA = document.getElementById("subBtnRescueA");
@@ -1651,6 +1697,30 @@ function submitBuildingCheck(bName) {
 // ==============================================================================
 function openVisitorModal() {
   if (typeof document === 'undefined') return;
+
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+
+  if (auth && typeof auth.getUserRole === 'function') {
+    const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
+    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
+    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const isVisitorMgr = typeof auth.canAccessVisitor === 'function' && auth.canAccessVisitor();
+    const isAuth = typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
+
+    if (!hasCommanderAccess && !isVisitorMgr) {
+      if (!isAuth) {
+        if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
+        alert('🔒 權限受限：您必須先登入【訪客登記組】或【總指揮官】帳號才能登記校外/臨時人員！');
+      } else {
+        const role = auth.getUserRole();
+        const roleTitle = ROLE_NAME_ZH[role] || role;
+        alert(`⛔ 存取被拒絕：校外人員登記僅限訪客登記組或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+      }
+      return;
+    }
+  }
+
   isVisitorModalOpen = true;
   newVisitorBatch = [];
   switchVisitorSubTab("add");
@@ -3015,21 +3085,84 @@ function checkCommanderAccess(actionName = "使用指揮中心功能") {
   return false;
 }
 
-// 主分頁切換與指揮官權限閘門
+// 主分頁切換與全組別嚴格權限閘門 (RBAC Strict Blocking Across All Tabs)
 // ==============================================================================
 function switchPage(pageId, btn) {
   if (typeof document === 'undefined') return;
 
-  // 嚴格權限防護：切換至指揮中心一律查驗指揮官權限
-  if (pageId === 'adminPage') {
-    if (!checkCommanderAccess("進入指揮中心")) {
-      return;
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+
+  if (auth && typeof auth.getUserRole === 'function') {
+    const role = auth.getUserRole();
+    const isAuth = typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
+    const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
+    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
+    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const roleTitle = ROLE_NAME_ZH[role] || '一般訪客';
+
+    // 1. 🏫 指揮中心：嚴格限制總指揮官 (commander)
+    if (pageId === 'adminPage') {
+      if (!hasCommanderAccess) {
+        if (!isAuth) {
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
+          alert('🔒 權限受限：您必須先登入總指揮官帳號密碼才能進入指揮中心！');
+        } else {
+          alert(`⛔ 權限受限：指揮中心僅限總指揮官（系統管理者）使用！\n您目前的登入身分為【${roleTitle}】。`);
+        }
+        return;
+      }
     }
+
+    // 2. 🔄 抽離確認：嚴格限制抽離專責教師 (pullout_teacher) 或 總指揮官 (commander)
+    else if (pageId === 'pulloutPage') {
+      const canPullout = typeof auth.canAccessPullout === 'function' && auth.canAccessPullout();
+      if (!hasCommanderAccess && !canPullout) {
+        if (!isAuth) {
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
+          alert('🔒 權限受限：您必須先登入【抽離專責教師】或【總指揮官】帳號才能進入抽離確認分頁！');
+        } else {
+          alert(`⛔ 存取被拒絕：【抽離確認】專區僅限抽離專責教師或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+        }
+        return;
+      }
+    }
+
+    // 3. 🆘 危難救助：嚴格限制緊急救護官 (medical)、建物巡檢組 (inspector) 或 總指揮官 (commander)
+    else if (pageId === 'rescuePage') {
+      const canRescue = typeof auth.canAccessRescue === 'function' && auth.canAccessRescue();
+      const canPatrol = typeof auth.canAccessPatrol === 'function' && auth.canAccessPatrol();
+      if (!hasCommanderAccess && !canRescue && !canPatrol) {
+        if (!isAuth) {
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
+          alert('🔒 權限受限：您必須先登入【緊急救護官】、【建物巡檢組】或【總指揮官】帳號才能進入危難救助分頁！');
+        } else {
+          alert(`⛔ 存取被拒絕：【危難救助】專區僅限緊急救護官、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+        }
+        return;
+      }
+
+      // 依登入角色自動分流切換所屬子分頁
+      if (!hasCommanderAccess) {
+        if (canPatrol && !canRescue) {
+          activeRescueSubTab = 'B';
+        } else if (canRescue) {
+          activeRescueSubTab = 'A';
+        }
+      }
+    }
+
+    // 4. 📋 老師點名頁面：任何人皆可在操場免登入直接點名 (恪遵「導師不用」需求)
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   let targetPage = document.getElementById(pageId);
   if (targetPage) targetPage.classList.add('active');
+
+  // 若切換至危難救助頁，同步更新子分頁標籤按鈕視覺
+  if (pageId === 'rescuePage') {
+    switchRescueSubTab(activeRescueSubTab);
+  }
 
   document.querySelectorAll('.nav-tabs').forEach(nav => {
     let btns = nav.querySelectorAll('.tab-btn');
