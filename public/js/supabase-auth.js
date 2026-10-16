@@ -220,6 +220,30 @@ export class SupabaseAuth {
   // ==========================================================================
 
   /**
+   * 確保 Firebase App 已初始化並取得 Firebase Auth 實例
+   */
+  _ensureFirebaseAuth() {
+    if (typeof window === 'undefined' || !window.firebase) return null;
+    try {
+      if (!window.firebase.apps || window.firebase.apps.length === 0) {
+        const appConfig = window.__APP_CONFIG__ || globalThis.__APP_CONFIG__;
+        const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function')
+          ? appConfig.getFirebaseConfig()
+          : (appConfig && appConfig.firebase) || null;
+        if (fbConfig && fbConfig.apiKey && typeof window.firebase.initializeApp === 'function') {
+          window.firebase.initializeApp(fbConfig);
+        }
+      }
+      if (typeof window.firebase.auth === 'function') {
+        return window.firebase.auth();
+      }
+    } catch (e) {
+      console.warn('[SupabaseAuth] 取得 Firebase Auth 實例失敗：', e);
+    }
+    return null;
+  }
+
+  /**
    * 電子郵件與密碼登入
    */
   async login(email, password) {
@@ -240,10 +264,10 @@ export class SupabaseAuth {
     }
 
     // 0. 優先使用 Firebase Authentication (Google 官方高防護伺服器鑑權)
-    if (typeof window !== 'undefined' && window.firebase && typeof window.firebase.auth === 'function') {
+    const fbAuth = this._ensureFirebaseAuth();
+    if (fbAuth) {
       try {
-        const authInstance = window.firebase.auth();
-        const userCredential = await authInstance.signInWithEmailAndPassword(trimmedEmail, password);
+        const userCredential = await fbAuth.signInWithEmailAndPassword(trimmedEmail, password);
         if (userCredential && userCredential.user) {
           const fbUser = userCredential.user;
           const isCommander = (trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
@@ -269,25 +293,46 @@ export class SupabaseAuth {
           };
         }
       } catch (fbErr) {
-        if (fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/invalid-credential') {
+        const errCode = fbErr.code || '';
+        const errMsg = fbErr.message || '';
+        console.warn('[Firebase Auth] 登入失敗：', errCode, errMsg);
+
+        if (errCode === 'auth/wrong-password' || 
+            errCode === 'auth/invalid-credential' || 
+            errCode === 'auth/invalid-login-credentials' ||
+            errMsg.includes('INVALID_LOGIN_CREDENTIALS') ||
+            errMsg.includes('INVALID_PASSWORD')) {
           return {
             data: { user: null, session: null },
-            error: new Error('密碼錯誤！請輸入您在 Firebase 設定的指揮官密碼。')
+            error: new Error('密碼錯誤或帳號不存在！請確認密碼是否正確，或是否已在 Firebase 控制台新增此使用者。')
           };
         }
-        if (fbErr.code === 'auth/user-not-found') {
+        if (errCode === 'auth/user-not-found' || errMsg.includes('EMAIL_NOT_FOUND')) {
           return {
             data: { user: null, session: null },
-            error: new Error('Firebase 中查無此帳號。請先至 Firebase 控制台「Authentication」新增此使用者。')
+            error: new Error('Firebase 中查無此帳號！請先至 Firebase 控制台「Authentication」->「使用者」新增此信箱。')
           };
         }
-        if (fbErr.code === 'auth/too-many-requests') {
+        if (errCode === 'auth/operation-not-allowed' || errCode === 'auth/configuration-not-found' || errMsg.includes('CONFIGURATION_NOT_FOUND')) {
+          return {
+            data: { user: null, session: null },
+            error: new Error('Firebase 尚未啟用「電子郵件/密碼」登入！請至 Firebase 控制台「Authentication」->「登入方式」啟用。')
+          };
+        }
+        if (errCode === 'auth/too-many-requests' || errMsg.includes('TOO_MANY_ATTEMPTS')) {
           return {
             data: { user: null, session: null },
             error: new Error('登入失敗次數過多，已被安全機制暫時鎖定，請稍後再試。')
           };
         }
-        console.warn('[Firebase Auth] 驗證提示：', fbErr.code || fbErr.message);
+
+        // 若在線且 Firebase Auth 回報明確錯誤，直接回傳友善錯誤
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          return {
+            data: { user: null, session: null },
+            error: new Error('Firebase 驗證失敗：' + (errMsg || errCode))
+          };
+        }
       }
     }
 
@@ -447,9 +492,10 @@ export class SupabaseAuth {
   async sendPasswordResetEmail(email) {
     if (!email) return { error: new Error('請輸入電子信箱') };
     const trimmed = String(email).trim().toLowerCase();
-    if (typeof window !== 'undefined' && window.firebase && typeof window.firebase.auth === 'function') {
+    const fbAuth = this._ensureFirebaseAuth();
+    if (fbAuth) {
       try {
-        await window.firebase.auth().sendPasswordResetEmail(trimmed);
+        await fbAuth.sendPasswordResetEmail(trimmed);
         return { success: true, error: null };
       } catch (e) {
         return { success: false, error: e };
