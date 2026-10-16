@@ -271,6 +271,41 @@ export class SupabaseAuth {
         if (userCredential && userCredential.user) {
           const fbUser = userCredential.user;
           const isCommander = (trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
+          let role = isCommander ? 'commander' : 'teacher';
+          let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
+          let assignedGrade = '';
+          let assignedClass = '';
+
+          // 嘗試自 Firestore users 集合讀取自訂角色與指派班級
+          try {
+            const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                       (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+            if (fs && typeof fs.getDoc === 'function' && typeof fs.doc === 'function') {
+              const snap = await fs.getDoc(fs.doc('users', trimmedEmail));
+              if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
+                const uData = typeof snap.data === 'function' ? snap.data() : snap.data;
+                if (uData) {
+                  if (uData.role) role = uData.role;
+                  if (uData.name) displayName = uData.name;
+                  if (uData.assignedGrade) assignedGrade = uData.assignedGrade;
+                  if (uData.assignedClass) assignedClass = uData.assignedClass;
+                }
+              } else {
+                // 自動建立初始記錄供後台管理檢視
+                fs.setDoc(fs.doc('users', trimmedEmail), {
+                  email: trimmedEmail,
+                  name: displayName,
+                  role: role,
+                  assignedGrade,
+                  assignedClass,
+                  createdAt: Date.now()
+                }).catch(() => {});
+              }
+            }
+          } catch (fsErr) {
+            console.warn('[SupabaseAuth] 讀取使用者自訂權限略過：', fsErr);
+          }
+
           const session = {
             access_token: await fbUser.getIdToken().catch(() => `fb_${fbUser.uid}_${Date.now()}`),
             expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -278,8 +313,10 @@ export class SupabaseAuth {
               id: fbUser.uid,
               email: fbUser.email,
               user_metadata: {
-                name: fbUser.displayName || (isCommander ? '總指揮官' : '教職員'),
-                role: isCommander ? 'commander' : 'teacher'
+                name: displayName,
+                role: role,
+                assignedGrade,
+                assignedClass
               }
             }
           };
