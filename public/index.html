@@ -264,6 +264,7 @@
         <button class="btn-info-inline" onclick="showLatestStressClassList()">📋 壓測名單</button>
         <button id="btnSecurityMode" class="btn-mode-toggle" onclick="toggleSecurityMode()">🛡️ 演練防護</button>
         <button id="btnCloseSite" class="btn-close-site" onclick="toggleSiteLock()">🔒 網站關閉</button>
+        <button id="btnUserPermissions" class="btn-info-inline" style="background:#6f42c1; color:#fff;" onclick="openUserPermissionModal()">👥 權限設定</button>
         <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
       </div>
 
@@ -278,6 +279,7 @@
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button id="btnApproveCalc" class="btn-verify-speech" style="background:#28a745; font-size:0.78rem; padding:4px 10px;" onclick="approveCalculatedTotal()">✅ 指揮官核定採納試算數 (<span id="calcTotalLabel">0</span>人)</button>
             <button class="btn-verify-speech" style="background:#17a2b8; font-size:0.78rem; padding:4px 10px;" onclick="setCustomTotalAttendance()">✏️ 手動自訂修改人數</button>
+            <button class="btn-verify-speech" style="background:#6f42c1; font-size:0.78rem; padding:4px 10px;" onclick="openUserPermissionModal()">👥 教職員權限管理</button>
           </div>
         </div>
       </div>
@@ -407,6 +409,73 @@
       <div class="modal-footer">
         <button class="btn-modal-copy" style="padding:6px 14px; background:#17a2b8; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="copyStressModalText()">📋 複製完整名單</button>
         <button class="btn-modal-close" onclick="closeStressModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 3：教職員權限管理視窗 (#userPermissionModal - 嚴格限制系統管理者專屬)
+       ======================================================================== -->
+  <div id="userPermissionModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card" style="max-width: 680px; width: 95%;">
+      <div class="modal-header" style="background:#1F4E79; color:#fff;">
+        <span id="permModalTitle">👥 教職員角色與權限管理 (系統管理者專用)</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeUserPermissionModal()">✖</span>
+      </div>
+      <div class="modal-body" style="padding:16px; max-height:75vh; overflow-y:auto;">
+        <!-- 管理者安全性提示 -->
+        <div style="background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; padding:8px 12px; font-size:0.82rem; color:#0c5460; margin-bottom:14px; line-height:1.4;">
+          🔒 <b>系統管理員 (總指揮官) 專區：</b><br>
+          • 僅授權總指揮官在此指派、修改各職能組員的權限角色。<br>
+          • 導師無需帳號密碼即可於操場直接點名；此處專門指派管理與應變職能權限。
+        </div>
+
+        <!-- 新增 / 快速指派區塊 -->
+        <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:12px; margin-bottom:16px;">
+          <div style="font-size:0.88rem; font-weight:bold; color:#1F4E79; margin-bottom:8px;">➕ 新增或指派人員權限</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin-bottom:10px;">
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#555; margin-bottom:2px; font-weight:bold;">電子信箱 (Email)</label>
+              <input id="permNewEmail" type="email" placeholder="例如: nurse@qs.edu.tw" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.85rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#555; margin-bottom:2px; font-weight:bold;">人員姓名 / 稱謂</label>
+              <input id="permNewName" type="text" placeholder="例如: 健康中心護理師" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.85rem;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#555; margin-bottom:2px; font-weight:bold;">選擇權限角色</label>
+              <select id="permNewRole" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.85rem; background:#fff;">
+                <option value="commander">👑 總指揮官 (commander - 最高權限)</option>
+                <option value="medical">🚑 緊急救護官 (medical - 檢傷救護)</option>
+                <option value="inspector">🏢 建物巡檢組 (inspector - 安全指標)</option>
+                <option value="pullout_teacher">🔄 抽離專責教師 (pullout - 特教抽離)</option>
+                <option value="visitor_manager">📝 訪客登記組 (visitor - 外來人員)</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="btn-verify-speech" style="background:#28a745; color:#fff; width:100%; padding:8px; font-size:0.85rem; border:none; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="addNewUserPermission()">💾 新增 / 指派此人員權限</button>
+        </div>
+
+        <!-- 目前人員權限清單 -->
+        <div style="font-size:0.88rem; font-weight:bold; color:#1F4E79; margin-bottom:6px;">📋 目前授權名單清單</div>
+        <div class="table-wrapper" style="border:1px solid #ddd; border-radius:6px; overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+            <thead>
+              <tr style="background:#1F4E79; color:#fff; text-align:left;">
+                <th style="padding:6px 8px;">電子信箱</th>
+                <th style="padding:6px 8px;">姓名 / 稱謂</th>
+                <th style="padding:6px 8px;">權限角色 (下拉可切換)</th>
+                <th style="padding:6px 8px; text-align:center;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="userPermissionTableBody">
+              <tr><td colspan="4" style="text-align:center; padding:12px; color:#888;">載入名單中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding:10px 16px; background:#f8f9fa; border-top:1px solid #dee2e6; display:flex; justify-content:flex-end;">
+        <button class="btn-modal-close" style="padding:6px 16px;" onclick="closeUserPermissionModal()">關閉</button>
       </div>
     </div>
   </div>

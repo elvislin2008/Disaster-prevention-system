@@ -1912,6 +1912,330 @@ function copyStressModalText() {
 }
 
 // ==============================================================================
+// 👥 教職員角色與權限管理 (嚴格限制：僅系統管理者/總指揮官可操作)
+// ==============================================================================
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[m]);
+}
+
+/**
+ * 查驗是否具備系統管理者 (總指揮官) 權限
+ */
+function checkSystemAdminAccess() {
+  const auth = (typeof window !== 'undefined' && window.AuthManager) ||
+               (typeof globalThis !== 'undefined' && globalThis.AuthManager);
+  if (!auth) {
+    alert('⛔ 存取被拒絕：系統尚未載入鑑權模組。');
+    return false;
+  }
+
+  const role = typeof auth.getUserRole === 'function' ? auth.getUserRole() : '';
+  const user = typeof auth.getCurrentUser === 'function' ? auth.getCurrentUser() : null;
+  const email = (user && user.email) ? String(user.email).trim().toLowerCase() : '';
+  const isCommander = role === 'commander';
+  const isAdminEmail = email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin');
+  const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
+
+  if (isCommander || isAdminEmail || isDrill) {
+    return true;
+  }
+
+  if (typeof auth.openLoginModal === 'function') {
+    auth.openLoginModal();
+  }
+  alert('⛔ 權限受限：本功能僅限系統管理者 (總指揮官) 登入後使用！');
+  return false;
+}
+
+/**
+ * 開啟教職員權限管理彈窗
+ */
+async function openUserPermissionModal() {
+  if (typeof document === 'undefined') return;
+  if (!checkSystemAdminAccess()) return;
+
+  const modal = document.getElementById('userPermissionModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    await renderUserPermissionTable();
+  }
+}
+
+/**
+ * 關閉教職員權限管理彈窗
+ */
+function closeUserPermissionModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('userPermissionModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+const ROLE_OPTIONS_MAP = {
+  commander: '👑 總指揮官',
+  medical: '🚑 緊急救護官',
+  inspector: '🏢 建物巡檢組',
+  pullout_teacher: '🔄 抽離專責教師',
+  visitor_manager: '📝 訪客登記組'
+};
+
+/**
+ * 載入並渲染 Firestore 中的 users 清單
+ */
+async function renderUserPermissionTable() {
+  const tbody = document.getElementById('userPermissionTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:12px; color:#888;">正在自雲端 Firebase 載入名單...</td></tr>';
+
+  let userList = [];
+
+  try {
+    const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+    const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function')
+      ? appConfig.getFirebaseConfig()
+      : null;
+    const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+    const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?key=${apiKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.documents) {
+        userList = data.documents.map(doc => {
+          const docId = doc.name.split('/').pop();
+          const f = doc.fields || {};
+          return {
+            email: (f.email && f.email.stringValue) || decodeURIComponent(docId),
+            name: (f.name && f.name.stringValue) || '',
+            role: (f.role && f.role.stringValue) || 'visitor_manager',
+            assignedGrade: (f.assignedGrade && f.assignedGrade.stringValue) || '',
+            assignedClass: (f.assignedClass && f.assignedClass.stringValue) || ''
+          };
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[UserPermission] REST 讀取失敗，降級為 firestoreService：', err);
+  }
+
+  // 降級回退
+  if (userList.length === 0) {
+    try {
+      const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                 (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+      if (fs && typeof fs.getDocs === 'function' && typeof fs.collection === 'function') {
+        const snap = await fs.getDocs(fs.collection('users'));
+        if (snap && snap.docs) {
+          userList = snap.docs.map(d => {
+            const dData = typeof d.data === 'function' ? d.data() : d.data;
+            return {
+              email: dData.email || d.id,
+              name: dData.name || '',
+              role: dData.role || 'commander',
+              assignedGrade: dData.assignedGrade || '',
+              assignedClass: dData.assignedClass || ''
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[UserPermission] 服務獲取異常：', e);
+    }
+  }
+
+  // 排序：總指揮官排最前
+  userList.sort((a, b) => {
+    if (a.role === 'commander' && b.role !== 'commander') return -1;
+    if (b.role === 'commander' && a.role !== 'commander') return 1;
+    return a.email.localeCompare(b.email);
+  });
+
+  let html = '';
+  userList.forEach((u, idx) => {
+    const isMaster = u.email === 'poyilin59@gmail.com';
+    const safeEmail = u.email.replace(/[^a-zA-Z0-9]/g, '_');
+
+    html += `
+      <tr style="border-bottom:1px solid #eee; background:${idx % 2 === 0 ? '#fff' : '#fdfdfd'};">
+        <td style="padding:8px 10px; font-weight:bold; color:#1F4E79;">
+          ${escapeHtml(u.email)} ${isMaster ? '<span style="background:#e83e8c; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">主要管理者</span>' : ''}
+        </td>
+        <td style="padding:6px 10px;">
+          <input id="permNameInput_${safeEmail}" type="text" value="${escapeHtml(u.name)}" style="width:120px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:0.82rem;" />
+        </td>
+        <td style="padding:6px 10px;">
+          <select id="permRoleSelect_${safeEmail}" style="padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:0.82rem; background:#fff;">
+            <option value="commander" ${u.role === 'commander' ? 'selected' : ''}>👑 總指揮官 (commander)</option>
+            <option value="medical" ${u.role === 'medical' ? 'selected' : ''}>🚑 緊急救護官 (medical)</option>
+            <option value="inspector" ${u.role === 'inspector' ? 'selected' : ''}>🏢 建物巡檢組 (inspector)</option>
+            <option value="pullout_teacher" ${u.role === 'pullout_teacher' ? 'selected' : ''}>🔄 抽離專責教師 (pullout)</option>
+            <option value="visitor_manager" ${u.role === 'visitor_manager' ? 'selected' : ''}>📝 訪客登記組 (visitor)</option>
+          </select>
+        </td>
+        <td style="padding:6px 10px; text-align:center;">
+          <button type="button" style="padding:4px 8px; background:#28a745; color:#fff; border:none; border-radius:4px; font-size:0.75rem; font-weight:bold; cursor:pointer;" onclick="saveSingleUserPermission('${u.email}', '${safeEmail}')">💾 儲存</button>
+          ${!isMaster ? `<button type="button" style="padding:4px 8px; background:#dc3545; color:#fff; border:none; border-radius:4px; font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="deleteSingleUserPermission('${u.email}')">🗑️ 刪除</button>` : ''}
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+/**
+ * 儲存單一使用者的權限設定
+ */
+async function saveSingleUserPermission(email, safeEmail) {
+  if (!checkSystemAdminAccess()) return;
+
+  const nameInput = document.getElementById(`permNameInput_${safeEmail}`);
+  const roleSelect = document.getElementById(`permRoleSelect_${safeEmail}`);
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const role = roleSelect ? roleSelect.value : 'commander';
+
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+      await fs.setDoc(fs.doc('users', email), {
+        email,
+        name,
+        role,
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+
+    const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+    const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+    const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+    const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+    await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${encodeURIComponent(email)}?key=${apiKey}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          email: { stringValue: email },
+          name: { stringValue: name },
+          role: { stringValue: role },
+          updatedAt: { integerValue: String(Date.now()) }
+        }
+      })
+    });
+
+    const roleName = ROLE_OPTIONS_MAP[role] || role;
+    alert(`✅ 已成功更新「${name || email}」的權限為：【${roleName}】！`);
+    await renderUserPermissionTable();
+  } catch (err) {
+    alert('儲存失敗：' + (err.message || err));
+  }
+}
+
+/**
+ * 新增人員權限
+ */
+async function addNewUserPermission() {
+  if (!checkSystemAdminAccess()) return;
+
+  const emailInput = document.getElementById('permNewEmail');
+  const nameInput = document.getElementById('permNewName');
+  const roleSelect = document.getElementById('permNewRole');
+
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+  const name = nameInput ? nameInput.value.trim() : '';
+  const role = roleSelect ? roleSelect.value : 'commander';
+
+  if (!email || !email.includes('@') || !email.includes('.')) {
+    alert('⚠️ 請輸入有效的電子信箱格式！');
+    return;
+  }
+
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+      await fs.setDoc(fs.doc('users', email), {
+        email,
+        name: name || (ROLE_OPTIONS_MAP[role] || '教職員'),
+        role,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+
+    const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+    const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+    const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+    const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+    await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${encodeURIComponent(email)}?key=${apiKey}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          email: { stringValue: email },
+          name: { stringValue: name || (ROLE_OPTIONS_MAP[role] || '教職員') },
+          role: { stringValue: role },
+          updatedAt: { integerValue: String(Date.now()) }
+        }
+      })
+    });
+
+    alert(`✅ 已成功指派「${name || email}」為【${ROLE_OPTIONS_MAP[role] || role}】！`);
+    if (emailInput) emailInput.value = '';
+    if (nameInput) nameInput.value = '';
+    await renderUserPermissionTable();
+  } catch (err) {
+    alert('新增失敗：' + (err.message || err));
+  }
+}
+
+/**
+ * 刪除人員權限
+ */
+async function deleteSingleUserPermission(email) {
+  if (!checkSystemAdminAccess()) return;
+
+  if (email === 'poyilin59@gmail.com') {
+    alert('⚠️ 主要系統管理者帳號不可刪除！');
+    return;
+  }
+
+  if (!confirm(`確定要移除「${email}」的職能權限嗎？\n移除後該帳號將無法使用該專屬功能。`)) {
+    return;
+  }
+
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.deleteDoc === 'function' && typeof fs.doc === 'function') {
+      await fs.deleteDoc(fs.doc('users', email));
+    }
+
+    const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+    const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+    const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+    const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+    await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${encodeURIComponent(email)}?key=${apiKey}`, {
+      method: 'DELETE'
+    });
+
+    alert(`✅ 已成功移除「${email}」的授權！`);
+    await renderUserPermissionTable();
+  } catch (err) {
+    alert('刪除失敗：' + (err.message || err));
+  }
+}
+
+// ==============================================================================
 // 指揮官全校數據重置
 // ==============================================================================
 function resetAllDataWithPassword() {
@@ -3050,6 +3374,12 @@ const exportedAppMethods = {
   showLatestStressClassList,
   closeStressModal,
   copyStressModalText,
+  openUserPermissionModal,
+  closeUserPermissionModal,
+  renderUserPermissionTable,
+  saveSingleUserPermission,
+  addNewUserPermission,
+  deleteSingleUserPermission,
   resetAllDataWithPassword,
   renderSchoolOverview,
   approveCalculatedTotal,
@@ -3131,6 +3461,12 @@ export {
   showLatestStressClassList,
   closeStressModal,
   copyStressModalText,
+  openUserPermissionModal,
+  closeUserPermissionModal,
+  renderUserPermissionTable,
+  saveSingleUserPermission,
+  addNewUserPermission,
+  deleteSingleUserPermission,
   resetAllDataWithPassword,
   renderSchoolOverview,
   approveCalculatedTotal,
