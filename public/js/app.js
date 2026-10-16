@@ -2933,27 +2933,85 @@ function addRetry(key) {
 }
 
 // ==============================================================================
+// 角色自動導向與指揮中心嚴格鑑權防護 (RBAC Strict Guard & Auto-Navigation)
 // ==============================================================================
-// 指揮中心嚴格權限閘門 (嚴格帳號密碼機制：未登入者無法使用指揮中心功能)
-// ==============================================================================
+
+const ROLE_NAME_ZH = {
+  commander: '總指揮官',
+  medical: '緊急救護官',
+  inspector: '建物巡檢組',
+  pullout_teacher: '抽離專責教師',
+  visitor_manager: '訪客登記組',
+  teacher: '班級導師',
+  visitor: '一般訪客'
+};
+
+/**
+ * 依據登入角色自動導向對應專屬頁面
+ */
+function navigateByRole(role) {
+  if (typeof document === 'undefined') return;
+  const cleanRole = String(role || '').toLowerCase();
+
+  if (cleanRole === 'commander') {
+    // 總指揮官 ➔ 自動切換至 🏫 指揮中心
+    switchPage('adminPage');
+  } else if (cleanRole === 'medical' || cleanRole === 'rescue_officer') {
+    // 緊急救護官 ➔ 自動切換至 🆘 危難救助 (A區：傷病處置與搜救)
+    switchPage('rescuePage');
+    if (typeof switchRescueSubTab === 'function') {
+      switchRescueSubTab('A');
+    }
+  } else if (cleanRole === 'inspector' || cleanRole === 'patrol') {
+    // 建物巡檢組 ➔ 自動切換至 🆘 危難救助 (B區：建物安全檢核)
+    switchPage('rescuePage');
+    if (typeof switchRescueSubTab === 'function') {
+      switchRescueSubTab('B');
+    }
+  } else if (cleanRole === 'pullout_teacher') {
+    // 抽離專責教師 ➔ 自動切換至 🔄 抽離確認
+    switchPage('pulloutPage');
+  } else if (cleanRole === 'visitor_manager') {
+    // 訪客登記組 ➔ 老師點名頁面並自動開啟外來人員登記
+    switchPage('teacherPage');
+    if (typeof openVisitorModal === 'function') {
+      openVisitorModal();
+    }
+  } else {
+    // 現場導師或訪客 ➔ 預設停留於 📋 老師點名
+    switchPage('teacherPage');
+  }
+}
+
+/**
+ * 嚴格查驗指揮中心權限 (僅限總指揮官 commander 或 8888 應變碼)
+ */
 function checkCommanderAccess(actionName = "使用指揮中心功能") {
   const auth = (typeof window !== 'undefined' && window.AuthManager) ||
                (typeof globalThis !== 'undefined' && globalThis.AuthManager);
 
-  const isUserLoggedIn = auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
-  const isCommanderUser = auth && typeof auth.getUserRole === 'function' && auth.getUserRole() === 'commander';
-  const isDrillValid = auth && typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-  let nowTime = Date.now();
-  let isSessionValid = isUnlockedByPassword && (nowTime < unlockExpiryTime);
+  // 1. 指揮官授權 (包含 8888 演練應變碼)
+  const isCommander = auth && typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
+  const isSessionValid = isUnlockedByPassword && (Date.now() < unlockExpiryTime);
 
-  if (isUserLoggedIn || isCommanderUser || isDrillValid || isSessionValid) {
+  if (isCommander || isSessionValid) {
     return true;
   }
 
+  // 2. 已登入但身分不是總指揮官 (例如 medical, teacher, pullout_teacher 等)
+  const isUserLoggedIn = auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
+  if (isUserLoggedIn) {
+    const role = (auth && typeof auth.getUserRole === 'function') ? auth.getUserRole() : 'other';
+    const roleTitle = ROLE_NAME_ZH[role] || role;
+    alert(`⛔ 權限受限：指揮中心僅限總指揮官（系統管理者）使用！\n您目前的登入身分為【${roleTitle}】。`);
+    return false;
+  }
+
+  // 3. 未登入訪客：彈出登入對話框要求驗證
   if (auth && typeof auth.openLoginModal === 'function') {
     auth.openLoginModal();
   }
-  alert(`🔒 權限受限：您必須先登入帳號密碼才能${actionName}！`);
+  alert(`🔒 權限受限：您必須先登入總指揮官帳號密碼才能${actionName}！`);
   return false;
 }
 
@@ -2962,7 +3020,7 @@ function checkCommanderAccess(actionName = "使用指揮中心功能") {
 function switchPage(pageId, btn) {
   if (typeof document === 'undefined') return;
 
-  // 嚴格權限防護：未登入者切換至指揮中心一律攔截並要求登入
+  // 嚴格權限防護：切換至指揮中心一律查驗指揮官權限
   if (pageId === 'adminPage') {
     if (!checkCommanderAccess("進入指揮中心")) {
       return;
@@ -3274,6 +3332,20 @@ function initApp() {
   if (typeof window !== 'undefined' && window.AuthManager && typeof window.AuthManager.init === 'function') {
     window.AuthManager.init().then(() => {
       window.AuthManager.renderAuthBadge();
+
+      // 監聽登入與登出事件，自動分流導向角色專屬頁面
+      if (typeof window.AuthManager.onAuthStateChange === 'function') {
+        window.AuthManager.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session && session.user) {
+            const role = (window.AuthManager.getUserRole && window.AuthManager.getUserRole()) ||
+                         (session.user.user_metadata && session.user.user_metadata.role) ||
+                         'visitor';
+            navigateByRole(role);
+          } else if (event === 'SIGNED_OUT') {
+            switchPage('teacherPage');
+          }
+        });
+      }
     }).catch(err => {
       console.warn('[App] Supabase Auth 初始化異常：', err);
     });
@@ -3393,6 +3465,7 @@ const exportedAppMethods = {
   updateStatus,
   addRetry,
   switchPage,
+  navigateByRole,
   checkClassEditPermission,
   openClassRollCall,
   getAppState,
@@ -3480,6 +3553,7 @@ export {
   updateStatus,
   addRetry,
   switchPage,
+  navigateByRole,
   checkClassEditPermission,
   openClassRollCall,
   getAppState,

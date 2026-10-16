@@ -1176,7 +1176,12 @@ export class SupabaseAuth {
           errBox.style.display = 'block';
         } else {
           this.closeLoginModal();
-          alert('✅ 歡迎登入指揮中心！身分：' + (res.data?.user?.user_metadata?.name || '指揮官'));
+          const role = this.getUserRole();
+          const roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '指揮官');
+          alert('✅ 歡迎登入！身分：' + roleName);
+          if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
+            window.navigateByRole(role);
+          }
         }
       };
     }
@@ -1189,6 +1194,9 @@ export class SupabaseAuth {
         const res = this.loginWithPasscode(code);
         if (res.success) {
           this.closeLoginModal();
+          if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
+            window.navigateByRole('commander');
+          }
         } else {
           errBox.textContent = '解鎖失敗：' + res.error;
           errBox.style.display = 'block';
