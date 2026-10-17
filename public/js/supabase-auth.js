@@ -1369,54 +1369,38 @@ export class SupabaseAuth {
 
         <div class="modal-body" style="padding:16px;">
           <!-- ========================================== -->
-          <!-- 分頁 1：各組別 4 位數字快速通報碼登入 (預設) -->
+          <!-- 分頁 1：各組別數字快速通報碼登入 (預設) -->
           <!-- ========================================== -->
           <div id="authPasscodeTabContent" style="display:${!isCommanderActive ? 'block' : 'none'};">
-            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#0369a1;margin-bottom:12px;line-height:1.4;">
-              🚨 <b>災難應變快速通報：</b><br>
-              • 真正災難來臨無時間輸入帳密，各組人員直接輸入<b>數字通報碼</b>即可秒進！<br>
-              • 點選下方組別按鈕可<b>一鍵直接登入</b>。
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 12px;font-size:0.8rem;color:#0369a1;margin-bottom:14px;line-height:1.5;">
+              🚨 <b>各應變組別通報登入：</b><br>
+              • 災難來臨時無需輸入長帳號，請直接輸入總指揮官核發給您組別之<b>數字通報密碼</b>。<br>
+              • 適用組別：🚑 救護隊、🏢 巡檢隊、🔄 抽離組、📝 訪客組。
             </div>
 
-            <!-- 職責快速按鈕列 (一鍵通報進入) -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
-              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.medical}" style="padding:8px 6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🚑 救護隊 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.medical})</span>
-              </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.inspector}" style="padding:8px 6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🏢 巡檢隊 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.inspector})</span>
-              </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.pullout_teacher}" style="padding:8px 6px;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🔄 抽離組 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.pullout_teacher})</span>
-              </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.visitor_manager}" style="padding:8px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                📝 訪客組 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.visitor_manager})</span>
-              </button>
-            </div>
-
-            <!-- 數字顯示與輸入框 -->
-            <div style="margin-bottom:10px;">
-              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報碼" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
+            <!-- 數字顯示與輸入框 (完全空白、密碼遮罩、不預填) -->
+            <div style="margin-bottom:12px;">
+              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報密碼" autocomplete="off" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
             </div>
 
             <!-- 觸控螢幕虛擬數字鍵盤 (0~9, 清空, ⌫) -->
-            <div id="authNumKeypad" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;margin-bottom:10px;">
-              <button type="button" class="auth-pad-key" data-val="1" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">1</button>
-              <button type="button" class="auth-pad-key" data-val="2" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">2</button>
-              <button type="button" class="auth-pad-key" data-val="3" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">3</button>
-              <button type="button" class="auth-pad-key" data-val="4" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">4</button>
-              <button type="button" class="auth-pad-key" data-val="5" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">5</button>
-              <button type="button" class="auth-pad-key" data-val="6" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">6</button>
-              <button type="button" class="auth-pad-key" data-val="7" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">7</button>
-              <button type="button" class="auth-pad-key" data-val="8" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">8</button>
-              <button type="button" class="auth-pad-key" data-val="9" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">9</button>
-              <button type="button" class="auth-pad-key" data-val="clear" style="padding:8px;font-size:0.82rem;font-weight:bold;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;">清空</button>
-              <button type="button" class="auth-pad-key" data-val="0" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">0</button>
-              <button type="button" class="auth-pad-key" data-val="back" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">⌫</button>
+            <div id="authNumKeypad" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;margin-bottom:12px;">
+              <button type="button" class="auth-pad-key" data-val="1" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">1</button>
+              <button type="button" class="auth-pad-key" data-val="2" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">2</button>
+              <button type="button" class="auth-pad-key" data-val="3" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">3</button>
+              <button type="button" class="auth-pad-key" data-val="4" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">4</button>
+              <button type="button" class="auth-pad-key" data-val="5" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">5</button>
+              <button type="button" class="auth-pad-key" data-val="6" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">6</button>
+              <button type="button" class="auth-pad-key" data-val="7" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">7</button>
+              <button type="button" class="auth-pad-key" data-val="8" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">8</button>
+              <button type="button" class="auth-pad-key" data-val="9" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">9</button>
+              <button type="button" class="auth-pad-key" data-val="clear" style="padding:10px;font-size:0.85rem;font-weight:bold;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;">清空</button>
+              <button type="button" class="auth-pad-key" data-val="0" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">0</button>
+              <button type="button" class="auth-pad-key" data-val="back" style="padding:10px;font-size:1.15rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">⌫</button>
             </div>
 
             <div id="authPasscodeError" style="color:#dc3545;font-size:0.8rem;display:none;margin-bottom:8px;font-weight:bold;text-align:center;"></div>
-            <button id="authSubmitPasscodeBtn" type="button" style="width:100%;padding:10px;background:#0284c7;color:#fff;border:none;border-radius:6px;font-weight:bold;font-size:0.92rem;cursor:pointer;">⚡ 驗證數字並快速進入看板</button>
+            <button id="authSubmitPasscodeBtn" type="button" style="width:100%;padding:11px;background:#0284c7;color:#fff;border:none;border-radius:6px;font-weight:bold;font-size:0.95rem;cursor:pointer;">⚡ 驗證數字並登入看板</button>
           </div>
 
           <!-- ========================================== -->
@@ -1499,30 +1483,11 @@ export class SupabaseAuth {
       };
     }
 
-    // 處理預設指定角色的快速帶入
-    if (!isCommanderActive && targetTabOrRole && inputPasscode) {
-      const pinMap = {
-        medical: passcodesCfg.medical,
-        rescuePage: passcodesCfg.medical,
-        inspector: passcodesCfg.inspector,
-        pullout_teacher: passcodesCfg.pullout_teacher,
-        pulloutPage: passcodesCfg.pullout_teacher,
-        visitor_manager: passcodesCfg.visitor_manager
-      };
-      if (pinMap[targetTabOrRole]) {
-        inputPasscode.value = pinMap[targetTabOrRole];
-      }
+    // 密碼輸入框維持完全空白，嚴格不預填、不自動帶入 (依資安與指揮官要求)
+    if (inputPasscode) {
+      inputPasscode.value = '';
+      setTimeout(() => inputPasscode.focus(), 60);
     }
-
-    // 職責快捷按鈕監聽 (一鍵直接登入)
-    const quickBtns = modalOverlay.querySelectorAll('.auth-role-quick-btn');
-    quickBtns.forEach(btn => {
-      btn.onclick = () => {
-        const pin = btn.getAttribute('data-pin');
-        if (inputPasscode) inputPasscode.value = pin;
-        if (submitPasscodeBtn) submitPasscodeBtn.click();
-      };
-    });
 
     // 虛擬數字鍵盤監聽
     const padKeys = modalOverlay.querySelectorAll('.auth-pad-key');
@@ -1536,10 +1501,6 @@ export class SupabaseAuth {
           inputPasscode.value = inputPasscode.value.slice(0, -1);
         } else if (inputPasscode.value.length < 8) {
           inputPasscode.value += val;
-          // 若已完全匹配註冊的角色通報碼，自動提交
-          if (ROLE_PASSCODES[inputPasscode.value]) {
-            setTimeout(() => { if (submitPasscodeBtn) submitPasscodeBtn.click(); }, 120);
-          }
         }
       };
     });
