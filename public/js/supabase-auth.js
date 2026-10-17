@@ -335,6 +335,9 @@ export class SupabaseAuth {
           const isCommander = (trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
           let role = isCommander ? 'commander' : 'teacher';
           let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
+          if (displayName && (displayName.includes('poyilin59') || (isCommander && displayName.includes('@')))) {
+            displayName = '總指揮官';
+          }
           let assignedGrade = '';
           let assignedClass = '';
 
@@ -1303,7 +1306,10 @@ export class SupabaseAuth {
         </div>
       `;
     } else {
-      const rawName = (user && user.user_metadata && user.user_metadata.name) || (user && user.email) || roleText;
+      let rawName = (user && user.user_metadata && user.user_metadata.name) || (user && user.email) || roleText;
+      if (rawName && (rawName.includes('poyilin59') || (role === 'commander' && rawName.includes('@')))) {
+        rawName = '總指揮官';
+      }
       const displayName = this._escapeHtml(this._truncateName(rawName, 15));
       const badgeColor = isDrill ? '#dc3545' : (role === 'commander' ? '#6f42c1' : '#28a745');
 
@@ -1427,11 +1433,11 @@ export class SupabaseAuth {
             <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
               <div>
                 <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">指揮官電子信箱 (Email)</label>
-                <input id="authInputEmail" type="email" value="poyilin59@gmail.com" placeholder="請輸入帳號 (例如: poyilin59@gmail.com)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+                <input id="authInputEmail" type="email" value="" placeholder="請輸入指揮官電子信箱 (例如: commander@qs.edu.tw)" autocomplete="username" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
               </div>
               <div>
                 <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">詳細密碼</label>
-                <input id="authInputPassword" type="password" placeholder="請輸入指揮官密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+                <input id="authInputPassword" type="password" placeholder="請輸入指揮官密碼" autocomplete="current-password" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
               </div>
               <div id="authLoginError" style="color:#dc3545;font-size:0.8rem;display:none;line-height:1.4;font-weight:bold;"></div>
               <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">🔓 驗證密碼並登入指揮中心</button>

@@ -2130,11 +2130,12 @@ async function renderUserPermissionTable() {
   userList.forEach((u, idx) => {
     const isMaster = u.email === 'poyilin59@gmail.com';
     const safeEmail = u.email.replace(/[^a-zA-Z0-9]/g, '_');
+    const displayAccount = isMaster ? '👑 總指揮官主帳號 (系統管理)' : escapeHtml(u.email);
 
     html += `
       <tr style="border-bottom:1px solid #eee; background:${idx % 2 === 0 ? '#fff' : '#fdfdfd'};">
         <td style="padding:8px 10px; font-weight:bold; color:#1F4E79;">
-          ${escapeHtml(u.email)} ${isMaster ? '<span style="background:#e83e8c; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">主要管理者</span>' : ''}
+          ${displayAccount} ${isMaster ? '<span style="background:#e83e8c; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">主要管理者</span>' : ''}
         </td>
         <td style="padding:6px 10px;">
           <input id="permNameInput_${safeEmail}" type="text" value="${escapeHtml(u.name)}" style="width:120px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:0.82rem;" />
