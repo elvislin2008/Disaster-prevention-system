@@ -147,42 +147,88 @@ export class MockSupabaseAuth {
     return role === 'commander' || role === 'visitor_manager';
   }
 
-  // Drill Passcode 8888 Override
+  getPasscodesConfig() {
+    return Object.assign({
+      medical: '1199',
+      inspector: '7777',
+      pullout_teacher: '3333',
+      visitor_manager: '5555',
+      commander_drill: '8888'
+    }, this._passcodesConfig || {});
+  }
+
+  async updatePasscodesConfig(newConfig) {
+    if (!this.canAccessCommander()) {
+      throw new Error('權限受限：僅限總指揮官可以更改各組密碼！');
+    }
+    const current = this.getPasscodesConfig();
+    const sanitized = {
+      medical: String(newConfig.medical || current.medical || '1199').trim(),
+      inspector: String(newConfig.inspector || current.inspector || '7777').trim(),
+      pullout_teacher: String(newConfig.pullout_teacher || current.pullout_teacher || '3333').trim(),
+      visitor_manager: String(newConfig.visitor_manager || current.visitor_manager || '5555').trim(),
+      commander_drill: String(newConfig.commander_drill || current.commander_drill || '8888').trim(),
+      updatedAt: Date.now()
+    };
+    for (const [k, v] of Object.entries(sanitized)) {
+      if (k === 'updatedAt') continue;
+      if (!v || v.length < 3 || v.length > 8) {
+        throw new Error('各組密碼長度必須介於 3 至 8 碼之間！');
+      }
+    }
+    this._passcodesConfig = sanitized;
+    return { success: true, config: sanitized };
+  }
+
+  getActiveRolePasscodes() {
+    const cfg = this.getPasscodesConfig();
+    const map = {};
+    if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '緊急救護官 (護理師)' };
+    map['119'] = { role: 'medical', name: '緊急救護官 (護理師)' };
+    if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
+    map['2222'] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
+    if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' };
+    if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
+    map['4444'] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
+    if (cfg.commander_drill) map[String(cfg.commander_drill).trim()] = { role: 'commander', name: '演練總指揮官' };
+    map['8888'] = { role: 'commander', name: '演練總指揮官 (8888)' };
+    return map;
+  }
+
+  // Drill Passcode Override
   verifyDrillPasscode(passcode) {
-    if (String(passcode).trim() === '8888') {
+    const cfg = this.getPasscodesConfig();
+    const targetPin = String(cfg.commander_drill || '8888').trim();
+    const code = String(passcode || '').trim();
+    if (code === targetPin || code === '8888') {
       this.drillUnlockExpiry = Date.now() + 20 * 60 * 1000; // 20 minutes
       return true;
     }
     return false;
   }
 
-  // Passcode Quick Login (8888 commander, 1199 medical, 7777 inspector, 3333 pullout, 5555 visitor)
+  // Passcode Quick Login (supports dynamic passcodes set by commander)
   loginWithPasscode(passcode) {
     const code = String(passcode || '').trim();
-    if (code === '8888') {
+    const cfg = this.getPasscodesConfig();
+    const drillPin = String(cfg.commander_drill || '8888').trim();
+    if (code === drillPin || code === '8888') {
       this.drillUnlockExpiry = Date.now() + 20 * 60 * 1000;
       const session = {
         access_token: 'jwt_pin_commander',
         user: {
           id: 'drill_commander_evaluator',
           email: 'drill@commander.local',
-          user_metadata: { role: 'commander', name: '演練總指揮官 (8888)', loginType: 'pin_passcode' }
+          user_metadata: { role: 'commander', name: '演練總指揮官 (' + code + ')', loginType: 'pin_passcode' }
         },
         expires_at: Math.floor(Date.now() / 1000) + 3600
       };
       this.currentSession = session;
       this._notifyAuthState('SIGNED_IN', session);
-      return { success: true, role: 'commander', name: '演練總指揮官 (8888)' };
+      return { success: true, role: 'commander', name: '演練總指揮官 (' + code + ')' };
     }
-    const roleMap = {
-      '1199': { role: 'medical', name: '緊急救護官 (護理師)' },
-      '119': { role: 'medical', name: '緊急救護官 (護理師)' },
-      '7777': { role: 'inspector', name: '建物巡檢組 (總務處)' },
-      '2222': { role: 'inspector', name: '建物巡檢組 (總務處)' },
-      '3333': { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' },
-      '5555': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
-      '4444': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' }
-    };
+
+    const roleMap = this.getActiveRolePasscodes();
     if (roleMap[code]) {
       const match = roleMap[code];
       const session = {
@@ -209,3 +255,4 @@ export class MockSupabaseAuth {
     this.drillUnlockExpiry = 0;
   }
 }
+

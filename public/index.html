@@ -265,6 +265,7 @@
         <button id="btnSecurityMode" class="btn-mode-toggle" onclick="toggleSecurityMode()">🛡️ 演練防護</button>
         <button id="btnCloseSite" class="btn-close-site" onclick="toggleSiteLock()">🔒 網站關閉</button>
         <button id="btnUserPermissions" class="btn-info-inline" style="background:#6f42c1; color:#fff;" onclick="openUserPermissionModal()">👥 權限設定</button>
+        <button id="btnPasscodeManager" class="btn-info-inline" style="background:#e83e8c; color:#fff;" onclick="openPasscodeModal()">🔑 各組密碼設定</button>
         <button id="btnRosterManager" class="btn-info-inline" style="background:#0284c7; color:#fff;" onclick="openRosterModal()">🎓 師生名冊管理</button>
         <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
       </div>
@@ -281,6 +282,7 @@
             <button id="btnApproveCalc" class="btn-verify-speech" style="background:#28a745; font-size:0.78rem; padding:4px 10px;" onclick="approveCalculatedTotal()">✅ 指揮官核定採納試算數 (<span id="calcTotalLabel">0</span>人)</button>
             <button class="btn-verify-speech" style="background:#17a2b8; font-size:0.78rem; padding:4px 10px;" onclick="setCustomTotalAttendance()">✏️ 手動自訂修改人數</button>
             <button class="btn-verify-speech" style="background:#6f42c1; font-size:0.78rem; padding:4px 10px;" onclick="openUserPermissionModal()">👥 權限設定</button>
+            <button class="btn-verify-speech" style="background:#e83e8c; font-size:0.78rem; padding:4px 10px;" onclick="openPasscodeModal()">🔑 各組密碼設定</button>
             <button class="btn-verify-speech" style="background:#0284c7; font-size:0.78rem; padding:4px 10px;" onclick="openRosterModal()">🎓 師生在籍管理</button>
           </div>
         </div>
@@ -426,10 +428,13 @@
       </div>
       <div class="modal-body" style="padding:16px; max-height:75vh; overflow-y:auto;">
         <!-- 管理者安全性提示 -->
-        <div style="background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; padding:8px 12px; font-size:0.82rem; color:#0c5460; margin-bottom:14px; line-height:1.4;">
-          🔒 <b>系統管理員 (總指揮官) 專區：</b><br>
-          • 僅授權總指揮官在此指派、修改各職能組員的權限角色。<br>
-          • 導師無需帳號密碼即可於操場直接點名；此處專門指派管理與應變職能權限。
+        <div style="background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; padding:8px 12px; font-size:0.82rem; color:#0c5460; margin-bottom:14px; line-height:1.4; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            🔒 <b>系統管理員 (總指揮官) 專區：</b><br>
+            • 僅授權總指揮官在此指派、修改各職能組員的權限角色。<br>
+            • 導師無需帳號密碼即可於操場直接點名；此處專門指派管理與應變職能權限。
+          </div>
+          <button type="button" style="background:#e83e8c; color:#fff; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; font-size:0.8rem; cursor:pointer;" onclick="closeUserPermissionModal(); openPasscodeModal();">🔑 前往更改各組密碼</button>
         </div>
 
         <!-- 新增 / 快速指派區塊 -->
@@ -478,6 +483,92 @@
       </div>
       <div class="modal-footer" style="padding:10px 16px; background:#f8f9fa; border-top:1px solid #dee2e6; display:flex; justify-content:flex-end;">
         <button class="btn-modal-close" style="padding:6px 16px;" onclick="closeUserPermissionModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 3.5：各組災難數字通報密碼設定 (#passcodeModal - 總指揮官專用)
+       ======================================================================== -->
+  <div id="passcodeModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card" style="max-width: 620px; width: 95%;">
+      <div class="modal-header" style="background:#e83e8c; color:#fff;">
+        <span style="font-weight:bold;">🔑 各組災難通報數字密碼設定 (總指揮官專用)</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closePasscodeModal()">✖</span>
+      </div>
+      <div class="modal-body" style="padding:16px; max-height:80vh; overflow-y:auto;">
+        <!-- 說明提示 -->
+        <div style="background:#fff5f7; border:1px solid #fcc2d7; border-radius:6px; padding:10px 12px; font-size:0.82rem; color:#a61e4d; margin-bottom:14px; line-height:1.5;">
+          ⚡ <b>災難應變快速通報碼管理：</b><br>
+          • 真正災難來臨時，各應變組別<b>只需輸入數字代碼即可秒速登入</b>。<br>
+          • 總指揮官可依校內演練情境或安全維護隨時變更以下各組代碼。<br>
+          • <b>修改儲存後將即時同步全校各終端</b>，登入視窗上的快速按鈕也會即時換上新代碼。
+        </div>
+
+        <form id="passcodeConfigForm" onsubmit="savePasscodeConfigModal(event)" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- 1. 救護隊 -->
+          <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #dc3545; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; color:#dc3545; font-size:0.9rem;">🚑 緊急救護組 (護理師 / 檢傷救護)</div>
+              <div style="font-size:0.75rem; color:#666;">預設碼為 1199 (直覺救護車代碼)</div>
+            </div>
+            <div style="width:140px;">
+              <input id="cfgPasscodeMedical" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #dc3545; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
+            </div>
+          </div>
+
+          <!-- 2. 巡檢隊 -->
+          <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #d97706; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; color:#d97706; font-size:0.9rem;">🏢 建物巡檢組 (總務處 / 安全通報)</div>
+              <div style="font-size:0.75rem; color:#666;">預設碼為 7777</div>
+            </div>
+            <div style="width:140px;">
+              <input id="cfgPasscodeInspector" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #d97706; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
+            </div>
+          </div>
+
+          <!-- 3. 抽離組 -->
+          <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #7c3aed; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; color:#7c3aed; font-size:0.9rem;">🔄 抽離專責組 (特教組 / 潛能班確認)</div>
+              <div style="font-size:0.75rem; color:#666;">預設碼為 3333</div>
+            </div>
+            <div style="width:140px;">
+              <input id="cfgPasscodePullout" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #7c3aed; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
+            </div>
+          </div>
+
+          <!-- 4. 訪客組 -->
+          <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #0284c7; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; color:#0284c7; font-size:0.9rem;">📝 訪客登記組 (守衛室 / 志工廠商)</div>
+              <div style="font-size:0.75rem; color:#666;">預設碼為 5555</div>
+            </div>
+            <div style="width:140px;">
+              <input id="cfgPasscodeVisitor" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #0284c7; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
+            </div>
+          </div>
+
+          <!-- 5. 演練臨時通行碼 -->
+          <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #4f46e5; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:bold; color:#4f46e5; font-size:0.9rem;">👑 演練評審通行碼 (臨時總指揮官)</div>
+              <div style="font-size:0.75rem; color:#666;">預設碼為 8888 (20分鐘臨時全校權限)</div>
+            </div>
+            <div style="width:140px;">
+              <input id="cfgPasscodeDrill" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #4f46e5; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
+            </div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px;">
+            <button type="submit" style="flex:2; padding:10px; background:#e83e8c; color:#fff; border:none; border-radius:6px; font-size:0.92rem; font-weight:bold; cursor:pointer;">💾 儲存並即時同步全校</button>
+            <button type="button" onclick="resetPasscodeConfigToDefault()" style="flex:1; padding:10px; background:#6c757d; color:#fff; border:none; border-radius:6px; font-size:0.85rem; font-weight:bold; cursor:pointer;">🔄 恢復原廠預設</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="padding:10px 16px; background:#f8f9fa; border-top:1px solid #dee2e6; display:flex; justify-content:flex-end;">
+        <button class="btn-modal-close" style="padding:6px 16px;" onclick="closePasscodeModal()">關閉</button>
       </div>
     </div>
   </div>

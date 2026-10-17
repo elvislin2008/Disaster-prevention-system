@@ -2306,6 +2306,106 @@ async function deleteSingleUserPermission(email) {
   }
 }
 
+/**
+ * 開啟各組災難數字通報碼管理彈窗 (僅限總指揮官)
+ */
+async function openPasscodeModal() {
+  if (typeof document === 'undefined') return;
+  if (!checkSystemAdminAccess()) return;
+
+  const modal = document.getElementById('passcodeModal');
+  if (!modal) return;
+
+  const auth = (typeof window !== 'undefined' && window.auth) ||
+               (typeof globalThis !== 'undefined' && globalThis.auth);
+  const cfg = (auth && typeof auth.getPasscodesConfig === 'function')
+    ? auth.getPasscodesConfig()
+    : { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555', commander_drill: '8888' };
+
+  const medInput = document.getElementById('cfgPasscodeMedical');
+  const insInput = document.getElementById('cfgPasscodeInspector');
+  const pulInput = document.getElementById('cfgPasscodePullout');
+  const visInput = document.getElementById('cfgPasscodeVisitor');
+  const drlInput = document.getElementById('cfgPasscodeDrill');
+
+  if (medInput) medInput.value = cfg.medical || '1199';
+  if (insInput) insInput.value = cfg.inspector || '7777';
+  if (pulInput) pulInput.value = cfg.pullout_teacher || '3333';
+  if (visInput) visInput.value = cfg.visitor_manager || '5555';
+  if (drlInput) drlInput.value = cfg.commander_drill || '8888';
+
+  modal.style.display = 'flex';
+}
+
+/**
+ * 關閉各組災難數字通報碼管理彈窗
+ */
+function closePasscodeModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('passcodeModal');
+  if (modal) modal.style.display = 'none';
+}
+
+/**
+ * 儲存總指揮官自訂之各組密碼設定
+ */
+async function savePasscodeConfigModal(event) {
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  if (!checkSystemAdminAccess()) return;
+
+  const medInput = document.getElementById('cfgPasscodeMedical');
+  const insInput = document.getElementById('cfgPasscodeInspector');
+  const pulInput = document.getElementById('cfgPasscodePullout');
+  const visInput = document.getElementById('cfgPasscodeVisitor');
+  const drlInput = document.getElementById('cfgPasscodeDrill');
+
+  const newConfig = {
+    medical: medInput ? medInput.value.trim() : '1199',
+    inspector: insInput ? insInput.value.trim() : '7777',
+    pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
+    visitor_manager: visInput ? visInput.value.trim() : '5555',
+    commander_drill: drlInput ? drlInput.value.trim() : '8888'
+  };
+
+  try {
+    const auth = (typeof window !== 'undefined' && window.auth) ||
+                 (typeof globalThis !== 'undefined' && globalThis.auth);
+    if (!auth || typeof auth.updatePasscodesConfig !== 'function') {
+      throw new Error('認證服務模組尚未就緒');
+    }
+
+    await auth.updatePasscodesConfig(newConfig);
+    alert('✅ 各組災難數字通報碼已成功更新！\n全校終端與登入視窗已即時同步新密碼。');
+    closePasscodeModal();
+  } catch (err) {
+    alert('❌ 儲存失敗：' + (err.message || err));
+  }
+}
+
+/**
+ * 恢復各組密碼為系統原廠預設
+ */
+async function resetPasscodeConfigToDefault() {
+  if (!checkSystemAdminAccess()) return;
+  if (!confirm('確定要將各組密碼恢復為原廠預設 (1199, 7777, 3333, 5555, 8888) 嗎？')) {
+    return;
+  }
+
+  const medInput = document.getElementById('cfgPasscodeMedical');
+  const insInput = document.getElementById('cfgPasscodeInspector');
+  const pulInput = document.getElementById('cfgPasscodePullout');
+  const visInput = document.getElementById('cfgPasscodeVisitor');
+  const drlInput = document.getElementById('cfgPasscodeDrill');
+
+  if (medInput) medInput.value = '1199';
+  if (insInput) insInput.value = '7777';
+  if (pulInput) pulInput.value = '3333';
+  if (visInput) visInput.value = '5555';
+  if (drlInput) drlInput.value = '8888';
+
+  await savePasscodeConfigModal();
+}
+
 // ==============================================================================
 // 指揮官全校數據重置
 // ==============================================================================
@@ -4061,6 +4161,10 @@ const exportedAppMethods = {
   saveSingleUserPermission,
   addNewUserPermission,
   deleteSingleUserPermission,
+  openPasscodeModal,
+  closePasscodeModal,
+  savePasscodeConfigModal,
+  resetPasscodeConfigToDefault,
   openRosterModal,
   closeRosterModal,
   onRosterGradeChange,
@@ -4160,6 +4264,10 @@ export {
   saveSingleUserPermission,
   addNewUserPermission,
   deleteSingleUserPermission,
+  openPasscodeModal,
+  closePasscodeModal,
+  savePasscodeConfigModal,
+  resetPasscodeConfigToDefault,
   openRosterModal,
   closeRosterModal,
   onRosterGradeChange,

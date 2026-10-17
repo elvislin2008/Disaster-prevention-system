@@ -14,7 +14,8 @@
 const STORAGE_KEYS = {
   SESSION: 'APP_AUTH_SESSION',
   DRILL_EXPIRY: 'APP_AUTH_DRILL_EXPIRY',
-  REGISTERED_USERS: 'APP_AUTH_REGISTERED_USERS'
+  REGISTERED_USERS: 'APP_AUTH_REGISTERED_USERS',
+  PASSCODES_CONFIG: 'APP_AUTH_PASSCODES_CONFIG'
 };
 
 // 系統標準角色清單 (RBAC)
@@ -42,26 +43,57 @@ const ROLE_DISPLAY_NAMES = {
   visitor: '訪客'
 };
 
-// 災難快速通報數字碼映射表 (免打帳號密碼，直接輸入數字通報登入)
-export const ROLE_PASSCODES = {
-  // 1. 緊急救護隊 (Medical): 1199 (119 救護車直覺好記)
-  '1199': { role: 'medical', name: '緊急救護官 (護理師)' },
-  '119': { role: 'medical', name: '緊急救護官 (護理師)' },
-
-  // 2. 建物巡檢組 (Inspector): 7777 (或 2222)
-  '7777': { role: 'inspector', name: '建物巡檢組 (總務處)' },
-  '2222': { role: 'inspector', name: '建物巡檢組 (總務處)' },
-
-  // 3. 抽離確認組 (Pullout / Special Ed): 3333
-  '3333': { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' },
-
-  // 4. 訪客管理組 (Visitor Manager): 5555 (或 4444)
-  '5555': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
-  '4444': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
-
-  // 5. 演練備用通行碼: 8888 (臨時總指揮官)
-  '8888': { role: 'commander', name: '演練總指揮官 (8888)' }
+// 預設各組災難通報數字碼 (可由總指揮官隨時自訂修改並即時同步)
+export const DEFAULT_PASSCODES_CONFIG = {
+  medical: '1199',          // 救護隊
+  inspector: '7777',        // 巡檢隊
+  pullout_teacher: '3333',  // 抽離組
+  visitor_manager: '5555',  // 訪客組
+  commander_drill: '8888'   // 演練臨時總指揮官通行碼
 };
+
+// 災難快速通報數字碼動態映射表
+export const ROLE_PASSCODES = {};
+
+/**
+ * 依最新設定重建動態通行碼映射表
+ */
+export function rebuildRolePasscodes(cfg = {}) {
+  const merged = Object.assign({}, DEFAULT_PASSCODES_CONFIG, cfg);
+  for (const k of Object.keys(ROLE_PASSCODES)) {
+    delete ROLE_PASSCODES[k];
+  }
+
+  // 1. 緊急救護隊
+  const medCode = String(merged.medical || '1199').trim();
+  ROLE_PASSCODES[medCode] = { role: 'medical', name: '緊急救護官 (護理師)' };
+  ROLE_PASSCODES['119'] = { role: 'medical', name: '緊急救護官 (護理師)' };
+
+  // 2. 建物巡檢組
+  const insCode = String(merged.inspector || '7777').trim();
+  ROLE_PASSCODES[insCode] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
+  ROLE_PASSCODES['2222'] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
+
+  // 3. 抽離確認組
+  const pulCode = String(merged.pullout_teacher || '3333').trim();
+  ROLE_PASSCODES[pulCode] = { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' };
+
+  // 4. 訪客管理組
+  const visCode = String(merged.visitor_manager || '5555').trim();
+  ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
+  ROLE_PASSCODES['4444'] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
+
+  // 5. 演練備用通行碼
+  const drillCode = String(merged.commander_drill || '8888').trim();
+  ROLE_PASSCODES[drillCode] = { role: 'commander', name: '演練總指揮官 (' + drillCode + ')' };
+  ROLE_PASSCODES['8888'] = { role: 'commander', name: '演練總指揮官 (8888)' };
+
+  return ROLE_PASSCODES;
+}
+
+// 模組載入時預先以預設值建立
+rebuildRolePasscodes();
+
 
 // 離線演練或本機開發保底預設帳號庫
 const SEED_ACCOUNTS = new Map([
@@ -147,6 +179,12 @@ export class SupabaseAuth {
     this._restoreSessionFromStorage();
     this._restoreDrillExpiryFromStorage();
 
+    // 載入自訂密碼設定並建立各組通行碼映射表
+    try {
+      const initialConfig = this.getPasscodesConfig();
+      rebuildRolePasscodes(initialConfig);
+    } catch (e) {}
+
     // 在瀏覽器環境下監聽網路在線/離線事件
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.addEventListener('online', () => this._handleNetworkStatusChange(true));
@@ -161,6 +199,9 @@ export class SupabaseAuth {
   async init() {
     if (this._initialized) return this;
     this._initialized = true;
+
+    // 啟動各組災難通報碼雲端即時同步
+    this._initPasscodesSync();
 
     const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) ||
                       (typeof globalThis !== 'undefined' && globalThis.__APP_CONFIG__) ||
@@ -836,8 +877,10 @@ export class SupabaseAuth {
     }
 
     const cleanCode = String(passcode || '').trim();
+    const cfg = this.getPasscodesConfig();
+    const drillPin = String(cfg.commander_drill || '8888').trim();
 
-    if (cleanCode === '8888') {
+    if (cleanCode === drillPin || cleanCode === '8888') {
       this.failedPasscodeAttempts = 0;
       this.drillUnlockExpiry = now + 20 * 60 * 1000; // 20 分鐘
       this._saveDrillExpiryToStorage(this.drillUnlockExpiry);
@@ -852,7 +895,153 @@ export class SupabaseAuth {
   }
 
   /**
-   * 以數字通報碼快速登入 (支援各應變組別與 8888 演練)
+   * 取得當前各組災難通報數字碼設定 (優先快取，無則取預設)
+   */
+  getPasscodesConfig() {
+    let cfg = Object.assign({}, DEFAULT_PASSCODES_CONFIG);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(STORAGE_KEYS.PASSCODES_CONFIG);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          cfg = Object.assign(cfg, parsed);
+        }
+      }
+    } catch (e) {}
+    if (this._memPasscodesConfig) {
+      cfg = Object.assign(cfg, this._memPasscodesConfig);
+    }
+    return cfg;
+  }
+
+  /**
+   * 總指揮官變更各組通報密碼並即時同步全校 (Firestore + LocalStorage)
+   */
+  async updatePasscodesConfig(newConfig) {
+    if (!this.canAccessCommander()) {
+      throw new Error('權限受限：僅限總指揮官可以更改各組密碼！');
+    }
+    if (!newConfig || typeof newConfig !== 'object') {
+      throw new Error('密碼設定格式錯誤');
+    }
+
+    const currentCfg = this.getPasscodesConfig();
+    const sanitized = {
+      medical: String(newConfig.medical || currentCfg.medical || DEFAULT_PASSCODES_CONFIG.medical).trim(),
+      inspector: String(newConfig.inspector || currentCfg.inspector || DEFAULT_PASSCODES_CONFIG.inspector).trim(),
+      pullout_teacher: String(newConfig.pullout_teacher || currentCfg.pullout_teacher || DEFAULT_PASSCODES_CONFIG.pullout_teacher).trim(),
+      visitor_manager: String(newConfig.visitor_manager || currentCfg.visitor_manager || DEFAULT_PASSCODES_CONFIG.visitor_manager).trim(),
+      commander_drill: String(newConfig.commander_drill || currentCfg.commander_drill || DEFAULT_PASSCODES_CONFIG.commander_drill).trim(),
+      updatedAt: Date.now(),
+      updatedBy: (this.currentSession && this.currentSession.user && this.currentSession.user.email) || 'commander'
+    };
+
+    // 驗證每組密碼長度介於 3 至 8 碼之間
+    for (const [k, v] of Object.entries(sanitized)) {
+      if (k === 'updatedAt' || k === 'updatedBy') continue;
+      if (!v || v.length < 3 || v.length > 8) {
+        throw new Error('各組密碼長度必須介於 3 至 8 碼之間！');
+      }
+    }
+
+    this._memPasscodesConfig = sanitized;
+    rebuildRolePasscodes(sanitized);
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEYS.PASSCODES_CONFIG, JSON.stringify(sanitized));
+      }
+    } catch (e) {}
+
+    // 1. 寫入 Firestore SDK
+    try {
+      const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                 (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+      if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+        await fs.setDoc(fs.doc('config', 'passcodes'), sanitized, { merge: true });
+      }
+    } catch (e) {}
+
+    // 2. 寫入 Firestore REST API 雙保險
+    try {
+      const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+      const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+      const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+      const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+      await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/config/passcodes?key=${apiKey}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            medical: { stringValue: sanitized.medical },
+            inspector: { stringValue: sanitized.inspector },
+            pullout_teacher: { stringValue: sanitized.pullout_teacher },
+            visitor_manager: { stringValue: sanitized.visitor_manager },
+            commander_drill: { stringValue: sanitized.commander_drill },
+            updatedAt: { integerValue: String(sanitized.updatedAt) }
+          }
+        })
+      });
+    } catch (e) {}
+
+    return { success: true, config: sanitized };
+  }
+
+  /**
+   * 初始化各組密碼的 Firestore 即時監聽與 REST 同步
+   */
+  _initPasscodesSync() {
+    try {
+      const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                 (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+      if (fs && typeof fs.onSnapshot === 'function' && typeof fs.doc === 'function') {
+        fs.onSnapshot(fs.doc('config', 'passcodes'), (snap) => {
+          if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
+            const data = typeof snap.data === 'function' ? snap.data() : snap.data;
+            if (data) {
+              this._memPasscodesConfig = Object.assign({}, data);
+              rebuildRolePasscodes(this._memPasscodesConfig);
+              if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem(STORAGE_KEYS.PASSCODES_CONFIG, JSON.stringify(this._memPasscodesConfig));
+              }
+            }
+          }
+        }, () => {});
+      }
+    } catch (e) {}
+
+    try {
+      const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+      const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+      const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+      const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+      fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/config/passcodes?key=${apiKey}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.fields) {
+            const f = data.fields;
+            const loaded = {
+              medical: (f.medical && f.medical.stringValue) || DEFAULT_PASSCODES_CONFIG.medical,
+              inspector: (f.inspector && f.inspector.stringValue) || DEFAULT_PASSCODES_CONFIG.inspector,
+              pullout_teacher: (f.pullout_teacher && f.pullout_teacher.stringValue) || DEFAULT_PASSCODES_CONFIG.pullout_teacher,
+              visitor_manager: (f.visitor_manager && f.visitor_manager.stringValue) || DEFAULT_PASSCODES_CONFIG.visitor_manager,
+              commander_drill: (f.commander_drill && f.commander_drill.stringValue) || DEFAULT_PASSCODES_CONFIG.commander_drill
+            };
+            this._memPasscodesConfig = loaded;
+            rebuildRolePasscodes(loaded);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem(STORAGE_KEYS.PASSCODES_CONFIG, JSON.stringify(loaded));
+            }
+          }
+        })
+        .catch(() => {});
+    } catch (e) {}
+  }
+
+  /**
+   * 以數字通報碼快速登入 (支援各應變組別與演練通行碼)
    */
   loginWithPasscode(passcode) {
     try {
@@ -868,21 +1057,23 @@ export class SupabaseAuth {
         }
       }
 
-      // 1. 特殊演練通行碼 8888
-      if (cleanCode === '8888') {
+      // 1. 特殊演練通行碼 (自訂或 8888)
+      const cfg = this.getPasscodesConfig();
+      const drillPin = String(cfg.commander_drill || '8888').trim();
+      if (cleanCode === drillPin || cleanCode === '8888') {
         const ok = this.verifyDrillPasscode(cleanCode);
         if (ok) {
           return {
             success: true,
             role: 'commander',
-            name: '演練總指揮官 (8888)',
+            name: '演練總指揮官 (' + cleanCode + ')',
             expiry: this.drillUnlockExpiry
           };
         }
         return { success: false, error: '通行碼錯誤' };
       }
 
-      // 2. 各應變組別數字通報碼
+      // 2. 各應變組別數字通報碼 (動態查表)
       const match = ROLE_PASSCODES[cleanCode];
       if (match) {
         this.failedPasscodeAttempts = 0;
@@ -913,7 +1104,7 @@ export class SupabaseAuth {
       this.lastFailedAttemptTime = now;
       return {
         success: false,
-        error: '通報碼錯誤，請確認組別 4 位數字代碼！'
+        error: '通報碼錯誤，請確認組別數字代碼！'
       };
     } catch (err) {
       return {
@@ -1156,6 +1347,7 @@ export class SupabaseAuth {
     }
 
     const isCommanderActive = targetTabOrRole === 'commander' || targetTabOrRole === 'adminPage';
+    const passcodesCfg = this.getPasscodesConfig();
 
     modalOverlay.innerHTML = `
       <div class="custom-modal-card" style="background:#fff;border-radius:12px;width:100%;max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #1F4E79;">
@@ -1182,29 +1374,29 @@ export class SupabaseAuth {
           <div id="authPasscodeTabContent" style="display:${!isCommanderActive ? 'block' : 'none'};">
             <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#0369a1;margin-bottom:12px;line-height:1.4;">
               🚨 <b>災難應變快速通報：</b><br>
-              • 真正災難來臨無時間輸入帳密，各組人員直接輸入<b> 4 位數字通報碼</b>即可秒進！<br>
+              • 真正災難來臨無時間輸入帳密，各組人員直接輸入<b>數字通報碼</b>即可秒進！<br>
               • 點選下方組別按鈕可<b>一鍵直接登入</b>。
             </div>
 
             <!-- 職責快速按鈕列 (一鍵通報進入) -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
-              <button type="button" class="auth-role-quick-btn" data-pin="1199" style="padding:8px 6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🚑 救護隊 <span style="font-size:0.75rem;opacity:0.85;">(1199)</span>
+              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.medical}" style="padding:8px 6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🚑 救護隊 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.medical})</span>
               </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="7777" style="padding:8px 6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🏢 巡檢隊 <span style="font-size:0.75rem;opacity:0.85;">(7777)</span>
+              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.inspector}" style="padding:8px 6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🏢 巡檢隊 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.inspector})</span>
               </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="3333" style="padding:8px 6px;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                🔄 抽離組 <span style="font-size:0.75rem;opacity:0.85;">(3333)</span>
+              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.pullout_teacher}" style="padding:8px 6px;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🔄 抽離組 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.pullout_teacher})</span>
               </button>
-              <button type="button" class="auth-role-quick-btn" data-pin="5555" style="padding:8px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                📝 訪客組 <span style="font-size:0.75rem;opacity:0.85;">(5555)</span>
+              <button type="button" class="auth-role-quick-btn" data-pin="${passcodesCfg.visitor_manager}" style="padding:8px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                📝 訪客組 <span style="font-size:0.75rem;opacity:0.85;">(${passcodesCfg.visitor_manager})</span>
               </button>
             </div>
 
             <!-- 數字顯示與輸入框 -->
             <div style="margin-bottom:10px;">
-              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="請輸入 4 位通報碼" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
+              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報碼" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
             </div>
 
             <!-- 觸控螢幕虛擬數字鍵盤 (0~9, 清空, ⌫) -->
@@ -1310,12 +1502,12 @@ export class SupabaseAuth {
     // 處理預設指定角色的快速帶入
     if (!isCommanderActive && targetTabOrRole && inputPasscode) {
       const pinMap = {
-        medical: '1199',
-        rescuePage: '1199',
-        inspector: '7777',
-        pullout_teacher: '3333',
-        pulloutPage: '3333',
-        visitor_manager: '5555'
+        medical: passcodesCfg.medical,
+        rescuePage: passcodesCfg.medical,
+        inspector: passcodesCfg.inspector,
+        pullout_teacher: passcodesCfg.pullout_teacher,
+        pulloutPage: passcodesCfg.pullout_teacher,
+        visitor_manager: passcodesCfg.visitor_manager
       };
       if (pinMap[targetTabOrRole]) {
         inputPasscode.value = pinMap[targetTabOrRole];
@@ -1342,10 +1534,10 @@ export class SupabaseAuth {
           inputPasscode.value = '';
         } else if (val === 'back') {
           inputPasscode.value = inputPasscode.value.slice(0, -1);
-        } else if (inputPasscode.value.length < 6) {
+        } else if (inputPasscode.value.length < 8) {
           inputPasscode.value += val;
-          // 若達到 4 位且已匹配角色，可自動提交
-          if (inputPasscode.value.length === 4 && ROLE_PASSCODES[inputPasscode.value]) {
+          // 若已完全匹配註冊的角色通報碼，自動提交
+          if (ROLE_PASSCODES[inputPasscode.value]) {
             setTimeout(() => { if (submitPasscodeBtn) submitPasscodeBtn.click(); }, 120);
           }
         }

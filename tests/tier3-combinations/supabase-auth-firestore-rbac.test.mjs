@@ -112,6 +112,65 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(invalidRes.success, false);
     assert.ok(invalidRes.error);
   });
+
+  it('T3-22: Commander updates group passcodes dynamically and non-commander is strictly blocked', async () => {
+    const auth = new MockSupabaseAuth();
+
+    // 1. Unauthenticated or non-commander user tries to update passcodes -> rejected
+    await assert.rejects(async () => {
+      await auth.updatePasscodesConfig({ medical: '9999' });
+    }, /權限受限/);
+
+    // 2. Commander logs in
+    await auth.signInWithPassword({ email: 'commander@qs.edu.tw', password: 'cmd123456' });
+    assert.equal(auth.canAccessCommander(), true);
+
+    // 3. Commander updates passcodes for each duty group
+    const res = await auth.updatePasscodesConfig({
+      medical: '9999',
+      inspector: '8877',
+      pullout_teacher: '6666',
+      visitor_manager: '4321',
+      commander_drill: '9876'
+    });
+    assert.equal(res.success, true);
+    assert.equal(res.config.medical, '9999');
+    assert.equal(res.config.inspector, '8877');
+    assert.equal(res.config.pullout_teacher, '6666');
+    assert.equal(res.config.visitor_manager, '4321');
+    assert.equal(res.config.commander_drill, '9876');
+
+    // 4. Logout commander
+    await auth.signOut();
+
+    // 5. Test logging in with newly configured PIN 9999 for medical
+    const medRes = auth.loginWithPasscode('9999');
+    assert.equal(medRes.success, true);
+    assert.equal(auth.getUserRole(), 'medical');
+    assert.equal(auth.canAccessCommander(), false);
+
+    // 6. Test logging in with newly configured PIN 8877 for inspector
+    const insRes = auth.loginWithPasscode('8877');
+    assert.equal(insRes.success, true);
+    assert.equal(auth.getUserRole(), 'inspector');
+
+    // 7. Test logging in with newly configured PIN 6666 for pullout
+    const pulRes = auth.loginWithPasscode('6666');
+    assert.equal(pulRes.success, true);
+    assert.equal(auth.getUserRole(), 'pullout_teacher');
+
+    // 8. Test logging in with newly configured PIN 4321 for visitor
+    const visRes = auth.loginWithPasscode('4321');
+    assert.equal(visRes.success, true);
+    assert.equal(auth.getUserRole(), 'visitor_manager');
+
+    // 9. Test logging in with newly configured PIN 9876 for drill commander
+    const drillRes = auth.loginWithPasscode('9876');
+    assert.equal(drillRes.success, true);
+    assert.equal(auth.getUserRole(), 'commander');
+    assert.equal(auth.canAccessCommander(), true);
+  });
 });
+
 
 
