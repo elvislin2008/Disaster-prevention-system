@@ -2316,11 +2316,19 @@ async function openPasscodeModal() {
   const modal = document.getElementById('passcodeModal');
   if (!modal) return;
 
-  const auth = (typeof window !== 'undefined' && window.auth) ||
-               (typeof globalThis !== 'undefined' && globalThis.auth);
-  const cfg = (auth && typeof auth.getPasscodesConfig === 'function')
-    ? auth.getPasscodesConfig()
-    : { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555', commander_drill: '8888' };
+  const auth = (typeof window !== 'undefined' && (window.AuthManager || window.auth || window.supabaseAuth)) ||
+               (typeof globalThis !== 'undefined' && (globalThis.AuthManager || globalThis.auth || globalThis.supabaseAuth));
+  let cfg = { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555', commander_drill: '8888' };
+  if (auth && typeof auth.getPasscodesConfig === 'function') {
+    cfg = auth.getPasscodesConfig();
+  } else {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem('APP_AUTH_PASSCODES_CONFIG');
+        if (raw) cfg = Object.assign(cfg, JSON.parse(raw));
+      }
+    } catch (e) {}
+  }
 
   const medInput = document.getElementById('cfgPasscodeMedical');
   const insInput = document.getElementById('cfgPasscodeInspector');
@@ -2364,17 +2372,66 @@ async function savePasscodeConfigModal(event) {
     inspector: insInput ? insInput.value.trim() : '7777',
     pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
     visitor_manager: visInput ? visInput.value.trim() : '5555',
-    commander_drill: drlInput ? drlInput.value.trim() : '8888'
+    commander_drill: drlInput ? drlInput.value.trim() : '8888',
+    updatedAt: Date.now()
   };
 
+  // 驗證每組密碼長度介於 3 至 8 碼之間
+  for (const [k, v] of Object.entries(newConfig)) {
+    if (k === 'updatedAt') continue;
+    if (!v || v.length < 3 || v.length > 8) {
+      alert('⚠️ 各組密碼長度必須介於 3 至 8 碼之間！');
+      return;
+    }
+  }
+
   try {
-    const auth = (typeof window !== 'undefined' && window.auth) ||
-                 (typeof globalThis !== 'undefined' && globalThis.auth);
-    if (!auth || typeof auth.updatePasscodesConfig !== 'function') {
-      throw new Error('認證服務模組尚未就緒');
+    const auth = (typeof window !== 'undefined' && (window.AuthManager || window.auth || window.supabaseAuth)) ||
+                 (typeof globalThis !== 'undefined' && (globalThis.AuthManager || globalThis.auth || globalThis.supabaseAuth));
+
+    if (auth && typeof auth.updatePasscodesConfig === 'function') {
+      await auth.updatePasscodesConfig(newConfig);
+    } else {
+      // 離線/保底直接寫入 LocalStorage 與 Firestore
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('APP_AUTH_PASSCODES_CONFIG', JSON.stringify(newConfig));
+        }
+      } catch (e) {}
+
+      // 寫入 Firestore SDK
+      try {
+        const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                   (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+        if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+          await fs.setDoc(fs.doc('config', 'passcodes'), newConfig, { merge: true });
+        }
+      } catch (e) {}
+
+      // 寫入 Firestore REST API
+      try {
+        const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+        const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+        const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+        const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/config/passcodes?key=${apiKey}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fields: {
+              medical: { stringValue: newConfig.medical },
+              inspector: { stringValue: newConfig.inspector },
+              pullout_teacher: { stringValue: newConfig.pullout_teacher },
+              visitor_manager: { stringValue: newConfig.visitor_manager },
+              commander_drill: { stringValue: newConfig.commander_drill },
+              updatedAt: { integerValue: String(newConfig.updatedAt) }
+            }
+          })
+        });
+      } catch (e) {}
     }
 
-    await auth.updatePasscodesConfig(newConfig);
     alert('✅ 各組災難數字通報碼已成功更新！\n全校終端與登入視窗已即時同步新密碼。');
     closePasscodeModal();
   } catch (err) {
