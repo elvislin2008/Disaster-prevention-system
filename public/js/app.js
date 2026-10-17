@@ -3550,8 +3550,8 @@ function switchPage(pageId, btn) {
     if (pageId === 'adminPage') {
       if (!hasCommanderAccess) {
         if (!isAuth) {
-          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
-          alert('🔒 權限受限：您必須先登入總指揮官帳號密碼才能進入指揮中心！');
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal('commander');
+          alert('🔒 權限管制：指揮中心掌握全校戰情與機密個資，僅限總指揮官以完整帳號密碼登入！');
         } else {
           alert(`⛔ 權限受限：指揮中心僅限總指揮官（系統管理者）使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
@@ -3564,8 +3564,8 @@ function switchPage(pageId, btn) {
       const canPullout = typeof auth.canAccessPullout === 'function' && auth.canAccessPullout();
       if (!hasCommanderAccess && !canPullout) {
         if (!isAuth) {
-          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
-          alert('🔒 權限受限：您必須先登入【抽離專責教師】或【總指揮官】帳號才能進入抽離確認分頁！');
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal('pullout_teacher');
+          alert('⚡ 災難快速通報：請輸入【抽離確認組】4 位數字代碼 (3333) 秒級進入！');
         } else {
           alert(`⛔ 存取被拒絕：【抽離確認】專區僅限抽離專責教師或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
@@ -3579,8 +3579,8 @@ function switchPage(pageId, btn) {
       const canPatrol = typeof auth.canAccessPatrol === 'function' && auth.canAccessPatrol();
       if (!hasCommanderAccess && !canRescue && !canPatrol) {
         if (!isAuth) {
-          if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
-          alert('🔒 權限受限：您必須先登入【緊急救護官】、【建物巡檢組】或【總指揮官】帳號才能進入危難救助分頁！');
+          if (typeof auth.openLoginModal === 'function') auth.openLoginModal('medical');
+          alert('⚡ 災難快速通報：請輸入【救護隊 (1199)】或【巡檢隊 (7777)】數字碼秒級進入！');
         } else {
           alert(`⛔ 存取被拒絕：【危難救助】專區僅限緊急救護官、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }

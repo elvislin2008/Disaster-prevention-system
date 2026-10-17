@@ -156,6 +156,51 @@ export class MockSupabaseAuth {
     return false;
   }
 
+  // Passcode Quick Login (8888 commander, 1199 medical, 7777 inspector, 3333 pullout, 5555 visitor)
+  loginWithPasscode(passcode) {
+    const code = String(passcode || '').trim();
+    if (code === '8888') {
+      this.drillUnlockExpiry = Date.now() + 20 * 60 * 1000;
+      const session = {
+        access_token: 'jwt_pin_commander',
+        user: {
+          id: 'drill_commander_evaluator',
+          email: 'drill@commander.local',
+          user_metadata: { role: 'commander', name: '演練總指揮官 (8888)', loginType: 'pin_passcode' }
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      };
+      this.currentSession = session;
+      this._notifyAuthState('SIGNED_IN', session);
+      return { success: true, role: 'commander', name: '演練總指揮官 (8888)' };
+    }
+    const roleMap = {
+      '1199': { role: 'medical', name: '緊急救護官 (護理師)' },
+      '119': { role: 'medical', name: '緊急救護官 (護理師)' },
+      '7777': { role: 'inspector', name: '建物巡檢組 (總務處)' },
+      '2222': { role: 'inspector', name: '建物巡檢組 (總務處)' },
+      '3333': { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' },
+      '5555': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
+      '4444': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' }
+    };
+    if (roleMap[code]) {
+      const match = roleMap[code];
+      const session = {
+        access_token: `jwt_pin_${match.role}`,
+        user: {
+          id: `usr_pin_${match.role}`,
+          email: `${match.role}@quick-login.local`,
+          user_metadata: { role: match.role, name: match.name, loginType: 'pin_passcode' }
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      };
+      this.currentSession = session;
+      this._notifyAuthState('SIGNED_IN', session);
+      return { success: true, role: match.role, name: match.name };
+    }
+    return { success: false, error: '通行密碼錯誤' };
+  }
+
   isDrillUnlocked() {
     return Date.now() < this.drillUnlockExpiry;
   }

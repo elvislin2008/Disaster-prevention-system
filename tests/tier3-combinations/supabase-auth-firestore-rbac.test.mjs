@@ -77,4 +77,41 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(auth.getUserRole(), 'visitor');
     assert.equal(auth.canAccessCommander(), false);
   });
+
+  it('T3-21: Disaster Fast PIN login - grants duty roles (1199, 7777, 3333, 5555) but strictly blocks commander access', async () => {
+    const auth = new MockSupabaseAuth();
+
+    // 1199 -> Medical
+    await auth.loginWithPasscode('1199');
+    assert.equal(auth.getUserRole(), 'medical');
+    assert.equal(auth.canAccessCommander(), false);
+
+    // 7777 -> Inspector
+    await auth.loginWithPasscode('7777');
+    assert.equal(auth.getUserRole(), 'inspector');
+    assert.equal(auth.canAccessCommander(), false);
+
+    // 3333 -> Pullout Teacher
+    await auth.loginWithPasscode('3333');
+    assert.equal(auth.getUserRole(), 'pullout_teacher');
+    assert.equal(auth.canAccessCommander(), false);
+
+    // 5555 -> Visitor Manager
+    await auth.loginWithPasscode('5555');
+    assert.equal(auth.getUserRole(), 'visitor_manager');
+    assert.equal(auth.canAccessCommander(), false);
+
+    // 8888 -> Drill Commander Override
+    const drillRes = auth.loginWithPasscode('8888');
+    assert.equal(drillRes.success, true);
+    assert.equal(auth.getUserRole(), 'commander');
+    assert.equal(auth.canAccessCommander(), true);
+
+    // Invalid PIN returns success: false
+    const invalidRes = auth.loginWithPasscode('0000');
+    assert.equal(invalidRes.success, false);
+    assert.ok(invalidRes.error);
+  });
 });
+
+

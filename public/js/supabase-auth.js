@@ -42,6 +42,27 @@ const ROLE_DISPLAY_NAMES = {
   visitor: '訪客'
 };
 
+// 災難快速通報數字碼映射表 (免打帳號密碼，直接輸入數字通報登入)
+export const ROLE_PASSCODES = {
+  // 1. 緊急救護隊 (Medical): 1199 (119 救護車直覺好記)
+  '1199': { role: 'medical', name: '緊急救護官 (護理師)' },
+  '119': { role: 'medical', name: '緊急救護官 (護理師)' },
+
+  // 2. 建物巡檢組 (Inspector): 7777 (或 2222)
+  '7777': { role: 'inspector', name: '建物巡檢組 (總務處)' },
+  '2222': { role: 'inspector', name: '建物巡檢組 (總務處)' },
+
+  // 3. 抽離確認組 (Pullout / Special Ed): 3333
+  '3333': { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' },
+
+  // 4. 訪客管理組 (Visitor Manager): 5555 (或 4444)
+  '5555': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
+  '4444': { role: 'visitor_manager', name: '訪客登記組 (守衛室)' },
+
+  // 5. 演練備用通行碼: 8888 (臨時總指揮官)
+  '8888': { role: 'commander', name: '演練總指揮官 (8888)' }
+};
+
 // 離線演練或本機開發保底預設帳號庫
 const SEED_ACCOUNTS = new Map([
   ['poyilin59@gmail.com', {
@@ -831,21 +852,68 @@ export class SupabaseAuth {
   }
 
   /**
-   * 以通行碼登入
+   * 以數字通報碼快速登入 (支援各應變組別與 8888 演練)
    */
   loginWithPasscode(passcode) {
     try {
-      const ok = this.verifyDrillPasscode(passcode);
-      if (ok) {
+      const cleanCode = String(passcode || '').trim();
+      const now = Date.now();
+
+      // 暴力破解頻率防護 (5 次錯誤阻擋 30 秒 - 符合 B09-3)
+      if (this.failedPasscodeAttempts >= 5) {
+        if (now - this.lastFailedAttemptTime < 30 * 1000) {
+          throw new Error('嘗試次數過多，請等待 30 秒後再試。');
+        } else {
+          this.failedPasscodeAttempts = 0;
+        }
+      }
+
+      // 1. 特殊演練通行碼 8888
+      if (cleanCode === '8888') {
+        const ok = this.verifyDrillPasscode(cleanCode);
+        if (ok) {
+          return {
+            success: true,
+            role: 'commander',
+            name: '演練總指揮官 (8888)',
+            expiry: this.drillUnlockExpiry
+          };
+        }
+        return { success: false, error: '通行碼錯誤' };
+      }
+
+      // 2. 各應變組別數字通報碼
+      const match = ROLE_PASSCODES[cleanCode];
+      if (match) {
+        this.failedPasscodeAttempts = 0;
+        const session = {
+          user: {
+            id: `usr_pin_${match.role}`,
+            email: `${match.role}@quick-login.local`,
+            user_metadata: {
+              role: match.role,
+              name: match.name,
+              loginType: 'pin_passcode'
+            }
+          },
+          expires_at: Math.floor((now + 6 * 60 * 60 * 1000) / 1000) // 6 小時有效
+        };
+        this.currentSession = session;
+        this._saveSessionToStorage(session);
+        this._notifyAuthState('SIGNED_IN', session);
+        this.renderAuthBadge();
         return {
           success: true,
-          role: 'commander',
-          expiry: this.drillUnlockExpiry
+          role: match.role,
+          name: match.name
         };
       }
+
+      this.failedPasscodeAttempts++;
+      this.lastFailedAttemptTime = now;
       return {
         success: false,
-        error: '通行碼錯誤'
+        error: '通報碼錯誤，請確認組別 4 位數字代碼！'
       };
     } catch (err) {
       return {
@@ -1071,8 +1139,9 @@ export class SupabaseAuth {
 
   /**
    * 開啟登入彈跳視窗 (含防止重複連擊鎖 B08-3)
+   * @param {string} targetTabOrRole 預設分頁或目標角色 ('passcode' | 'commander' | 'medical' | 'inspector' | 'pullout_teacher' | 'visitor_manager')
    */
-  openLoginModal() {
+  openLoginModal(targetTabOrRole = 'passcode') {
     if (typeof document === 'undefined') return;
     if (this._isModalOpen) return; // guard against double click
 
@@ -1086,49 +1155,108 @@ export class SupabaseAuth {
       document.body.appendChild(modalOverlay);
     }
 
+    const isCommanderActive = targetTabOrRole === 'commander' || targetTabOrRole === 'adminPage';
+
     modalOverlay.innerHTML = `
-      <div class="custom-modal-card" style="background:#fff;border-radius:12px;width:100%;max-width:380px;box-shadow:0 10px 25px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #1F4E79;">
+      <div class="custom-modal-card" style="background:#fff;border-radius:12px;width:100%;max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #1F4E79;">
+        <!-- 頂部標題列 -->
         <div class="modal-header" style="background:#1F4E79;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;">
-          <span>🔐 指揮中心身分鑑權登入 (Firebase Auth)</span>
-          <button id="authModalCloseBtn" type="button" style="background:transparent;border:none;color:#fff;font-size:1.2rem;cursor:pointer;">&times;</button>
+          <span>🔐 校園防災緊急登入通報</span>
+          <button id="authModalCloseBtn" type="button" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
         </div>
+
+        <!-- 雙分頁標籤：災難快速數字碼 (預設) vs 總指揮官帳號密碼 -->
+        <div style="display:flex;border-bottom:2px solid #e2e8f0;background:#f8fafc;">
+          <button id="authTabPasscodeBtn" type="button" style="flex:1;padding:10px 6px;border:none;background:${!isCommanderActive ? '#fff' : '#f1f5f9'};color:${!isCommanderActive ? '#0284c7' : '#64748b'};font-weight:bold;font-size:0.83rem;border-bottom:${!isCommanderActive ? '3px solid #0284c7' : 'none'};cursor:pointer;">
+            ⚡ 各組數字登入 (災難專用)
+          </button>
+          <button id="authTabCommanderBtn" type="button" style="flex:1;padding:10px 6px;border:none;background:${isCommanderActive ? '#fff' : '#f1f5f9'};color:${isCommanderActive ? '#6f42c1' : '#64748b'};font-weight:bold;font-size:0.83rem;border-bottom:${isCommanderActive ? '3px solid #6f42c1' : 'none'};cursor:pointer;">
+            👑 總指揮官登入 (帳號密碼)
+          </button>
+        </div>
+
         <div class="modal-body" style="padding:16px;">
-          <!-- 權限管制提示列 -->
-          <div style="background:#e8f4f8;border:1px solid #bee5eb;border-radius:6px;padding:8px 10px;font-size:0.8rem;color:#0c5460;margin-bottom:12px;line-height:1.4;">
-            🔒 <b>指揮中心安全管制專區：</b><br>
-            • 本專區功能僅授權指揮官與教職員使用。<br>
-            • 身分由 Google Firebase 伺服器嚴格驗證，防止未授權竄改。
+          <!-- ========================================== -->
+          <!-- 分頁 1：各組別 4 位數字快速通報碼登入 (預設) -->
+          <!-- ========================================== -->
+          <div id="authPasscodeTabContent" style="display:${!isCommanderActive ? 'block' : 'none'};">
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#0369a1;margin-bottom:12px;line-height:1.4;">
+              🚨 <b>災難應變快速通報：</b><br>
+              • 真正災難來臨無時間輸入帳密，各組人員直接輸入<b> 4 位數字通報碼</b>即可秒進！<br>
+              • 點選下方組別按鈕可<b>一鍵直接登入</b>。
+            </div>
+
+            <!-- 職責快速按鈕列 (一鍵通報進入) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
+              <button type="button" class="auth-role-quick-btn" data-pin="1199" style="padding:8px 6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🚑 救護隊 <span style="font-size:0.75rem;opacity:0.85;">(1199)</span>
+              </button>
+              <button type="button" class="auth-role-quick-btn" data-pin="7777" style="padding:8px 6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🏢 巡檢隊 <span style="font-size:0.75rem;opacity:0.85;">(7777)</span>
+              </button>
+              <button type="button" class="auth-role-quick-btn" data-pin="3333" style="padding:8px 6px;background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🔄 抽離組 <span style="font-size:0.75rem;opacity:0.85;">(3333)</span>
+              </button>
+              <button type="button" class="auth-role-quick-btn" data-pin="5555" style="padding:8px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:6px;font-size:0.8rem;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                📝 訪客組 <span style="font-size:0.75rem;opacity:0.85;">(5555)</span>
+              </button>
+            </div>
+
+            <!-- 數字顯示與輸入框 -->
+            <div style="margin-bottom:10px;">
+              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="請輸入 4 位通報碼" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
+            </div>
+
+            <!-- 觸控螢幕虛擬數字鍵盤 (0~9, 清空, ⌫) -->
+            <div id="authNumKeypad" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;margin-bottom:10px;">
+              <button type="button" class="auth-pad-key" data-val="1" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">1</button>
+              <button type="button" class="auth-pad-key" data-val="2" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">2</button>
+              <button type="button" class="auth-pad-key" data-val="3" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">3</button>
+              <button type="button" class="auth-pad-key" data-val="4" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">4</button>
+              <button type="button" class="auth-pad-key" data-val="5" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">5</button>
+              <button type="button" class="auth-pad-key" data-val="6" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">6</button>
+              <button type="button" class="auth-pad-key" data-val="7" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">7</button>
+              <button type="button" class="auth-pad-key" data-val="8" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">8</button>
+              <button type="button" class="auth-pad-key" data-val="9" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">9</button>
+              <button type="button" class="auth-pad-key" data-val="clear" style="padding:8px;font-size:0.82rem;font-weight:bold;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;">清空</button>
+              <button type="button" class="auth-pad-key" data-val="0" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">0</button>
+              <button type="button" class="auth-pad-key" data-val="back" style="padding:8px;font-size:1.1rem;font-weight:bold;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">⌫</button>
+            </div>
+
+            <div id="authPasscodeError" style="color:#dc3545;font-size:0.8rem;display:none;margin-bottom:8px;font-weight:bold;text-align:center;"></div>
+            <button id="authSubmitPasscodeBtn" type="button" style="width:100%;padding:10px;background:#0284c7;color:#fff;border:none;border-radius:6px;font-weight:bold;font-size:0.92rem;cursor:pointer;">⚡ 驗證數字並快速進入看板</button>
           </div>
 
-          <!-- 登入表單 -->
-          <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
-            <div>
-              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">電子信箱 (Email)</label>
-              <input id="authInputEmail" type="email" value="poyilin59@gmail.com" placeholder="請輸入帳號 (例如: poyilin59@gmail.com)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
+          <!-- ========================================== -->
+          <!-- 分頁 2：總指揮官詳細帳號密碼登入 (最高權限) -->
+          <!-- ========================================== -->
+          <div id="authCommanderTabContent" style="display:${isCommanderActive ? 'block' : 'none'};">
+            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#6b21a8;margin-bottom:12px;line-height:1.4;">
+              🔒 <b>總指揮官帳號安全防護：</b><br>
+              • 總指揮官掌握全校個資電話、全局戰情、學籍名冊與權限指派。<br>
+              • 依資安規範，<b>必須使用完整電子郵件與詳細密碼驗證登入</b>。
             </div>
-            <div>
-              <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">密碼</label>
-              <input id="authInputPassword" type="password" placeholder="請輸入密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;" required />
-            </div>
-            <div id="authLoginError" style="color:#dc3545;font-size:0.8rem;display:none;line-height:1.4;"></div>
-            <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#28a745;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">🔓 驗證並登入指揮中心</button>
-            <div style="text-align:right;margin-top:2px;">
-              <a href="javascript:void(0)" id="authForgotPwdLink" style="font-size:0.75rem;color:#007bff;text-decoration:none;">忘記密碼？發送重設信至信箱</a>
-            </div>
-          </form>
 
-          <!-- 8888 備用演練入口 (摺疊次要) -->
-          <div style="margin-top:12px;padding-top:8px;border-top:1px dashed #ccc;text-align:center;">
-            <a href="javascript:void(0)" id="authToggleDrillLink" style="font-size:0.75rem;color:#6c757d;text-decoration:none;">⚙️ 操場斷網備用：8888 演練應變碼</a>
-            <div id="authPasscodeSection" style="display:none;margin-top:8px;">
-              <input id="authInputPasscode" type="password" maxlength="6" placeholder="輸入 8888" style="width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;text-align:center;letter-spacing:3px;" />
-              <button id="authSubmitPasscodeBtn" type="button" style="padding:6px 12px;background:#fd7e14;color:#fff;border:none;border-radius:4px;font-size:0.78rem;font-weight:bold;cursor:pointer;margin-left:4px;">解鎖演練</button>
-              <div id="authPasscodeError" style="color:#dc3545;font-size:0.75rem;display:none;margin-top:4px;"></div>
-            </div>
+            <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
+              <div>
+                <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">指揮官電子信箱 (Email)</label>
+                <input id="authInputEmail" type="email" value="poyilin59@gmail.com" placeholder="請輸入帳號 (例如: poyilin59@gmail.com)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+              </div>
+              <div>
+                <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">詳細密碼</label>
+                <input id="authInputPassword" type="password" placeholder="請輸入指揮官密碼" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+              </div>
+              <div id="authLoginError" style="color:#dc3545;font-size:0.8rem;display:none;line-height:1.4;font-weight:bold;"></div>
+              <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">🔓 驗證密碼並登入指揮中心</button>
+              <div style="text-align:right;margin-top:2px;">
+                <a href="javascript:void(0)" id="authForgotPwdLink" style="font-size:0.75rem;color:#007bff;text-decoration:none;">忘記密碼？發送重設信至信箱</a>
+              </div>
+            </form>
           </div>
         </div>
+
         <div class="modal-footer" style="padding:8px 16px;background:#f8f9fa;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:0.72rem;color:#666;">Google Firebase 高防護鑑權</span>
+          <span style="font-size:0.72rem;color:#666;">清水國小校園災難與演練即時通報系統</span>
           <button id="authModalCancelBtn" type="button" style="padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.8rem;cursor:pointer;">關閉</button>
         </div>
       </div>
@@ -1139,22 +1267,132 @@ export class SupabaseAuth {
     // 綁定彈窗控制項
     const closeBtn = modalOverlay.querySelector('#authModalCloseBtn');
     const cancelBtn = modalOverlay.querySelector('#authModalCancelBtn');
-    const formEmail = modalOverlay.querySelector('#authEmailForm');
-    const toggleDrillLink = modalOverlay.querySelector('#authToggleDrillLink');
-    const passcodeSection = modalOverlay.querySelector('#authPasscodeSection');
+    const tabPasscodeBtn = modalOverlay.querySelector('#authTabPasscodeBtn');
+    const tabCommanderBtn = modalOverlay.querySelector('#authTabCommanderBtn');
+    const passcodeContent = modalOverlay.querySelector('#authPasscodeTabContent');
+    const commanderContent = modalOverlay.querySelector('#authCommanderTabContent');
+    const inputPasscode = modalOverlay.querySelector('#authInputPasscode');
     const submitPasscodeBtn = modalOverlay.querySelector('#authSubmitPasscodeBtn');
+    const errPasscodeBox = modalOverlay.querySelector('#authPasscodeError');
+    const formEmail = modalOverlay.querySelector('#authEmailForm');
     const forgotPwdLink = modalOverlay.querySelector('#authForgotPwdLink');
 
     const handleClose = () => this.closeLoginModal();
     if (closeBtn) closeBtn.onclick = handleClose;
     if (cancelBtn) cancelBtn.onclick = handleClose;
 
-    if (toggleDrillLink && passcodeSection) {
-      toggleDrillLink.onclick = () => {
-        passcodeSection.style.display = passcodeSection.style.display === 'none' ? 'block' : 'none';
+    // 分頁切換監聽
+    if (tabPasscodeBtn && tabCommanderBtn) {
+      tabPasscodeBtn.onclick = () => {
+        passcodeContent.style.display = 'block';
+        commanderContent.style.display = 'none';
+        tabPasscodeBtn.style.background = '#fff';
+        tabPasscodeBtn.style.color = '#0284c7';
+        tabPasscodeBtn.style.borderBottom = '3px solid #0284c7';
+        tabCommanderBtn.style.background = '#f1f5f9';
+        tabCommanderBtn.style.color = '#64748b';
+        tabCommanderBtn.style.borderBottom = 'none';
+        if (inputPasscode) inputPasscode.focus();
+      };
+
+      tabCommanderBtn.onclick = () => {
+        commanderContent.style.display = 'block';
+        passcodeContent.style.display = 'none';
+        tabCommanderBtn.style.background = '#fff';
+        tabCommanderBtn.style.color = '#6f42c1';
+        tabCommanderBtn.style.borderBottom = '3px solid #6f42c1';
+        tabPasscodeBtn.style.background = '#f1f5f9';
+        tabPasscodeBtn.style.color = '#64748b';
+        tabPasscodeBtn.style.borderBottom = 'none';
       };
     }
 
+    // 處理預設指定角色的快速帶入
+    if (!isCommanderActive && targetTabOrRole && inputPasscode) {
+      const pinMap = {
+        medical: '1199',
+        rescuePage: '1199',
+        inspector: '7777',
+        pullout_teacher: '3333',
+        pulloutPage: '3333',
+        visitor_manager: '5555'
+      };
+      if (pinMap[targetTabOrRole]) {
+        inputPasscode.value = pinMap[targetTabOrRole];
+      }
+    }
+
+    // 職責快捷按鈕監聽 (一鍵直接登入)
+    const quickBtns = modalOverlay.querySelectorAll('.auth-role-quick-btn');
+    quickBtns.forEach(btn => {
+      btn.onclick = () => {
+        const pin = btn.getAttribute('data-pin');
+        if (inputPasscode) inputPasscode.value = pin;
+        if (submitPasscodeBtn) submitPasscodeBtn.click();
+      };
+    });
+
+    // 虛擬數字鍵盤監聽
+    const padKeys = modalOverlay.querySelectorAll('.auth-pad-key');
+    padKeys.forEach(btn => {
+      btn.onclick = () => {
+        if (!inputPasscode) return;
+        const val = btn.getAttribute('data-val');
+        if (val === 'clear') {
+          inputPasscode.value = '';
+        } else if (val === 'back') {
+          inputPasscode.value = inputPasscode.value.slice(0, -1);
+        } else if (inputPasscode.value.length < 6) {
+          inputPasscode.value += val;
+          // 若達到 4 位且已匹配角色，可自動提交
+          if (inputPasscode.value.length === 4 && ROLE_PASSCODES[inputPasscode.value]) {
+            setTimeout(() => { if (submitPasscodeBtn) submitPasscodeBtn.click(); }, 120);
+          }
+        }
+      };
+    });
+
+    // 數字通報碼提交監聽
+    if (submitPasscodeBtn) {
+      submitPasscodeBtn.onclick = (e) => {
+        e.preventDefault();
+        const code = inputPasscode ? inputPasscode.value.trim() : '';
+        if (!code) {
+          if (errPasscodeBox) {
+            errPasscodeBox.textContent = '請輸入 4 位數字通報碼！';
+            errPasscodeBox.style.display = 'block';
+          }
+          return;
+        }
+
+        const res = this.loginWithPasscode(code);
+        if (res.success) {
+          this.closeLoginModal();
+          const targetRole = res.role || 'commander';
+          const roleName = ROLE_DISPLAY_NAMES[targetRole] || res.name || targetRole;
+          alert('⚡ 歡迎快速通報登入！身分：【' + roleName + '】');
+          if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
+            window.navigateByRole(targetRole);
+          }
+        } else {
+          if (errPasscodeBox) {
+            errPasscodeBox.textContent = res.error || '通報碼錯誤！';
+            errPasscodeBox.style.display = 'block';
+          }
+        }
+      };
+    }
+
+    if (inputPasscode) {
+      inputPasscode.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (submitPasscodeBtn) submitPasscodeBtn.click();
+        }
+      };
+    }
+
+    // 忘記密碼連結
     if (forgotPwdLink) {
       forgotPwdLink.onclick = async () => {
         const email = modalOverlay.querySelector('#authInputEmail')?.value;
@@ -1171,6 +1409,7 @@ export class SupabaseAuth {
       };
     }
 
+    // 總指揮官表單提交
     if (formEmail) {
       formEmail.onsubmit = async (e) => {
         e.preventDefault();
@@ -1180,34 +1419,18 @@ export class SupabaseAuth {
 
         const res = await this.login(email, password);
         if (res.error) {
-          errBox.textContent = '登入失敗：' + res.error.message;
-          errBox.style.display = 'block';
+          if (errBox) {
+            errBox.textContent = '登入失敗：' + res.error.message;
+            errBox.style.display = 'block';
+          }
         } else {
           this.closeLoginModal();
           const role = this.getUserRole();
-          const roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '指揮官');
-          alert('✅ 歡迎登入！身分：' + roleName);
+          const roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '總指揮官');
+          alert('👑 歡迎總指揮官登入！身分：' + roleName);
           if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
             window.navigateByRole(role);
           }
-        }
-      };
-    }
-
-    if (submitPasscodeBtn) {
-      submitPasscodeBtn.onclick = (e) => {
-        e.preventDefault();
-        const code = modalOverlay.querySelector('#authInputPasscode').value;
-        const errBox = modalOverlay.querySelector('#authPasscodeError');
-        const res = this.loginWithPasscode(code);
-        if (res.success) {
-          this.closeLoginModal();
-          if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
-            window.navigateByRole('commander');
-          }
-        } else {
-          errBox.textContent = '解鎖失敗：' + res.error;
-          errBox.style.display = 'block';
         }
       };
     }
