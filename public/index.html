@@ -11,6 +11,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <!-- Supabase JS Client (支援教職員帳號與 RBAC 角色鑑權) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SheetJS (支援 Excel .xlsx / .xls / .csv 匯入解析與範本下載) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <!-- 全站緊急鎖定遮蔽浮層 -->
@@ -267,6 +269,7 @@
         <button id="btnUserPermissions" class="btn-info-inline" style="background:#6f42c1; color:#fff;" onclick="openUserPermissionModal()">👥 權限設定</button>
         <button id="btnPasscodeManager" class="btn-info-inline" style="background:#e83e8c; color:#fff;" onclick="openPasscodeModal()">🔑 各組密碼設定</button>
         <button id="btnRosterManager" class="btn-info-inline" style="background:#0284c7; color:#fff;" onclick="openRosterModal()">🎓 師生名冊管理</button>
+        <button id="btnExcelImport" class="btn-info-inline" style="background:#059669; color:#fff;" onclick="openExcelImportModal()">📊 Excel 匯入名冊</button>
         <button class="btn-reset-inline" onclick="resetAllDataWithPassword()">🔄 重置</button>
       </div>
 
@@ -284,6 +287,7 @@
             <button class="btn-verify-speech" style="background:#6f42c1; font-size:0.78rem; padding:4px 10px;" onclick="openUserPermissionModal()">👥 權限設定</button>
             <button class="btn-verify-speech" style="background:#e83e8c; font-size:0.78rem; padding:4px 10px;" onclick="openPasscodeModal()">🔑 各組密碼設定</button>
             <button class="btn-verify-speech" style="background:#0284c7; font-size:0.78rem; padding:4px 10px;" onclick="openRosterModal()">🎓 師生在籍管理</button>
+            <button class="btn-verify-speech" style="background:#059669; font-size:0.78rem; padding:4px 10px;" onclick="openExcelImportModal()">📊 Excel 匯入名冊</button>
           </div>
         </div>
       </div>
@@ -626,6 +630,8 @@
             <option value="transferred_in">🔵 新轉入學生</option>
           </select>
           <button type="button" class="btn-verify-speech" style="background:#16a34a; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="toggleNewStudentForm()">➕ 登記新轉入</button>
+          <button type="button" class="btn-verify-speech" style="background:#059669; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="openExcelImportModal()">📊 Excel 匯入全校名冊</button>
+          <button type="button" class="btn-verify-speech" style="background:#475569; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="downloadRosterExcelTemplate()">📥 下載 Excel 範本</button>
           <button type="button" class="btn-verify-speech" style="background:#0284c7; color:#fff; padding:6px 12px; font-size:0.82rem;" onclick="exportRosterCSV()">📥 匯出 CSV</button>
         </div>
 
@@ -720,6 +726,123 @@
       </div>
       <div class="modal-footer" style="padding:10px 16px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
         <button class="btn-modal-close" style="padding:6px 16px;" onclick="closeRosterModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       彈窗 5：Excel 批次匯入全校師生名冊視窗 (#excelImportModal - 系統管理員專用)
+       ======================================================================== -->
+  <div id="excelImportModal" class="custom-modal-backdrop" style="display:none;">
+    <div class="custom-modal-card" style="max-width: 760px; width: 95%;">
+      <div class="modal-header" style="background:#059669; color:#fff;">
+        <span style="font-weight:bold;">📊 Excel 全校師生名冊批次匯入至 Firebase (管理員專用)</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeExcelImportModal()">✖</span>
+      </div>
+      <div class="modal-body" style="padding:16px; max-height:80vh; overflow-y:auto;">
+        <!-- 步驟 1：下載範本 -->
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-size:0.9rem; font-weight:bold; color:#166534; margin-bottom:3px;">📥 步驟一：下載全校名冊 Excel 標準範例檔</div>
+            <div style="font-size:0.78rem; color:#15803d; line-height:1.4;">
+              欄位依序包含：<b>年級、班級、座號、姓名、性別、家長電話、導師姓名、導師電話、在籍狀態</b>。<br>
+              支援格式：<code>.xlsx</code>、<code>.xls</code>、<code>.csv</code>，請依照範本欄位格式填寫。
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn-verify-speech" style="background:#059669; color:#fff; padding:7px 12px; font-size:0.82rem; font-weight:bold;" onclick="downloadRosterExcelTemplate()">📥 下載 Excel 範本 (.xlsx)</button>
+            <button type="button" class="btn-verify-speech" style="background:#4b5563; color:#fff; padding:7px 12px; font-size:0.82rem;" onclick="downloadRosterCsvTemplate()">📄 備用 CSV 範本</button>
+          </div>
+        </div>
+
+        <!-- 步驟 2：選取或拖曳檔案 -->
+        <div style="background:#f8fafc; border:2px dashed #94a3b8; border-radius:8px; padding:20px; text-align:center; margin-bottom:14px; cursor:pointer;" id="excelDropZone" onclick="document.getElementById('excelFileInput').click()">
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display:none;" onchange="handleExcelFileSelected(event)" />
+          <div style="font-size:2rem; margin-bottom:4px;">📁</div>
+          <div style="font-size:0.92rem; font-weight:bold; color:#1e293b;">點擊此處選取 Excel 檔案，或將檔案拖曳至此</div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">支援 Microsoft Excel (.xlsx, .xls) 及 UTF-8 CSV 檔案</div>
+          <div id="excelSelectedFileName" style="display:none; margin-top:8px; font-weight:bold; color:#059669; font-size:0.85rem; background:#ecfdf5; padding:4px 8px; border-radius:4px; display:inline-block;"></div>
+        </div>
+
+        <!-- 步驟 3：解析結果預覽 -->
+        <div id="excelPreviewSection" style="display:none; margin-bottom:14px;">
+          <div style="font-size:0.88rem; font-weight:bold; color:#1e293b; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📋 檔案解析摘要與預覽 (前 5 筆)</span>
+            <span id="excelParsedCountBadge" style="background:#0284c7; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:12px;">共 0 筆</span>
+          </div>
+
+          <!-- 摘要統計條 -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:10px;">
+            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:6px 8px; text-align:center;">
+              <div style="font-size:0.72rem; color:#0369a1;">解析總數</div>
+              <div id="prevStatTotal" style="font-size:1.1rem; font-weight:bold; color:#0284c7;">0</div>
+            </div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 8px; text-align:center;">
+              <div style="font-size:0.72rem; color:#15803d;">正常在籍</div>
+              <div id="prevStatActive" style="font-size:1.1rem; font-weight:bold; color:#16a34a;">0</div>
+            </div>
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 8px; text-align:center;">
+              <div style="font-size:0.72rem; color:#1d4ed8;">新轉入</div>
+              <div id="prevStatIn" style="font-size:1.1rem; font-weight:bold; color:#2563eb;">0</div>
+            </div>
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; text-align:center;">
+              <div style="font-size:0.72rem; color:#b91c1c;">已轉出</div>
+              <div id="prevStatOut" style="font-size:1.1rem; font-weight:bold; color:#dc2626;">0</div>
+            </div>
+            <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:6px 8px; text-align:center;">
+              <div style="font-size:0.72rem; color:#6d28d9;">涵蓋班級數</div>
+              <div id="prevStatClasses" style="font-size:1.1rem; font-weight:bold; color:#7c3aed;">0 班</div>
+            </div>
+          </div>
+
+          <!-- 預覽表格 -->
+          <div class="table-wrapper" style="border:1px solid #cbd5e1; border-radius:6px; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; text-align:left;">
+                  <th style="padding:5px 8px;">年級</th>
+                  <th style="padding:5px 8px;">班級</th>
+                  <th style="padding:5px 8px;">座號</th>
+                  <th style="padding:5px 8px;">姓名</th>
+                  <th style="padding:5px 8px;">性別</th>
+                  <th style="padding:5px 8px;">家長電話</th>
+                  <th style="padding:5px 8px;">導師</th>
+                  <th style="padding:5px 8px;">在籍狀態</th>
+                </tr>
+              </thead>
+              <tbody id="excelPreviewTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- 步驟 4：匯入模式 -->
+          <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:10px 12px; margin-top:12px;">
+            <div style="font-size:0.82rem; font-weight:bold; color:#92400e; margin-bottom:6px;">⚙️ 選擇匯入與同步模式：</div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#451a03; cursor:pointer; margin-bottom:4px;">
+              <input type="radio" name="excelImportMode" value="merge" checked />
+              <span><b>🔄 增量更新 / 合併 (推薦)</b>：依「年級+班級+座號」自動比對覆蓋更新，未出現在 Excel 檔的既有學生繼續保留。</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#451a03; cursor:pointer;">
+              <input type="radio" name="excelImportMode" value="replace" />
+              <span><b>⚠️ 全校完整替換</b>：以本次 Excel 名冊為全校最新基準，完全替換現有名冊（適合新學年度全新開學名單）。</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 步驟 5：寫入進度指示器 -->
+        <div id="excelImportProgressBox" style="display:none; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:0.85rem; font-weight:bold; color:#065f46; margin-bottom:6px; display:flex; justify-content:space-between;">
+            <span id="excelProgressLabel">正在批次寫入 Firebase Firestore...</span>
+            <span id="excelProgressPercent">0%</span>
+          </div>
+          <div style="width:100%; height:10px; background:#d1fae5; border-radius:5px; overflow:hidden;">
+            <div id="excelProgressBar" style="width:0%; height:100%; background:#059669; transition:width 0.2s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding:10px 16px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn-modal-close" style="padding:6px 16px;" onclick="closeExcelImportModal()">關閉</button>
+        <button type="button" id="btnExecuteExcelImport" class="btn-verify-speech" style="background:#059669; color:#fff; padding:8px 18px; font-size:0.85rem; font-weight:bold;" onclick="executeRosterExcelImport()" disabled>🚀 開始批次匯入至 Firebase</button>
       </div>
     </div>
   </div>

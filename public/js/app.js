@@ -2946,6 +2946,494 @@ function exportRosterCSV() {
 }
 
 // ==============================================================================
+// 全校師生名冊 Excel 批次匯入與標準範本下載 (管理員專用)
+// ==============================================================================
+let excelParsedStudents = [];
+
+/**
+ * 開啟 Excel 匯入全校名冊對話框
+ */
+function openExcelImportModal() {
+  if (typeof document === 'undefined') return;
+  if (!checkSystemAdminAccess()) return;
+
+  const modal = document.getElementById('excelImportModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  // 註冊拖曳放置事件
+  const dropZone = document.getElementById('excelDropZone');
+  if (dropZone && !dropZone._dragBound) {
+    dropZone._dragBound = true;
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.borderColor = '#059669';
+        dropZone.style.background = '#ecfdf5';
+      });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.borderColor = '#94a3b8';
+        dropZone.style.background = '#f8fafc';
+      });
+    });
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleExcelFileSelected({ target: { files: [files[0]] } });
+      }
+    });
+  }
+}
+
+/**
+ * 關閉 Excel 匯入對話框並重置選取狀態
+ */
+function closeExcelImportModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('excelImportModal');
+  if (modal) modal.style.display = 'none';
+
+  excelParsedStudents = [];
+  const fileInput = document.getElementById('excelFileInput');
+  if (fileInput) fileInput.value = '';
+  const fileNameLabel = document.getElementById('excelSelectedFileName');
+  if (fileNameLabel) fileNameLabel.style.display = 'none';
+  const previewSection = document.getElementById('excelPreviewSection');
+  if (previewSection) previewSection.style.display = 'none';
+  const btnExecute = document.getElementById('btnExecuteExcelImport');
+  if (btnExecute) btnExecute.disabled = true;
+  const progressBox = document.getElementById('excelImportProgressBox');
+  if (progressBox) progressBox.style.display = 'none';
+}
+
+/**
+ * 下載全校名冊標準 Excel 範例檔 (.xlsx)
+ */
+function downloadRosterExcelTemplate() {
+  const headers = ['年級', '班級', '座號', '姓名', '性別', '家長電話', '導師姓名', '導師電話', '在籍狀態'];
+  const sampleRows = [
+    ['一', '1', '1', '陳大文', '男', '0912-345-001', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '1', '2', '林小華', '女', '0912-345-002', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '1', '3', '黃志強', '男', '0912-345-003', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '2', '1', '張小明', '男', '0922-333-001', '王美華老師', '0988-222-333', '正常在籍'],
+    ['二', '1', '1', '王小美', '女', '0933-444-001', '張雅晴老師', '0988-333-444', '正常在籍'],
+    ['三', '1', '1', '李大同', '男', '0944-555-001', '吳志豪老師', '0988-444-555', '正常在籍'],
+    ['四', '1', '1', '劉小芬', '女', '0955-666-001', '陳淑惠老師', '0988-555-666', '新轉入'],
+    ['五', '1', '1', '趙小龍', '男', '0966-777-001', '謝建國老師', '0988-666-777', '正常在籍'],
+    ['六', '1', '1', '周大福', '男', '0977-888-001', '周俊傑老師', '0988-777-888', '正常在籍'],
+    ['幼兒園', '企鵝班', '1', '孫小寶', '男', '0988-999-001', '幼教李老師', '0988-888-999', '正常在籍']
+  ];
+
+  const xlsxLib = (typeof window !== 'undefined' && window.XLSX) || (typeof globalThis !== 'undefined' && globalThis.XLSX) || null;
+  if (xlsxLib && typeof xlsxLib.utils === 'object' && typeof xlsxLib.writeFile === 'function') {
+    const ws = xlsxLib.utils.aoa_to_sheet([headers, ...sampleRows]);
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 14 },
+      { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }
+    ];
+    const wb = xlsxLib.utils.book_new();
+    xlsxLib.utils.book_append_sheet(wb, ws, '全校師生名冊範本');
+    xlsxLib.writeFile(wb, '清水國小全校師生名冊_匯入範本.xlsx');
+  } else {
+    // 降級下載 CSV
+    downloadRosterCsvTemplate();
+  }
+}
+
+/**
+ * 備用下載 CSV 範本檔 (UTF-8 with BOM)
+ */
+function downloadRosterCsvTemplate() {
+  let csv = '\uFEFF年級,班級,座號,姓名,性別,家長電話,導師姓名,導師電話,在籍狀態\n';
+  const sampleRows = [
+    ['一', '1', '1', '陳大文', '男', '0912-345-001', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '1', '2', '林小華', '女', '0912-345-002', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '1', '3', '黃志強', '男', '0912-345-003', '林慧珍老師', '0988-111-222', '正常在籍'],
+    ['一', '2', '1', '張小明', '男', '0922-333-001', '王美華老師', '0988-222-333', '正常在籍'],
+    ['二', '1', '1', '王小美', '女', '0933-444-001', '張雅晴老師', '0988-333-444', '正常在籍'],
+    ['三', '1', '1', '李大同', '男', '0944-555-001', '吳志豪老師', '0988-444-555', '正常在籍'],
+    ['四', '1', '1', '劉小芬', '女', '0955-666-001', '陳淑惠老師', '0988-555-666', '新轉入'],
+    ['五', '1', '1', '趙小龍', '男', '0966-777-001', '謝建國老師', '0988-666-777', '正常在籍'],
+    ['六', '1', '1', '周大福', '男', '0977-888-001', '周俊傑老師', '0988-777-888', '正常在籍'],
+    ['幼兒園', '企鵝班', '1', '孫小寶', '男', '0988-999-001', '幼教李老師', '0988-888-999', '正常在籍']
+  ];
+  sampleRows.forEach(row => {
+    csv += row.map(v => `"${v}"`).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '清水國小全校師生名冊_匯入範本.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 處理選取之 Excel / CSV 檔案
+ */
+async function handleExcelFileSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const fileNameLabel = document.getElementById('excelSelectedFileName');
+  if (fileNameLabel) {
+    fileNameLabel.innerText = `📄 已選取：${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    fileNameLabel.style.display = 'inline-block';
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const xlsxLib = (typeof window !== 'undefined' && window.XLSX) || (typeof globalThis !== 'undefined' && globalThis.XLSX) || null;
+
+    let rows = [];
+    if (xlsxLib && typeof xlsxLib.read === 'function') {
+      const wb = xlsxLib.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      const firstSheet = wb.Sheets[wb.SheetNames[0]];
+      rows = xlsxLib.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+    } else {
+      // CSV 簡易解析器回退
+      const text = new TextDecoder('utf-8').decode(arrayBuffer);
+      rows = text.split(/\r?\n/).map(line => {
+        const matches = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
+        return matches ? matches.map(m => m.replace(/^"|"$/g, '').trim()) : line.split(',');
+      }).filter(r => r && r.length > 0 && r.some(Boolean));
+    }
+
+    excelParsedStudents = parseRosterDataArray(rows);
+    renderExcelPreview(excelParsedStudents);
+  } catch (err) {
+    console.error('[ExcelImport] 解析失敗：', err);
+    alert('⚠️ 讀取 Excel 檔案失敗：' + (err.message || err));
+  }
+}
+
+/**
+ * 將解析後的二維陣列轉為正規化的學生名冊物件陣列
+ * 遵守鐵律 2：年級字串維持單字大寫（「一」、「二」...），嚴禁使用正則強轉為「一年級」
+ */
+function parseRosterDataArray(rows) {
+  if (!Array.isArray(rows) || rows.length < 2) return [];
+
+  // 尋找表頭欄位索引
+  const headerRow = rows[0].map(h => String(h || '').trim().toLowerCase());
+  let colGrade = headerRow.findIndex(h => h.includes('年級') || h.includes('grade') || h.includes('年段'));
+  let colClass = headerRow.findIndex(h => h.includes('班級') || h.includes('班') || h.includes('class'));
+  let colSeat = headerRow.findIndex(h => h.includes('座號') || h.includes('號') || h.includes('seat'));
+  let colName = headerRow.findIndex(h => h.includes('姓名') || h.includes('name'));
+  let colGender = headerRow.findIndex(h => h.includes('性別') || h.includes('稱謂') || h.includes('身分') || h.includes('gender'));
+  let colPhone = headerRow.findIndex(h => h.includes('家長電話') || h.includes('電話') || h.includes('手機') || h.includes('phone'));
+  let colTeacher = headerRow.findIndex(h => h.includes('導師姓名') || h.includes('導師') || h.includes('teacher'));
+  let colTeacherPhone = headerRow.findIndex(h => h.includes('導師電話') || h.includes('導師手機') || h.includes('teacherphone'));
+  let colStatus = headerRow.findIndex(h => h.includes('在籍') || h.includes('狀態') || h.includes('status'));
+
+  // 若標頭未明確匹配，依預設欄位順序退回
+  if (colGrade === -1) colGrade = 0;
+  if (colClass === -1) colClass = 1;
+  if (colSeat === -1) colSeat = 2;
+  if (colName === -1) colName = 3;
+  if (colGender === -1) colGender = 4;
+  if (colPhone === -1) colPhone = 5;
+  if (colTeacher === -1) colTeacher = 6;
+  if (colTeacherPhone === -1) colTeacherPhone = 7;
+  if (colStatus === -1) colStatus = 8;
+
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length === 0) continue;
+    const rawGrade = r[colGrade];
+    const rawName = r[colName];
+    // 若該列全為空或缺少姓名，則跳過
+    if (!rawName && !rawGrade) continue;
+
+    const grade = normalizeGradeString(rawGrade);
+    const className = normalizeClassName(r[colClass]);
+    const { seatNum, seatRaw } = normalizeSeatNumAndRaw(r[colSeat]);
+    const name = String(rawName || `學生_${grade}${className}_${seatRaw}`).trim();
+    const gender = String(r[colGender] || '學生').trim();
+    const phone = String(r[colPhone] || '').trim();
+    const teacher = String(r[colTeacher] || `${grade}年級${className}班導師`).trim();
+    const teacherPhone = String(r[colTeacherPhone] || '').trim();
+    const { status, isActive } = normalizeStatus(r[colStatus]);
+    const id = `${grade}_${className}_${seatRaw}`;
+    const classKey = `${grade} ${className}`;
+
+    result.push({
+      id,
+      grade,
+      className,
+      seatNum,
+      seatRaw,
+      name,
+      parent: `家長_${grade}${className}_${seatRaw}`,
+      phone,
+      teacher,
+      teacherPhone,
+      gender,
+      classKey,
+      status,
+      isActive,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  return result;
+}
+
+function normalizeGradeString(rawGrade) {
+  if (!rawGrade) return '一';
+  const str = String(rawGrade).trim();
+  if (/^[1一]/.test(str)) return '一';
+  if (/^[2二]/.test(str)) return '二';
+  if (/^[3三]/.test(str)) return '三';
+  if (/^[4四]/.test(str)) return '四';
+  if (/^[5五]/.test(str)) return '五';
+  if (/^[6六]/.test(str)) return '六';
+  if (str.includes('幼')) return '幼兒園';
+  if (str.includes('特')) return '特教班';
+  if (str.includes('應變')) return '緊急應變小組';
+  return str;
+}
+
+function normalizeSeatNumAndRaw(rawSeat) {
+  if (!rawSeat) return { seatNum: 1, seatRaw: '01號' };
+  const str = String(rawSeat).replace(/[^\d]/g, '');
+  const num = parseInt(str, 10) || 1;
+  const raw = (num < 10 ? '0' + num : String(num)) + '號';
+  return { seatNum: num, seatRaw: raw };
+}
+
+function normalizeClassName(rawClass) {
+  if (!rawClass) return '1';
+  let str = String(rawClass).trim();
+  if (/^\d+班$/.test(str)) {
+    str = str.replace(/班$/, '');
+  }
+  const num = parseInt(str, 10);
+  if (!isNaN(num) && String(num) === str.replace(/^0+/, '')) {
+    return String(num);
+  }
+  return str;
+}
+
+function normalizeStatus(rawStatus) {
+  if (!rawStatus) return { status: 'active', isActive: true };
+  const str = String(rawStatus).trim();
+  if (str.includes('轉出') || str.includes('離校') || str.toLowerCase().includes('out')) {
+    return { status: 'transferred_out', isActive: false };
+  }
+  if (str.includes('轉入') || str.toLowerCase().includes('in')) {
+    return { status: 'transferred_in', isActive: true };
+  }
+  return { status: 'active', isActive: true };
+}
+
+/**
+ * 渲染 Excel 預覽資料與統計
+ */
+function renderExcelPreview(students) {
+  const previewSection = document.getElementById('excelPreviewSection');
+  const countBadge = document.getElementById('excelParsedCountBadge');
+  const statTotal = document.getElementById('prevStatTotal');
+  const statActive = document.getElementById('prevStatActive');
+  const statIn = document.getElementById('prevStatIn');
+  const statOut = document.getElementById('prevStatOut');
+  const statClasses = document.getElementById('prevStatClasses');
+  const tbody = document.getElementById('excelPreviewTableBody');
+  const btnExecute = document.getElementById('btnExecuteExcelImport');
+
+  if (!students || students.length === 0) {
+    if (previewSection) previewSection.style.display = 'none';
+    if (btnExecute) btnExecute.disabled = true;
+    alert('檔案中未讀取到有效的學生名單資料，請確認是否依範本欄位填寫。');
+    return;
+  }
+
+  const total = students.length;
+  const activeCount = students.filter(s => s.status === 'active').length;
+  const inCount = students.filter(s => s.status === 'transferred_in').length;
+  const outCount = students.filter(s => s.status === 'transferred_out').length;
+  const classKeys = new Set(students.map(s => s.classKey));
+
+  if (countBadge) countBadge.innerText = `共 ${total.toLocaleString()} 筆`;
+  if (statTotal) statTotal.innerText = total.toLocaleString();
+  if (statActive) statActive.innerText = activeCount.toLocaleString();
+  if (statIn) statIn.innerText = inCount.toLocaleString();
+  if (statOut) statOut.innerText = outCount.toLocaleString();
+  if (statClasses) statClasses.innerText = `${classKeys.size} 班`;
+
+  if (tbody) {
+    let html = '';
+    const previewList = students.slice(0, 5);
+    previewList.forEach((s, idx) => {
+      let stBadge = '<span style="color:#16a34a; font-weight:bold;">🟢 正常在籍</span>';
+      if (s.status === 'transferred_out') stBadge = '<span style="color:#dc2626; font-weight:bold;">🔴 已轉出</span>';
+      else if (s.status === 'transferred_in') stBadge = '<span style="color:#2563eb; font-weight:bold;">🔵 新轉入</span>';
+
+      html += `
+        <tr style="border-bottom:1px solid #eee; background:${idx % 2 === 0 ? '#fff' : '#fdfdfd'};">
+          <td style="padding:4px 8px; font-weight:bold;">${escapeHtml(s.grade)}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.className)}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.seatRaw)}</td>
+          <td style="padding:4px 8px; font-weight:bold; color:#1F4E79;">${escapeHtml(s.name)}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.gender)}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.phone || '-')}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.teacher || '-')}</td>
+          <td style="padding:4px 8px;">${stBadge}</td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+  }
+
+  if (previewSection) previewSection.style.display = 'block';
+  if (btnExecute) btnExecute.disabled = false;
+}
+
+/**
+ * 執行批次匯入全校師生名冊至 Firebase Cloud Firestore
+ */
+async function executeRosterExcelImport() {
+  if (!checkSystemAdminAccess()) return;
+  if (!excelParsedStudents || excelParsedStudents.length === 0) {
+    alert('請先選取並解析 Excel 名冊檔案！');
+    return;
+  }
+
+  const modeRadio = document.querySelector('input[name="excelImportMode"]:checked');
+  const importMode = modeRadio ? modeRadio.value : 'merge';
+
+  const confirmMsg = importMode === 'replace'
+    ? `⚠️ 確定要【完全替換】全校名冊嗎？\n本次匯入共 ${excelParsedStudents.length} 筆資料，將作為全校最新名冊基準。`
+    : `確定要【增量更新 / 合併】全校名冊嗎？\n本次將更新/匯入 ${excelParsedStudents.length} 筆學生資料。`;
+
+  if (!confirm(confirmMsg)) return;
+
+  const btnExecute = document.getElementById('btnExecuteExcelImport');
+  const progressBox = document.getElementById('excelImportProgressBox');
+  const progressBar = document.getElementById('excelProgressBar');
+  const progressPercent = document.getElementById('excelProgressPercent');
+  const progressLabel = document.getElementById('excelProgressLabel');
+
+  if (btnExecute) btnExecute.disabled = true;
+  if (progressBox) progressBox.style.display = 'block';
+
+  try {
+    // 1. 本地名冊記憶體合併
+    if (importMode === 'replace') {
+      allStudents = [...excelParsedStudents];
+    } else {
+      const studentMap = new Map();
+      allStudents.forEach(s => {
+        const key = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
+        studentMap.set(key, s);
+      });
+      excelParsedStudents.forEach(s => {
+        const key = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
+        const existing = studentMap.get(key);
+        studentMap.set(key, existing ? { ...existing, ...s } : s);
+      });
+      allStudents = Array.from(studentMap.values());
+    }
+
+    if (typeof window !== 'undefined') window.allStudents = allStudents;
+
+    // 2. 批次寫入 Firebase Cloud Firestore
+    const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+    const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+    const projectId = (fbConfig && fbConfig.projectId) || 'disaster-prevention-syst-7169e';
+    const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+    const writes = excelParsedStudents.map(s => ({
+      update: {
+        name: `projects/${projectId}/databases/(default)/documents/students/${encodeURIComponent(s.id)}`,
+        fields: {
+          id: { stringValue: s.id },
+          grade: { stringValue: s.grade },
+          className: { stringValue: String(s.className) },
+          seatNum: { integerValue: String(s.seatNum) },
+          seatRaw: { stringValue: s.seatRaw },
+          name: { stringValue: s.name },
+          parent: { stringValue: s.parent || '' },
+          phone: { stringValue: s.phone || '' },
+          teacher: { stringValue: s.teacher || '' },
+          teacherPhone: { stringValue: s.teacherPhone || '' },
+          gender: { stringValue: s.gender || '學生' },
+          classKey: { stringValue: s.classKey },
+          status: { stringValue: s.status || 'active' },
+          isActive: { booleanValue: s.isActive !== false },
+          updatedAt: { stringValue: new Date().toISOString() }
+        }
+      }
+    }));
+
+    const BATCH_SIZE = 300;
+    const totalWrites = writes.length;
+    let completedWrites = 0;
+
+    for (let i = 0; i < totalWrites; i += BATCH_SIZE) {
+      const chunk = writes.slice(i, i + BATCH_SIZE);
+      const pct = Math.round((completedWrites / totalWrites) * 100);
+      if (progressBar) progressBar.style.width = `${pct}%`;
+      if (progressPercent) progressPercent.innerText = `${pct}%`;
+      if (progressLabel) progressLabel.innerText = `正在寫入 Firebase Firestore... [${completedWrites} / ${totalWrites}] 筆`;
+
+      try {
+        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ writes: chunk })
+        });
+      } catch (postErr) {
+        console.warn('[ExcelImport] REST commit 批次寫入警告：', postErr);
+      }
+
+      completedWrites += chunk.length;
+    }
+
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressPercent) progressPercent.innerText = '100%';
+    if (progressLabel) progressLabel.innerText = `✅ 寫入完成！共處理 ${totalWrites} 筆學生資料`;
+
+    // 3. 同步寫入 IndexedDB / 本機 Firestore 服務
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.setStudent === 'function') {
+      for (const s of excelParsedStudents) {
+        await fs.setStudent(s.id, s);
+      }
+    }
+
+    // 4. 更新前端所有視圖
+    updateGradeDropdown();
+    renderSchoolOverview();
+    renderPulloutPage();
+    renderRosterTable();
+    if (selectedClassBtn && selectedGradeOpt) {
+      onClassClick(selectedClassBtn);
+    }
+
+    alert(`🎉 全校師生名冊已成功批次匯入並同步至 Firebase！\n總共處理 ${excelParsedStudents.length} 筆學生資料。`);
+    closeExcelImportModal();
+  } catch (err) {
+    console.error('[ExcelImport] 匯入作業發生異常：', err);
+    alert('❌ 批次匯入過程發生錯誤：' + (err.message || err));
+  } finally {
+    if (btnExecute) btnExecute.disabled = false;
+    if (progressBox) progressBox.style.display = 'none';
+  }
+}
+
+// ==============================================================================
 // 指揮中心四大看板、口頭報告詞膠囊與全校概況矩陣圖
 // ==============================================================================
 function renderSchoolOverview() {
@@ -4233,6 +4721,13 @@ const exportedAppMethods = {
   updateStudentRosterStatus,
   deleteRosterStudent,
   exportRosterCSV,
+  openExcelImportModal,
+  closeExcelImportModal,
+  downloadRosterExcelTemplate,
+  downloadRosterCsvTemplate,
+  handleExcelFileSelected,
+  parseRosterDataArray,
+  executeRosterExcelImport,
   renderRosterTable,
   resetAllDataWithPassword,
   renderSchoolOverview,
@@ -4336,6 +4831,13 @@ export {
   updateStudentRosterStatus,
   deleteRosterStudent,
   exportRosterCSV,
+  openExcelImportModal,
+  closeExcelImportModal,
+  downloadRosterExcelTemplate,
+  downloadRosterCsvTemplate,
+  handleExcelFileSelected,
+  parseRosterDataArray,
+  executeRosterExcelImport,
   renderRosterTable,
   resetAllDataWithPassword,
   renderSchoolOverview,
