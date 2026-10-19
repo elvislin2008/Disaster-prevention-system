@@ -85,7 +85,7 @@ function resolveTimeSlot(timeOrMode) {
 }
 
 function isClassActiveAtTime(gradeName, className, timeOrMode, schedules = []) {
-  if (gradeName === '緊急應變小組') return true;
+  if (gradeName === '緊急應變小組' || ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組'].includes(gradeName) || ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組'].includes(className)) return true;
 
   const slot = resolveTimeSlot(timeOrMode);
   if (!slot) return false;

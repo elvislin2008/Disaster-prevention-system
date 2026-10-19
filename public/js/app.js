@@ -1929,11 +1929,21 @@ function showLatestStressClassList() {
         let classes = data.activeClasses || data.classList || [];
         rawStressClassText = "📋 壓力測試班級名單 (共 " + (data.classesCount || classes.length) + " 班)\n\n" + classes.join("\n");
 
+        const emergencyResponseTeams = ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組', '指揮官'];
         let groupedMap = {};
         classes.forEach(cKey => {
           let parts = cKey.split(" ");
           let gName = parts[0];
           let cName = parts[1] || parts[0];
+
+          // 核心規則：通報組、安全防護組、避難引導組、搶救組、緊急救護組 統一歸入「緊急應變小組」
+          if (emergencyResponseTeams.includes(gName) || emergencyResponseTeams.includes(cName)) {
+            gName = "緊急應變小組";
+            if (!parts[1] && emergencyResponseTeams.includes(cKey)) {
+              cName = cKey;
+            }
+          }
+
           if (!groupedMap[gName]) groupedMap[gName] = [];
           groupedMap[gName].push(cName);
         });
@@ -4087,8 +4097,10 @@ function addRetry(key) {
 
 const ROLE_NAME_ZH = {
   commander: '總指揮官',
-  medical: '緊急救護官',
-  inspector: '建物巡檢組',
+  medical: '緊急應變小組',
+  patrol: '緊急應變小組',
+  inspector: '緊急應變小組',
+  rescue_officer: '緊急應變小組',
   pullout_teacher: '抽離專責教師',
   visitor_manager: '訪客登記組',
   teacher: '班級導師',
