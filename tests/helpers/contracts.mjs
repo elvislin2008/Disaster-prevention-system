@@ -4,7 +4,7 @@
 
 // Iron Rule 2: Single-Character Grade Integrity
 export const VALID_NORMAL_GRADES = ['一', '二', '三', '四', '五', '六'];
-export const VALID_SPECIAL_GROUPS = ['幼兒園', '課後班', '學習扶助班', '緊急應變小組'];
+export const VALID_SPECIAL_GROUPS = ['幼兒園', '課後班', '學習扶助班', '緊急應變小組', '特教班', '特教'];
 export const ALL_VALID_GRADE_GROUPS = [...VALID_NORMAL_GRADES, ...VALID_SPECIAL_GROUPS];
 
 export function isValidGradeString(grade) {

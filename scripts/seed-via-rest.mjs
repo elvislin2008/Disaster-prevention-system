@@ -67,6 +67,32 @@ async function commitBatch(writes) {
   return res.json();
 }
 
+/**
+ * 取得 students 集合中所有現有文件的完整路徑
+ */
+async function fetchAllExistingStudentDocNames() {
+  const names = [];
+  let pageToken = '';
+  process.stdout.write('🔍 正在掃描 Firestore 中既有學生文件... ');
+
+  do {
+    const url = `${BASE_URL}/students?pageSize=300${pageToken ? '&pageToken=' + pageToken : ''}&key=${API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.log('（無現有文件或無讀取權限）');
+      return [];
+    }
+    const data = await res.json();
+    if (data.documents && data.documents.length > 0) {
+      data.documents.forEach(d => names.push(d.name));
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+
+  console.log(`共掃描到 ${names.length} 筆既有文件。`);
+  return names;
+}
+
 async function main() {
   console.log('='.repeat(78));
   console.log(`🏫 清水國小校園防災系統 — 雲端 Firestore 一鍵極速匯入工具`);
@@ -82,7 +108,7 @@ async function main() {
     throw new Error(`找不到檔案: ${studentListFile}`);
   }
   const students = JSON.parse(fs.readFileSync(studentListFile, 'utf8'));
-  console.log(`📂 已讀取學生名冊：${students.length} 筆`);
+  console.log(`📂 已讀取學生名冊：${students.length} 筆 (115學年度調查表)`);
 
   let schedules = [];
   if (fs.existsSync(scheduleConfigFile)) {
@@ -90,7 +116,30 @@ async function main() {
     console.log(`📂 已讀取排程規則：${schedules.length} 筆`);
   }
 
-  // 2. 準備所有寫入清單 (Writes)
+  // 2. 清理舊學生文件 (避免 6637 筆舊名冊干擾 2144 筆新資料)
+  const existingDocNames = await fetchAllExistingStudentDocNames();
+  const targetDocNames = new Set(
+    students.map(s => `projects/${PROJECT_ID}/databases/(default)/documents/students/${encodeURIComponent(s.id)}`)
+  );
+  // 需要被刪除的舊文件（不屬於新名單中者）
+  const obsoleteDocNames = existingDocNames.filter(name => !targetDocNames.has(name));
+
+  if (obsoleteDocNames.length > 0) {
+    console.log(`🧹 發現 ${obsoleteDocNames.length} 筆過期舊資料，開始分批清理...`);
+    const DELETE_BATCH_SIZE = 300;
+    const deleteBatches = Math.ceil(obsoleteDocNames.length / DELETE_BATCH_SIZE);
+    for (let i = 0; i < deleteBatches; i++) {
+      const chunk = obsoleteDocNames.slice(i * DELETE_BATCH_SIZE, (i + 1) * DELETE_BATCH_SIZE);
+      const deleteWrites = chunk.map(docName => ({ delete: docName }));
+      process.stdout.write(`   ⏳ 清理舊批次 [${i + 1}/${deleteBatches}] (${chunk.length} 筆)... `);
+      await commitBatch(deleteWrites);
+      console.log('✔ 完成');
+      await new Promise(r => setTimeout(r, 80));
+    }
+    console.log(`✨ 舊資料清理完畢！\n`);
+  }
+
+  // 3. 準備所有寫入清單 (Writes)
   const allWrites = [];
 
   // A. 系統排程與組態
@@ -161,7 +210,7 @@ async function main() {
     });
   }
 
-  // C. 全校 6637 筆學生名冊
+  // C. 115學年度全校 2,144 筆學生名冊
   for (const s of students) {
     const docId = encodeURIComponent(s.id);
     allWrites.push({
@@ -179,6 +228,7 @@ async function main() {
           teacher: s.teacher,
           teacherPhone: s.teacherPhone,
           classKey: s.classKey,
+          status: s.status || 'active',
           isActive: s.isActive !== false
         })
       }
@@ -187,7 +237,7 @@ async function main() {
 
   console.log(`📦 總計待寫入文件數：${allWrites.length} 份`);
 
-  // 3. 執行批次寫入 (每批 300 筆，小於 Firestore 限制 500)
+  // 4. 執行批次寫入 (每批 300 筆，小於 Firestore 限制 500)
   const BATCH_SIZE = 300;
   const totalBatches = Math.ceil(allWrites.length / BATCH_SIZE);
   console.log(`🚀 開始分批寫入 Firestore（共 ${totalBatches} 個批次）...\n`);
@@ -235,7 +285,7 @@ service cloud.firestore {
 
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log('\n' + '='.repeat(78));
-  console.log(`🎉 恭喜！全校 ${successCount} 筆名冊與排程資料已全數寫入 Firebase Firestore！`);
+  console.log(`🎉 恭喜！全校 ${students.length} 筆名冊與排程資料已全數寫入 Firebase Firestore！`);
   console.log(`⏱️ 總耗時：${durationSec} 秒`);
   console.log('='.repeat(78));
 }

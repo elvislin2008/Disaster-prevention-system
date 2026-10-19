@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 // 常數與規範定義
 // ------------------------------------------------------------------------------
 const CANONICAL_REGULAR_GRADES = new Set(['一', '二', '三', '四', '五', '六']);
-const CANONICAL_SPECIAL_GROUPS = new Set(['幼兒園', '課後班', '學習扶助班', '緊急應變小組', '特教']);
+const CANONICAL_SPECIAL_GROUPS = new Set(['幼兒園', '課後班', '學習扶助班', '緊急應變小組', '特教', '特教班']);
 
 // 鐵律 3：嚴格禁用的已廢棄舊表名稱白名單
 const FORBIDDEN_COLLECTIONS = new Set([

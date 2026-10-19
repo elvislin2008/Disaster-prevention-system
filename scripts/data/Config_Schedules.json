@@ -60,6 +60,26 @@
     "description": "週一二四五全天"
   },
   {
+    "groupName": "特教班",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "週一二四五全天，週三半天"
+  },
+  {
+    "groupName": "特教",
+    "className": "all",
+    "mon_am": true, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": true, "tue_pm1": true,  "tue_pm2": false, "tue_night": false,
+    "wed_am": true, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": true, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": true, "fri_pm1": true,  "fri_pm2": false, "fri_night": false,
+    "description": "週一二四五全天，週三半天"
+  },
+  {
     "groupName": "課後班",
     "className": "一甲A",
     "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,

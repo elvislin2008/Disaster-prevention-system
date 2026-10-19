@@ -33,7 +33,7 @@ import { offlineManager as defaultOfflineManager } from './offline-manager.js';
 // 常數與規範定義
 // ------------------------------------------------------------------------------
 const CANONICAL_REGULAR_GRADES = ['一', '二', '三', '四', '五', '六'];
-const CANONICAL_SPECIAL_GROUPS = ['幼兒園', '課後班', '學習扶助班', '緊急應變小組'];
+const CANONICAL_SPECIAL_GROUPS = ['幼兒園', '課後班', '學習扶助班', '緊急應變小組', '特教班', '特教'];
 
 // 作息時段解析演算法 (對齊 12:40 邊界: 760 分鐘，補齊週四全時段)
 function resolveTimeSlot(timeOrMode) {
@@ -136,6 +136,18 @@ function createStandardSchedulesFallback() {
       wed_am: true, wed_pm1: false, wed_pm2: false, wed_night: false,
       thu_am: true, thu_pm1: true, thu_pm2: false, thu_night: false,
       fri_am: true, fri_pm1: true, fri_pm2: false, fri_night: false
+    });
+  }
+  // 特教班
+  for (const grade of ['特教班', '特教']) {
+    schedules.push({
+      groupName: grade,
+      className: 'all',
+      mon_am: true, mon_pm1: true,  mon_pm2: false, mon_night: false,
+      tue_am: true, tue_pm1: true,  tue_pm2: false, tue_night: false,
+      wed_am: true, wed_pm1: false, wed_pm2: false, wed_night: false,
+      thu_am: true, thu_pm1: true,  thu_pm2: false, thu_night: false,
+      fri_am: true, fri_pm1: true,  fri_pm2: false, fri_night: false
     });
   }
   // 幼兒園
