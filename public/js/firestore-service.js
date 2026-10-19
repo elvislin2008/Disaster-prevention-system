@@ -114,6 +114,14 @@ class HighFidelityLocalFirestore {
   _loadFromLocalStorage() {
     if (typeof window === 'undefined' || !window.localStorage) return;
     try {
+      const DATA_VER_KEY = 'APP_FIRESTORE_DATA_VERSION';
+      const CURRENT_DATA_VER = '115_ACADEMIC_2144';
+      if (window.localStorage.getItem(DATA_VER_KEY) !== CURRENT_DATA_VER) {
+        // 清理過期的一~六年級 1~30 班快取，避免污染 115 學年度官方班級 (101~615)
+        window.localStorage.removeItem(this.storagePrefix + 'students');
+        window.localStorage.setItem(DATA_VER_KEY, CURRENT_DATA_VER);
+      }
+
       ALLOWED_COLLECTIONS.forEach(collName => {
         const raw = window.localStorage.getItem(this.storagePrefix + collName);
         if (raw) {

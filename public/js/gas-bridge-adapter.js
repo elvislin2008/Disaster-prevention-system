@@ -170,11 +170,11 @@ function createStandardSchedulesFallback() {
     thu_am: false, thu_pm1: true, thu_pm2: false, thu_night: false,
     fri_am: false, fri_pm1: true, fri_pm2: false, fri_night: false
   });
-  // 學習扶助班 (週四下午 學2甲)
+  // 學習扶助班 (週一、四下午 學2甲、學2乙)
   schedules.push({
     groupName: '學習扶助班',
-    className: '學2甲',
-    mon_am: false, mon_pm1: false, mon_pm2: false, mon_night: false,
+    className: 'all',
+    mon_am: false, mon_pm1: true, mon_pm2: false, mon_night: false,
     tue_am: false, tue_pm1: false, tue_pm2: false, tue_night: false,
     wed_am: false, wed_pm1: false, wed_pm2: false, wed_night: false,
     thu_am: false, thu_pm1: true, thu_pm2: false, thu_night: false,
@@ -183,35 +183,145 @@ function createStandardSchedulesFallback() {
   return schedules;
 }
 
-// 產生標準學生名冊保底資料 (180 班，每班 30~40 人)
+// 115 學年度全校官方正式班級規格表 (共 92 班/組，合計 2,155 人)
+const OFFICIAL_115_CLASS_SPECS = [
+  // 1. 一年級 (11 班, 256 人)
+  { grade: '一', className: '101', count: 23 },
+  { grade: '一', className: '102', count: 23 },
+  { grade: '一', className: '103', count: 23 },
+  { grade: '一', className: '104', count: 23 },
+  { grade: '一', className: '105', count: 22 },
+  { grade: '一', className: '106', count: 24 },
+  { grade: '一', className: '107', count: 24 },
+  { grade: '一', className: '108', count: 24 },
+  { grade: '一', className: '109', count: 24 },
+  { grade: '一', className: '110', count: 23 },
+  { grade: '一', className: '111', count: 23 },
+
+  // 2. 二年級 (10 班, 266 人)
+  { grade: '二', className: '201', count: 26 },
+  { grade: '二', className: '202', count: 28 },
+  { grade: '二', className: '203', count: 27 },
+  { grade: '二', className: '204', count: 27 },
+  { grade: '二', className: '205', count: 25 },
+  { grade: '二', className: '206', count: 25 },
+  { grade: '二', className: '207', count: 27 },
+  { grade: '二', className: '208', count: 28 },
+  { grade: '二', className: '209', count: 26 },
+  { grade: '二', className: '210', count: 27 },
+
+  // 3. 三年級 (12 班, 307 人)
+  { grade: '三', className: '301', count: 25 },
+  { grade: '三', className: '302', count: 27 },
+  { grade: '三', className: '303', count: 25 },
+  { grade: '三', className: '304', count: 26 },
+  { grade: '三', className: '305', count: 25 },
+  { grade: '三', className: '306', count: 25 },
+  { grade: '三', className: '307', count: 25 },
+  { grade: '三', className: '308', count: 26 },
+  { grade: '三', className: '309', count: 25 },
+  { grade: '三', className: '310', count: 26 },
+  { grade: '三', className: '311', count: 27 },
+  { grade: '三', className: '312', count: 25 },
+
+  // 4. 四年級 (13 班, 315 人)
+  { grade: '四', className: '401', count: 26 },
+  { grade: '四', className: '402', count: 25 },
+  { grade: '四', className: '403', count: 24 },
+  { grade: '四', className: '404', count: 25 },
+  { grade: '四', className: '405', count: 24 },
+  { grade: '四', className: '406', count: 24 },
+  { grade: '四', className: '407', count: 23 },
+  { grade: '四', className: '408', count: 24 },
+  { grade: '四', className: '409', count: 23 },
+  { grade: '四', className: '410', count: 25 },
+  { grade: '四', className: '411', count: 25 },
+  { grade: '四', className: '412', count: 23 },
+  { grade: '四', className: '413', count: 24 },
+
+  // 5. 五年級 (14 班, 316 人)
+  { grade: '五', className: '501', count: 22 },
+  { grade: '五', className: '502', count: 24 },
+  { grade: '五', className: '503', count: 22 },
+  { grade: '五', className: '504', count: 23 },
+  { grade: '五', className: '505', count: 22 },
+  { grade: '五', className: '506', count: 22 },
+  { grade: '五', className: '507', count: 24 },
+  { grade: '五', className: '508', count: 23 },
+  { grade: '五', className: '509', count: 24 },
+  { grade: '五', className: '510', count: 22 },
+  { grade: '五', className: '511', count: 22 },
+  { grade: '五', className: '512', count: 22 },
+  { grade: '五', className: '513', count: 21 },
+  { grade: '五', className: '514', count: 23 },
+
+  // 6. 六年級 (15 班, 342 人)
+  { grade: '六', className: '601', count: 22 },
+  { grade: '六', className: '602', count: 24 },
+  { grade: '六', className: '603', count: 24 },
+  { grade: '六', className: '604', count: 22 },
+  { grade: '六', className: '605', count: 25 },
+  { grade: '六', className: '606', count: 23 },
+  { grade: '六', className: '607', count: 21 },
+  { grade: '六', className: '608', count: 22 },
+  { grade: '六', className: '609', count: 23 },
+  { grade: '六', className: '610', count: 24 },
+  { grade: '六', className: '611', count: 22 },
+  { grade: '六', className: '612', count: 22 },
+  { grade: '六', className: '613', count: 23 },
+  { grade: '六', className: '614', count: 23 },
+  { grade: '六', className: '615', count: 22 },
+
+  // 7. 特教班 (3 班, 24 人)
+  { grade: '特教班', className: '特甲', count: 8 },
+  { grade: '特教班', className: '特乙', count: 8 },
+  { grade: '特教班', className: '特丙', count: 8 },
+
+  // 8. 幼兒園 (7 班, 130 人)
+  { grade: '幼兒園', className: '親親班', count: 19 },
+  { grade: '幼兒園', className: '甜心班', count: 18 },
+  { grade: '幼兒園', className: '寶貝班', count: 19 },
+  { grade: '幼兒園', className: '西瓜班', count: 17 },
+  { grade: '幼兒園', className: '綿羊班', count: 21 },
+  { grade: '幼兒園', className: '白兔班', count: 19 },
+  { grade: '幼兒園', className: '蘋果班', count: 17 },
+
+  // 9. 緊急應變小組 (5 組, 188 人)
+  { grade: '緊急應變小組', className: '指揮官', count: 1 },
+  { grade: '緊急應變小組', className: '通報組', count: 35 },
+  { grade: '緊急應變小組', className: '避難引導組', count: 55 },
+  { grade: '緊急應變小組', className: '安全防護組', count: 50 },
+  { grade: '緊急應變小組', className: '緊急救護組', count: 47 },
+
+  // 10. 學習扶助班 (2 班, 11 人)
+  { grade: '學習扶助班', className: '學2甲', count: 5 },
+  { grade: '學習扶助班', className: '學2乙', count: 6 }
+];
+
+// 產生標準學生名冊保底資料 (完全對齊 115 學年度全校 92 班/組，合計 2,155 人)
 function createStandardStudentsFallback() {
   const students = [];
-  const regularGrades = Array.from(CANONICAL_REGULAR_GRADES);
-  for (let gIdx = 0; gIdx < regularGrades.length; gIdx++) {
-    const grade = regularGrades[gIdx];
-    for (let c = 1; c <= 30; c++) {
-      const className = String(c);
-      const studentsPerClass = 30 + ((c * 7 + gIdx * 13) % 11); // 30 ~ 40 人
-      for (let s = 1; s <= studentsPerClass; s++) {
-        const seatRaw = (s < 10 ? '0' + s : String(s)) + '號';
-        const id = `${grade}_${className}_${seatRaw}`;
-        students.push({
-          id,
-          grade,
-          className,
-          seatNum: s,
-          seatRaw,
-          name: `學生_${grade}${className}_${seatRaw}`,
-          parent: `家長_${grade}${className}_${seatRaw}`,
-          phone: `0912-${String(100 + (c % 100)).padStart(3, '0')}-${String(s).padStart(3, '0')}`,
-          teacher: `${grade}年級${className}班導師`,
-          teacherPhone: `0988-${String(200 + (c % 100)).padStart(3, '0')}-000`,
-          classKey: `${grade} ${className}`,
-          isActive: true
-        });
-      }
+  OFFICIAL_115_CLASS_SPECS.forEach((spec, idx) => {
+    for (let s = 1; s <= spec.count; s++) {
+      const seatRaw = (s < 10 ? '0' + s : String(s)) + '號';
+      const id = `${spec.grade}_${spec.className}_${seatRaw}`;
+      students.push({
+        id,
+        grade: spec.grade,
+        className: spec.className,
+        seatNum: s,
+        seatRaw,
+        name: `學生_${spec.grade}${spec.className}_${seatRaw}`,
+        parent: `家長_${spec.grade}${spec.className}_${seatRaw}`,
+        phone: `0912-${String(100 + (idx % 100)).padStart(3, '0')}-${String(s).padStart(3, '0')}`,
+        teacher: `${spec.grade}${spec.className}導師`,
+        teacherPhone: `0988-${String(200 + (idx % 100)).padStart(3, '0')}-000`,
+        classKey: `${spec.grade} ${spec.className}`,
+        status: 'active',
+        isActive: true
+      });
     }
-  }
+  });
   return students;
 }
 
@@ -276,36 +386,26 @@ class GasRunner {
   async getStudentData() {
     try {
       const fs = this._adapter.getFirestore();
-      let baseStudents = [];
-      if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
-        baseStudents = window.allStudents;
-      } else if (this._adapter.options.students && this._adapter.options.students.length > 0) {
-        baseStudents = this._adapter.options.students;
-      } else {
-        baseStudents = createStandardStudentsFallback();
+      let students = null;
+
+      try {
+        students = await fs.getStudents();
+      } catch (err) {
+        console.warn('[GASBridgeAdapter] 讀取 Firestore 學生失敗，回退至標準名冊：', err);
       }
 
-      let students = await fs.getStudents();
+      // 當 Firestore 成功回傳學生名冊時，直接以 Firestore 雲端即時名冊為準！
+      // 若尚未連線或本機為空，回退至 115 學年度標準保底名冊
       if (!students || students.length === 0) {
-        students = baseStudents;
-      } else if (students.length < baseStudents.length) {
-        // 部分更新/異動記錄合併：以 ID 為索引將 Firestore 中的異動記錄精準覆蓋至基本名單
-        const studentMap = new Map();
-        baseStudents.forEach(s => {
-          const key = s.id || `${s.grade}_${s.className}_${s.seatRaw}`;
-          studentMap.set(key, { ...s });
-        });
-        students.forEach(fsS => {
-          const key = fsS.id || `${fsS.grade}_${fsS.className}_${fsS.seatRaw}`;
-          const existing = studentMap.get(key);
-          if (existing) {
-            studentMap.set(key, { ...existing, ...fsS });
-          } else {
-            studentMap.set(key, fsS);
-          }
-        });
-        students = Array.from(studentMap.values());
+        if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
+          students = window.allStudents;
+        } else if (this._adapter.options.students && this._adapter.options.students.length > 0) {
+          students = this._adapter.options.students;
+        } else {
+          students = createStandardStudentsFallback();
+        }
       }
+
       this._resolve(students);
     } catch (e) {
       this._reject(e);
