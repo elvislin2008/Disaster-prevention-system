@@ -257,7 +257,17 @@
     "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
     "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
     "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
-    "description": "學習扶助班 (週一、週四 12:40-16:00)"
+    "description": "學習扶助班 學2甲 (週一、週四 12:40-16:00)"
+  },
+  {
+    "groupName": "學習扶助班",
+    "className": "1",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "學習扶助班 第1組 (週一、週四 12:40-16:00)"
   },
   {
     "groupName": "學習扶助班",
@@ -267,7 +277,17 @@
     "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
     "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
     "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
-    "description": "學習扶助班 (週一、週四 12:40-16:00)"
+    "description": "學習扶助班 學2乙 (週一、週四 12:40-16:00)"
+  },
+  {
+    "groupName": "學習扶助班",
+    "className": "2",
+    "mon_am": false, "mon_pm1": true,  "mon_pm2": false, "mon_night": false,
+    "tue_am": false, "tue_pm1": false, "tue_pm2": false, "tue_night": false,
+    "wed_am": false, "wed_pm1": false, "wed_pm2": false, "wed_night": false,
+    "thu_am": false, "thu_pm1": true,  "thu_pm2": false, "thu_night": false,
+    "fri_am": false, "fri_pm1": false, "fri_pm2": false, "fri_night": false,
+    "description": "學習扶助班 第2組 (週一、週四 12:40-16:00)"
   },
   {
     "groupName": "緊急應變小組",

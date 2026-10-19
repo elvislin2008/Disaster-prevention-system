@@ -149,16 +149,53 @@ const CLASS_SPECS = [
   { grade: '緊急應變小組', className: '緊急救護組', count: 47, isStaff: true, leaderTitle: '救護站負責人', leaderName: '黃校護' }
 ];
 
+/**
+ * 官方正式學生真實名單 (來自週一、四下午低年級學習扶助名冊，對齊二年級常態班)
+ */
+const EXACT_STUDENTS = {
+  '二_201_05號': { name: '陳育豪', parent: '陳育豪家長', phone: '0929880813' },
+  '二_201_25號': { name: '黃馨苓', parent: '黃馨苓家長', phone: '0931897858' },
+  '二_202_16號': { name: '張絃霏', parent: '張絃霏家長', phone: '0918209668' },
+  '二_204_06號': { name: '施文凱', parent: '施文凱家長', phone: '0986494806' },
+  '二_205_06號': { name: '傅昱霖', parent: '傅昱霖家長', phone: '0960741037' },
+  '二_208_10號': { name: '劉羽洋', parent: '劉羽洋家長', phone: '0928424077' },
+  '二_208_11號': { name: '張耿愷', parent: '張耿愷家長', phone: '0911587027' },
+  '二_209_20號': { name: '許美梅', parent: '許美梅家長', phone: '0970055872' },
+  '二_209_27號': { name: '廖怡靚', parent: '廖怡靚家長', phone: '0922604000' },
+  '二_210_17號': { name: '陳秀妍', parent: '陳秀妍家長', phone: '0925705178' },
+  '二_210_24號': { name: '江羽恩', parent: '江羽恩家長', phone: '0905030069' }
+};
+
+/**
+ * 週一、四下午低年級學習扶助班 (共 11 人，分兩組：學2甲 5人、學2乙 6人)
+ */
+const LEARNING_ASSIST_STUDENTS = [
+  // 第 1 組 (學2甲 - 5人)
+  { group: '學2甲', groupAlias: '1', seatNum: 1, name: '陳育豪', parent: '陳育豪家長', phone: '0929880813', homeClass: '二 201 05號' },
+  { group: '學2甲', groupAlias: '1', seatNum: 2, name: '黃馨苓', parent: '黃馨苓家長', phone: '0931897858', homeClass: '二 201 25號' },
+  { group: '學2甲', groupAlias: '1', seatNum: 3, name: '張絃霏', parent: '張絃霏家長', phone: '0918209668', homeClass: '二 202 16號' },
+  { group: '學2甲', groupAlias: '1', seatNum: 4, name: '施文凱', parent: '施文凱家長', phone: '0986494806', homeClass: '二 204 06號' },
+  { group: '學2甲', groupAlias: '1', seatNum: 5, name: '傅昱霖', parent: '傅昱霖家長', phone: '0960741037', homeClass: '二 205 06號' },
+
+  // 第 2 組 (學2乙 - 6人)
+  { group: '學2乙', groupAlias: '2', seatNum: 1, name: '劉羽洋', parent: '劉羽洋家長', phone: '0928424077', homeClass: '二 208 10號' },
+  { group: '學2乙', groupAlias: '2', seatNum: 2, name: '張耿愷', parent: '張耿愷家長', phone: '0911587027', homeClass: '二 208 11號' },
+  { group: '學2乙', groupAlias: '2', seatNum: 3, name: '許美梅', parent: '許美梅家長', phone: '0970055872', homeClass: '二 209 20號' },
+  { group: '學2乙', groupAlias: '2', seatNum: 4, name: '廖怡靚', parent: '廖怡靚家長', phone: '0922604000', homeClass: '二 209 27號' },
+  { group: '學2乙', groupAlias: '2', seatNum: 5, name: '陳秀妍', parent: '陳秀妍家長', phone: '0925705178', homeClass: '二 210 17號' },
+  { group: '學2乙', groupAlias: '2', seatNum: 6, name: '江羽恩', parent: '江羽恩家長', phone: '0905030069', homeClass: '二 210 24號' }
+];
+
 const students = [];
 let globalIndex = 1;
 
+// 1. 常態編制 (90 班 / 組，合計 2,144 人)
 for (let cIdx = 0; cIdx < CLASS_SPECS.length; cIdx++) {
   const spec = CLASS_SPECS[cIdx];
   const isEmergency = spec.grade === '緊急應變小組';
   const isKindergarten = spec.grade === '幼兒園';
   const isSpecial = spec.grade === '特教班';
 
-  // 帶班導師或組長
   let defaultTeacher = `${getRandomItem(SURNAMES, cIdx * 3)}老師`;
   let defaultTeacherPhone = `0988-${padZero((cIdx * 5) % 100)}-${padZero((cIdx * 7 + 10) % 100)}`;
   if (isEmergency) {
@@ -181,7 +218,14 @@ for (let cIdx = 0; cIdx < CLASS_SPECS.length; cIdx++) {
     let teacher = defaultTeacher;
     let teacherPhone = defaultTeacherPhone;
 
-    if (isEmergency) {
+    const studentId = `${spec.grade}_${spec.className}_${seatRaw}`;
+
+    // 檢查是否有精確指定之正式名冊資料
+    if (EXACT_STUDENTS[studentId]) {
+      name = EXACT_STUDENTS[studentId].name;
+      parent = EXACT_STUDENTS[studentId].parent;
+      phone = EXACT_STUDENTS[studentId].phone;
+    } else if (isEmergency) {
       if (s === 1 && spec.leaderName) {
         name = spec.leaderName;
       } else {
@@ -198,7 +242,6 @@ for (let cIdx = 0; cIdx < CLASS_SPECS.length; cIdx++) {
     }
 
     const classKey = `${spec.grade} ${spec.className}`;
-    const studentId = `${spec.grade}_${spec.className}_${seatRaw}`;
 
     students.push({
       id: studentId,
@@ -218,6 +261,28 @@ for (let cIdx = 0; cIdx < CLASS_SPECS.length; cIdx++) {
 
     globalIndex++;
   }
+}
+
+// 2. 週一、四下午學習扶助班 (學2甲 5人、學2乙 6人，共 11 人)
+for (const item of LEARNING_ASSIST_STUDENTS) {
+  const seatRaw = `${padZero(item.seatNum)}號`;
+  const studentId = `學習扶助班_${item.group}_${seatRaw}`;
+  students.push({
+    id: studentId,
+    grade: '學習扶助班',
+    className: item.group,
+    seatNum: item.seatNum,
+    seatRaw,
+    name: item.name,
+    parent: item.parent,
+    phone: item.phone,
+    teacher: `${item.group}輔導師`,
+    teacherPhone: item.group === '學2甲' ? '0966-333-001' : '0966-333-002',
+    classKey: `學習扶助班 ${item.group}`,
+    status: 'active',
+    isActive: true,
+    homeClass: item.homeClass
+  });
 }
 
 // 輸出目標目錄
@@ -282,10 +347,9 @@ students.forEach(s => {
 });
 
 console.log('='.repeat(70));
-console.log('🏫 115學年度全校學生疏散避難情形名冊產出報告');
+console.log('🏫 115學年度全校學生疏散避難情形名冊產出報告 (含低年級學習扶助班)');
 console.log('='.repeat(70));
-console.log(`總班級 / 組別數：${CLASS_SPECS.length} 班`);
-console.log(`全校名冊總人數：${students.length} 人 (預期目標：2,144 人)`);
+console.log(`全校名冊總人數：${students.length} 筆 (常態 2,144 + 學習扶助 11 人)`);
 console.log('-'.repeat(70));
 for (const [grade, count] of Object.entries(gradeCounts)) {
   console.log(`- ${grade.padEnd(8, ' ')}: ${String(count).padStart(4, ' ')} 人`);
