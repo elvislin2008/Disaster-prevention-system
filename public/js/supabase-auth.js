@@ -48,8 +48,7 @@ export const DEFAULT_PASSCODES_CONFIG = {
   medical: '1199',          // 救護隊
   inspector: '7777',        // 巡檢隊
   pullout_teacher: '3333',  // 抽離組
-  visitor_manager: '5555',  // 訪客組
-  commander_drill: '8888'   // 演練臨時總指揮官通行碼
+  visitor_manager: '5555'   // 訪客組
 };
 
 // 災難快速通報數字碼動態映射表
@@ -82,11 +81,6 @@ export function rebuildRolePasscodes(cfg = {}) {
   const visCode = String(merged.visitor_manager || '5555').trim();
   ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
   ROLE_PASSCODES['4444'] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
-
-  // 5. 演練備用通行碼
-  const drillCode = String(merged.commander_drill || '8888').trim();
-  ROLE_PASSCODES[drillCode] = { role: 'commander', name: '演練總指揮官 (' + drillCode + ')' };
-  ROLE_PASSCODES['8888'] = { role: 'commander', name: '演練總指揮官 (8888)' };
 
   return ROLE_PASSCODES;
 }
@@ -679,17 +673,6 @@ export class SupabaseAuth {
    * 取得當前使用者物件
    */
   getCurrentUser() {
-    // 若演練指揮官已解鎖但無實際帳號登入，回傳臨時指揮官使用者
-    if (this.isDrillUnlocked() && (!this.currentSession || !this.currentSession.user)) {
-      return {
-        id: 'drill_commander_evaluator',
-        email: 'drill@commander.local',
-        user_metadata: {
-          role: 'commander',
-          name: '演練總指揮官 (8888)'
-        }
-      };
-    }
     return this.currentSession ? this.currentSession.user : null;
   }
 
@@ -747,11 +730,6 @@ export class SupabaseAuth {
    * 取得當前使用者角色
    */
   getUserRole() {
-    // 演練通行碼 8888 覆蓋權限：若在 20 分鐘窗口內直接視為 commander
-    if (this.isDrillUnlocked()) {
-      return 'commander';
-    }
-
     if (!this.currentSession || !this.currentSession.user) {
       return 'visitor';
     }
@@ -890,7 +868,7 @@ export class SupabaseAuth {
   // ==========================================================================
 
   /**
-   * 校驗演練通行碼 (8888)
+   * 校驗演練通行碼 (僅用於演練計時與防護，絕不提升為總指揮官權限)
    */
   verifyDrillPasscode(passcode) {
     const now = Date.now();
@@ -905,10 +883,7 @@ export class SupabaseAuth {
     }
 
     const cleanCode = String(passcode || '').trim();
-    const cfg = this.getPasscodesConfig();
-    const drillPin = String(cfg.commander_drill || '8888').trim();
-
-    if (cleanCode === drillPin || cleanCode === '8888') {
+    if (cleanCode === '8888') {
       this.failedPasscodeAttempts = 0;
       this.drillUnlockExpiry = now + 20 * 60 * 1000; // 20 分鐘
       this._saveDrillExpiryToStorage(this.drillUnlockExpiry);
@@ -959,7 +934,6 @@ export class SupabaseAuth {
       inspector: String(newConfig.inspector || currentCfg.inspector || DEFAULT_PASSCODES_CONFIG.inspector).trim(),
       pullout_teacher: String(newConfig.pullout_teacher || currentCfg.pullout_teacher || DEFAULT_PASSCODES_CONFIG.pullout_teacher).trim(),
       visitor_manager: String(newConfig.visitor_manager || currentCfg.visitor_manager || DEFAULT_PASSCODES_CONFIG.visitor_manager).trim(),
-      commander_drill: String(newConfig.commander_drill || currentCfg.commander_drill || DEFAULT_PASSCODES_CONFIG.commander_drill).trim(),
       updatedAt: Date.now(),
       updatedBy: (this.currentSession && this.currentSession.user && this.currentSession.user.email) || 'commander'
     };
@@ -1006,7 +980,6 @@ export class SupabaseAuth {
             inspector: { stringValue: sanitized.inspector },
             pullout_teacher: { stringValue: sanitized.pullout_teacher },
             visitor_manager: { stringValue: sanitized.visitor_manager },
-            commander_drill: { stringValue: sanitized.commander_drill },
             updatedAt: { integerValue: String(sanitized.updatedAt) }
           }
         })
@@ -1054,8 +1027,7 @@ export class SupabaseAuth {
               medical: (f.medical && f.medical.stringValue) || DEFAULT_PASSCODES_CONFIG.medical,
               inspector: (f.inspector && f.inspector.stringValue) || DEFAULT_PASSCODES_CONFIG.inspector,
               pullout_teacher: (f.pullout_teacher && f.pullout_teacher.stringValue) || DEFAULT_PASSCODES_CONFIG.pullout_teacher,
-              visitor_manager: (f.visitor_manager && f.visitor_manager.stringValue) || DEFAULT_PASSCODES_CONFIG.visitor_manager,
-              commander_drill: (f.commander_drill && f.commander_drill.stringValue) || DEFAULT_PASSCODES_CONFIG.commander_drill
+              visitor_manager: (f.visitor_manager && f.visitor_manager.stringValue) || DEFAULT_PASSCODES_CONFIG.visitor_manager
             };
             this._memPasscodesConfig = loaded;
             rebuildRolePasscodes(loaded);
@@ -1079,29 +1051,23 @@ export class SupabaseAuth {
       // 暴力破解頻率防護 (5 次錯誤阻擋 30 秒 - 符合 B09-3)
       if (this.failedPasscodeAttempts >= 5) {
         if (now - this.lastFailedAttemptTime < 30 * 1000) {
-          throw new Error('嘗試次數過多，請等待 30 秒後再試。');
+          throw new Error('Too many passcode attempts. Please wait 30 seconds. (嘗試次數過多，請等待 30 秒後再試)');
         } else {
           this.failedPasscodeAttempts = 0;
         }
       }
 
-      // 1. 特殊演練通行碼 (自訂或 8888)
-      const cfg = this.getPasscodesConfig();
-      const drillPin = String(cfg.commander_drill || '8888').trim();
-      if (cleanCode === drillPin || cleanCode === '8888') {
-        const ok = this.verifyDrillPasscode(cleanCode);
-        if (ok) {
-          return {
-            success: true,
-            role: 'commander',
-            name: '演練總指揮官 (' + cleanCode + ')',
-            expiry: this.drillUnlockExpiry
-          };
-        }
-        return { success: false, error: '通行碼錯誤' };
+      // 總指揮官帳密安全規範：嚴格禁止數字碼快速進入指揮官模式
+      if (cleanCode === '8888') {
+        this.failedPasscodeAttempts++;
+        this.lastFailedAttemptTime = now;
+        return {
+          success: false,
+          error: '總指揮官掌握全校核心戰情與個資，不提供數字碼登入，請以完整帳號密碼登入！'
+        };
       }
 
-      // 2. 各應變組別數字通報碼 (動態查表)
+      // 各應變組別數字通報碼 (動態查表)
       const match = ROLE_PASSCODES[cleanCode];
       if (match) {
         this.failedPasscodeAttempts = 0;
@@ -1326,7 +1292,6 @@ export class SupabaseAuth {
         <div class="auth-card" style="display:flex;align-items:center;height:38px;max-height:45px;gap:6px;font-size:0.8rem;background:rgba(255,255,255,0.92);padding:4px 8px;border-radius:6px;border:1px solid #c0d4e5;">
           <span style="color:#555;font-weight:bold;">未登入 (訪客)${offlineSuffix}</span>
           <button id="authLoginBtn" type="button" style="padding:4px 8px;background:#1F4E79;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">登入</button>
-          <button id="authDrillQuickBtn" type="button" style="padding:4px 8px;background:#fd7e14;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">演練通行</button>
         </div>
       `;
     } else {
@@ -1352,13 +1317,6 @@ export class SupabaseAuth {
     // 綁定事件監聽
     const loginBtn = container.querySelector('#authLoginBtn');
     if (loginBtn) loginBtn.onclick = () => this.openLoginModal();
-
-    const drillQuickBtn = container.querySelector('#authDrillQuickBtn');
-    if (drillQuickBtn) {
-      drillQuickBtn.onclick = () => {
-        this.verifyDrillPasscode('8888');
-      };
-    }
 
     const logoutBtn = container.querySelector('#authLogoutBtn');
     if (logoutBtn) logoutBtn.onclick = () => this.logout();
@@ -1413,12 +1371,6 @@ export class SupabaseAuth {
           <!-- 分頁 1：各組別數字快速通報碼登入 (預設) -->
           <!-- ========================================== -->
           <div id="authPasscodeTabContent" style="display:${!isCommanderActive ? 'block' : 'none'};">
-            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 12px;font-size:0.8rem;color:#0369a1;margin-bottom:14px;line-height:1.5;">
-              🚨 <b>各應變組別通報登入：</b><br>
-              • 災難來臨時無需輸入長帳號，請直接輸入總指揮官核發給您組別之<b>數字通報密碼</b>。<br>
-              • 適用組別：🚑 救護隊、🏢 巡檢隊、🔄 抽離組、📝 訪客組。
-            </div>
-
             <!-- 數字顯示與輸入框 (完全空白、密碼遮罩、不預填、防瀏覽器密碼代入) -->
             <div style="margin-bottom:12px;">
               <input id="authInputPasscode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報密碼" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" name="pin_field" value="" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;-webkit-text-security:disc;text-security:disc;" />

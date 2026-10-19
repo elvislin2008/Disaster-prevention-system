@@ -168,24 +168,26 @@ describe('Unit Tests: SupabaseAuth & AuthManager (Milestone 2)', () => {
     });
   });
 
-  describe('3. Emergency Drill Fallback (Passcode 8888)', () => {
-    it('3.1 Passcode 8888 unlocks temporary commander mode for 20 minutes', () => {
-      const res = auth.loginWithPasscode('8888');
-      assert.equal(res.success, true);
-      assert.equal(auth.isDrillUnlocked(), true);
-      assert.equal(auth.getUserRole(), 'commander');
-      assert.equal(auth.canAccessCommander(), true);
-      assert.equal(auth.canEditClass('一', '1'), true);
-      assert.equal(auth.canEditClass('六', '15'), true);
-
-      const now = Date.now();
-      assert.ok(auth.drillUnlockExpiry >= now + 19 * 60 * 1000);
-      assert.ok(auth.drillUnlockExpiry <= now + 21 * 60 * 1000);
+  describe('3. Commander Access Strict Account Security (Passcode 8888 Blocked)', () => {
+    beforeEach(() => {
+      auth.failedPasscodeAttempts = 0;
+      auth.lockDrill();
     });
 
-    it('3.2 Passcode with leading or trailing whitespace is accepted', () => {
+    it('3.1 Passcode 8888 is strictly blocked from quick login and never grants commander role', () => {
+      const res = auth.loginWithPasscode('8888');
+      assert.equal(res.success, false);
+      assert.ok(res.error.includes('總指揮官'));
+      assert.equal(auth.getUserRole(), 'visitor');
+      assert.equal(auth.canAccessCommander(), false);
+    });
+
+    it('3.2 Passcode with leading or trailing whitespace is accepted for drill timing', () => {
       assert.equal(auth.verifyDrillPasscode('   8888   '), true);
       assert.equal(auth.isDrillUnlocked(), true);
+      // Even when drill is unlocked, role remains visitor and commander access is blocked!
+      assert.equal(auth.getUserRole(), 'visitor');
+      assert.equal(auth.canAccessCommander(), false);
     });
 
     it('3.3 Invalid passcode is rejected and does not unlock commander access', () => {
@@ -227,12 +229,13 @@ describe('Unit Tests: SupabaseAuth & AuthManager (Milestone 2)', () => {
       assert.equal(auth.isDrillUnlocked(), false);
     });
 
-    it('3.8 Drill unlock does not erase underlying Supabase user account identity', async () => {
+    it('3.8 Teacher login cannot be escalated to commander via 8888 drill passcode', async () => {
       await auth.login('teacher1_1@qs.edu.tw', 'tea123456');
       auth.verifyDrillPasscode('8888');
 
-      assert.equal(auth.isDrillUnlocked(), true);
-      assert.equal(auth.getUserRole(), 'commander');
+      // Teacher role is NOT escalated to commander!
+      assert.equal(auth.getUserRole(), 'teacher');
+      assert.equal(auth.canAccessCommander(), false);
 
       // User account is preserved
       const user = auth.getCurrentUser();

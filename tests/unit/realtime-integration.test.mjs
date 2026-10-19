@@ -604,7 +604,7 @@ describe('Integration Tests: Real-time Sync & OfflineManager Pipeline (Findings 
       assert.equal(btnSubmit.disabled, false);
     });
 
-    it('3.4 Drill mode passcode (8888) overrides class restriction for teacher', async () => {
+    it('3.4 Passcode 8888 is rejected; only authentic commander account can edit other classes', async () => {
       // 1. 導師登入「一 1」
       await auth.login('teacher1_1@qs.edu.tw', 'tea123456');
 
@@ -616,29 +616,23 @@ describe('Integration Tests: Real-time Sync & OfflineManager Pipeline (Findings 
       let btnSubmit = mockDom.getElementById('btnSubmitAttendance');
       assert.equal(btnSubmit.disabled, true);
 
-      // 3. 輸入演練通行碼 8888 解鎖
+      // 3. 嘗試以數字碼 8888 快速解鎖 -> 嚴格被拒
       const unlockRes = auth.loginWithPasscode('8888');
-      assert.equal(unlockRes.success, true);
-      assert.equal(auth.getUserRole(), 'commander', 'Role overridden to commander via 8888');
-      assert.equal(auth.canEditClass('一', '2'), true, 'canEditClass overridden to true');
+      assert.equal(unlockRes.success, false);
+      assert.equal(auth.getUserRole(), 'teacher');
+      assert.equal(auth.canEditClass('一', '2'), false);
 
-      // 4. 再次點擊「一 2」，唯讀防護解除
+      // 4. 總指揮官以正式帳號登入 -> 唯讀防護解除
+      await auth.login('fishyaya@apps.ntpc.edu.tw', 'admin123');
+      assert.equal(auth.getUserRole(), 'commander', 'Authenticated as commander');
+      assert.equal(auth.canEditClass('一', '2'), true, 'canEditClass allows all classes');
+
       onClassClick('2');
       btnSubmit = mockDom.getElementById('btnSubmitAttendance');
-      assert.equal(btnSubmit.disabled, false, 'Submit button re-enabled');
+      assert.equal(btnSubmit.disabled, false, 'Submit button enabled for commander');
 
       const warnBox = mockDom.getElementById('teacherClassAuthWarn');
       assert.ok(!warnBox || warnBox.style.display === 'none', 'Warning banner hidden');
-
-      // 5. 退出 8888 演練通行碼
-      auth.lockDrill();
-      assert.equal(auth.getUserRole(), 'teacher', 'Role restored to teacher');
-      assert.equal(auth.canEditClass('一', '2'), false, 'Restriction restored');
-
-      // 6. 重新點擊「一 2」，唯讀防護再次生效
-      onClassClick('2');
-      btnSubmit = mockDom.getElementById('btnSubmitAttendance');
-      assert.equal(btnSubmit.disabled, true, 'Submit button re-locked');
     });
 
     it('3.5 Unauthenticated visitor in offline drill defaults to unrestricted roll call', async () => {

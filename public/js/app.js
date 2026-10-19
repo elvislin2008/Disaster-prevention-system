@@ -1193,8 +1193,7 @@ function updatePulloutStatus(sKey, statusVal, typeLabel) {
 
   if (auth && typeof auth.getUserRole === 'function') {
     const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
-    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const hasCommanderAccess = isCommander || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
     const canPullout = typeof auth.canAccessPullout === 'function' && auth.canAccessPullout();
 
     if (!hasCommanderAccess && !canPullout) {
@@ -1252,8 +1251,7 @@ function switchRescueSubTab(tabType) {
 
   if (auth && typeof auth.getUserRole === 'function') {
     const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
-    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const hasCommanderAccess = isCommander || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
     const canRescue = typeof auth.canAccessRescue === 'function' && auth.canAccessRescue();
     const canPatrol = typeof auth.canAccessPatrol === 'function' && auth.canAccessPatrol();
     const role = auth.getUserRole();
@@ -1704,8 +1702,7 @@ function openVisitorModal() {
 
   if (auth && typeof auth.getUserRole === 'function') {
     const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
-    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const hasCommanderAccess = isCommander || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
     const isVisitorMgr = typeof auth.canAccessVisitor === 'function' && auth.canAccessVisitor();
     const isAuth = typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
 
@@ -2008,9 +2005,7 @@ function checkSystemAdminAccess() {
   const email = (user && user.email) ? String(user.email).trim().toLowerCase() : '';
   const isCommander = role === 'commander';
   const isAdminEmail = email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin');
-  const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-
-  if (isCommander || isAdminEmail || isDrill) {
+  if (isCommander || isAdminEmail) {
     return true;
   }
 
@@ -2319,7 +2314,7 @@ async function openPasscodeModal() {
 
   const auth = (typeof window !== 'undefined' && (window.AuthManager || window.auth || window.supabaseAuth)) ||
                (typeof globalThis !== 'undefined' && (globalThis.AuthManager || globalThis.auth || globalThis.supabaseAuth));
-  let cfg = { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555', commander_drill: '8888' };
+  let cfg = { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555' };
   if (auth && typeof auth.getPasscodesConfig === 'function') {
     cfg = auth.getPasscodesConfig();
   } else {
@@ -2335,13 +2330,11 @@ async function openPasscodeModal() {
   const insInput = document.getElementById('cfgPasscodeInspector');
   const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
-  const drlInput = document.getElementById('cfgPasscodeDrill');
 
   if (medInput) medInput.value = cfg.medical || '1199';
   if (insInput) insInput.value = cfg.inspector || '7777';
   if (pulInput) pulInput.value = cfg.pullout_teacher || '3333';
   if (visInput) visInput.value = cfg.visitor_manager || '5555';
-  if (drlInput) drlInput.value = cfg.commander_drill || '8888';
 
   modal.style.display = 'flex';
 }
@@ -2366,14 +2359,12 @@ async function savePasscodeConfigModal(event) {
   const insInput = document.getElementById('cfgPasscodeInspector');
   const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
-  const drlInput = document.getElementById('cfgPasscodeDrill');
 
   const newConfig = {
     medical: medInput ? medInput.value.trim() : '1199',
     inspector: insInput ? insInput.value.trim() : '7777',
     pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
     visitor_manager: visInput ? visInput.value.trim() : '5555',
-    commander_drill: drlInput ? drlInput.value.trim() : '8888',
     updatedAt: Date.now()
   };
 
@@ -2425,7 +2416,6 @@ async function savePasscodeConfigModal(event) {
               inspector: { stringValue: newConfig.inspector },
               pullout_teacher: { stringValue: newConfig.pullout_teacher },
               visitor_manager: { stringValue: newConfig.visitor_manager },
-              commander_drill: { stringValue: newConfig.commander_drill },
               updatedAt: { integerValue: String(newConfig.updatedAt) }
             }
           })
@@ -2453,13 +2443,11 @@ async function resetPasscodeConfigToDefault() {
   const insInput = document.getElementById('cfgPasscodeInspector');
   const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
-  const drlInput = document.getElementById('cfgPasscodeDrill');
 
   if (medInput) medInput.value = '1199';
   if (insInput) insInput.value = '7777';
   if (pulInput) pulInput.value = '3333';
   if (visInput) visInput.value = '5555';
-  if (drlInput) drlInput.value = '8888';
 
   await savePasscodeConfigModal();
 }
@@ -4188,8 +4176,7 @@ function switchPage(pageId, btn) {
     const role = auth.getUserRole();
     const isAuth = typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
     const isCommander = typeof auth.canAccessCommander === 'function' && auth.canAccessCommander();
-    const isDrill = typeof auth.isDrillUnlocked === 'function' && auth.isDrillUnlocked();
-    const hasCommanderAccess = isCommander || isDrill || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
+    const hasCommanderAccess = isCommander || (isUnlockedByPassword && (Date.now() < unlockExpiryTime));
     const roleTitle = ROLE_NAME_ZH[role] || '一般訪客';
 
     // 1. 🏫 指揮中心：嚴格限制總指揮官 (commander)
