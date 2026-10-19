@@ -786,82 +786,102 @@ class GasRunner {
         schedules = this._adapter.options.schedules || createStandardSchedulesFallback();
       }
 
-      // 篩選當前時段在校班級
+      // 篩選當前時段在校班級 (優先自全域名冊或 115 官方編制取得)
       const activeClasses = [];
-      for (let g = 1; g <= 6; g++) {
-        const grade = CANONICAL_REGULAR_GRADES[g - 1];
-        for (let c = 1; c <= 15; c++) {
-          if (isClassActiveAtTime(grade, String(c), simTimeMode, schedules)) {
-            activeClasses.push(`${grade} ${c}`);
+      const specs = (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0)
+        ? [...new Set(window.allStudents.map(s => `${s.grade} ${s.className}`))]
+        : OFFICIAL_115_CLASS_SPECS.map(s => `${s.grade} ${s.className}`);
+
+      specs.forEach(key => {
+        const parts = key.split(' ');
+        const grade = parts[0];
+        const className = parts[1] || parts[0];
+        if (isClassActiveAtTime(grade, className, simTimeMode, schedules)) {
+          activeClasses.push(key);
+        }
+      });
+
+      // 支援舊單元測試保底班級格式 (一 1 ~ 六 15)
+      if (activeClasses.length === 0) {
+        for (let g = 1; g <= 6; g++) {
+          const grade = CANONICAL_REGULAR_GRADES[g - 1];
+          for (let c = 1; c <= 15; c++) {
+            if (isClassActiveAtTime(grade, String(c), simTimeMode, schedules)) {
+              activeClasses.push(`${grade} ${c}`);
+            }
           }
         }
       }
 
-      // 壓測模擬異常配額約束 (2 失蹤, 2 受傷, 1 抽離 pending)
-      let missingAssigned = 0;
-      let injuredAssigned = 0;
-      let pulloutAssigned = 0;
-
+      // 依使用者需求：壓力測試模擬「每班均有傷員」，讓指揮官與救護小組可以查看並點掉 (安全送班 / OK確認 / 完結)
+      let idx = 0;
       for (const classKey of activeClasses) {
+        idx++;
+        const parts = classKey.split(' ');
+        const grade = parts[0];
+        const className = parts[1] || parts[0];
+
+        // 查找本班學生名冊以取得真實姓名與電話 (若有)，否則自動生成
+        let firstStudent = null;
+        if (typeof window !== 'undefined' && Array.isArray(window.allStudents)) {
+          firstStudent = window.allStudents.find(s => s.grade === grade && s.className === className);
+        }
+
+        const seatRaw = firstStudent ? firstStudent.seatRaw : '01號';
+        const studentName = firstStudent ? firstStudent.name : `學生_${grade}${className}_01號`;
+        const parentPhone = firstStudent ? firstStudent.phone : `0912-000-${String(idx).padStart(3, '0')}`;
+        const teacherName = firstStudent ? firstStudent.teacher : `${grade}${className}導師`;
+        const teacherPhone = firstStudent ? firstStudent.teacherPhone : `0988-000-${String(idx).padStart(3, '0')}`;
+
+        const sKey = `${classKey}_${seatRaw}`;
+        // 依序輪流分配黃卡、紅卡、綠卡檢傷分類
+        const triageColor = (idx % 3 === 0) ? 'red' : ((idx % 3 === 1) ? 'yellow' : 'green');
+        const triageNote = triageColor === 'red' ? '📌 演練傷情：頭部外傷 (急救中)' : (triageColor === 'yellow' ? '📌 演練傷情：手臂骨折待後送' : '📌 演練傷情：肢體輕微擦傷');
+        const escortCount = (triageColor === 'green') ? 0 : (triageColor === 'red' ? 2 : 1);
+
         const report = {
           total: 28,
-          presentCount: 28,
+          presentCount: 27,
           leave: [],
           pickedUp: [],
           studyCenter: [],
           nativeLang: [],
           team: [],
-          missing: [],
+          missing: [{
+            seatRaw: seatRaw,
+            name: studentName,
+            phone: parentPhone,
+            teacher: teacherName,
+            teacherPhone: teacherPhone,
+            locationTag: triageNote
+          }],
           leaveCount: 0,
-          missingCount: 0,
+          missingCount: 1,
           timestamp: Date.now()
         };
 
-        if (missingAssigned < 2) {
-          missingAssigned++;
-          report.missingCount = 1;
-          report.presentCount = 27;
-          const sKey = `${classKey}_01號`;
-          report.missing = [{ seatRaw: '01號', name: `學生_${sKey}`, locationTag: '📌 教室受困' }];
-          await fs.setRescue(sKey, {
-            targetKey: sKey,
-            studentKey: sKey,
-            classKey,
-            name: `學生_${sKey}`,
-            status: 'searching',
-            triage: 'none',
-            escortCount: 0,
-            searchDone: false,
-            updatedAt: Date.now()
-          });
-        } else if (injuredAssigned < 2) {
-          injuredAssigned++;
-          const sKey = `${classKey}_02號`;
-          await fs.setRescue(sKey, {
-            targetKey: sKey,
-            studentKey: sKey,
-            classKey,
-            name: `學生_${sKey}`,
-            status: 'injured',
-            triage: 'yellow',
-            escortCount: 2,
-            searchDone: false,
-            updatedAt: Date.now()
-          });
-        } else if (pulloutAssigned < 1) {
-          pulloutAssigned++;
-          const sKey = `${classKey}_03號`;
-          // 鐵律 4：抽離預設 pending，絕對不計入搜救失蹤，且卡片不染紅
-          await fs.setPullout(sKey, {
-            studentKey: sKey,
-            classKey,
-            name: `學生_${sKey}`,
-            status: 'pending',
-            type: 'studyCenter',
-            updatedAt: Date.now()
-          });
-          report.studyCenter = [{ seatRaw: '03號', name: `學生_${sKey}` }];
-        }
+        // 寫入 rescues 集合：狀態為 injured (受傷)，初始 searchDone: false 供指揮官查看與點掉
+        await fs.setRescue(sKey, {
+          targetKey: sKey,
+          studentKey: sKey,
+          classKey: classKey,
+          name: studentName,
+          status: 'injured',
+          triage: triageColor,
+          escortCount: escortCount,
+          searchDone: false,
+          locationFound: '班級走廊/操場前',
+          note: triageNote,
+          updatedAt: Date.now()
+        });
+
+        // 寫入 contacts 集合：初態為 未聯繫，供指揮中心聯繫核實
+        await fs.setContact(sKey, {
+          studentKey: sKey,
+          status: '未聯繫',
+          count: 0,
+          updatedAt: Date.now()
+        });
 
         await fs.setClassReport(classKey, report);
       }

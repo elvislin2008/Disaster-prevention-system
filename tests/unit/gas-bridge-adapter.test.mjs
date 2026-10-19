@@ -298,20 +298,14 @@ describe('Unit Tests: GASBridgeAdapter & google.script.run Emulator (Milestone 3
       assert.ok(res.classesCount > 0);
       assert.equal(res.mode, 'mon_am');
 
-      // Verify anomaly caps: at most 2 missing, 2 injured, 1 pullout
+      // Verify: 每班均有傷員供指揮官查看與點掉
       const allRescues = await firestore.getAllRescues();
-      const allPullouts = await firestore.getAllPullouts();
-
-      let missingCount = 0;
       let injuredCount = 0;
       for (const r of Object.values(allRescues)) {
-        if (r.status === 'missing') missingCount++;
         if (r.status === 'injured') injuredCount++;
       }
 
-      assert.ok(missingCount <= 2, `Missing count was ${missingCount}, expected <= 2`);
-      assert.ok(injuredCount <= 2, `Injured count was ${injuredCount}, expected <= 2`);
-      assert.ok(Object.keys(allPullouts).length <= 1, 'Pullouts count expected <= 1');
+      assert.equal(injuredCount, res.classesCount, 'Every active class has an injured casualty simulated for commander triage');
 
       // Check getLatestStressTestClassList
       const listData = await new Promise(resolve => {
