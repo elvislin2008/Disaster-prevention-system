@@ -1395,9 +1395,9 @@ export class SupabaseAuth {
               • 適用組別：🚑 救護隊、🏢 巡檢隊、🔄 抽離組、📝 訪客組。
             </div>
 
-            <!-- 數字顯示與輸入框 (完全空白、密碼遮罩、不預填) -->
+            <!-- 數字顯示與輸入框 (完全空白、密碼遮罩、不預填、防瀏覽器密碼代入) -->
             <div style="margin-bottom:12px;">
-              <input id="authInputPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報密碼" autocomplete="off" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;" />
+              <input id="authInputPasscode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="請輸入組別通報密碼" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" name="pin_field" value="" style="width:100%;padding:10px;border:2px solid #0284c7;border-radius:8px;font-size:1.4rem;text-align:center;letter-spacing:6px;font-weight:bold;box-sizing:border-box;-webkit-text-security:disc;text-security:disc;" />
             </div>
 
             <!-- 觸控螢幕虛擬數字鍵盤 (0~9, 清空, ⌫) -->
@@ -1430,14 +1430,17 @@ export class SupabaseAuth {
               • 依資安規範，<b>必須使用完整電子郵件與詳細密碼驗證登入</b>。
             </div>
 
-            <form id="authEmailForm" style="display:flex;flex-direction:column;gap:10px;">
+            <form id="authEmailForm" autocomplete="off" onsubmit="return false;" style="display:flex;flex-direction:column;gap:10px;">
+              <!-- 阻絕瀏覽器自動帶入舊帳密之虛擬無效輸入項 -->
+              <input type="text" style="display:none !important;" aria-hidden="true" tabindex="-1" autocomplete="off" />
+              <input type="password" style="display:none !important;" aria-hidden="true" tabindex="-1" autocomplete="off" />
               <div>
                 <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">指揮官電子信箱 (Email)</label>
-                <input id="authInputEmail" type="email" value="" placeholder="請輸入指揮官電子信箱 (例如: commander@qs.edu.tw)" autocomplete="username" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+                <input id="authInputEmail" type="text" value="" placeholder="請輸入指揮官電子信箱 (例如: commander@qs.edu.tw)" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" name="cmd_login_acc" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
               </div>
               <div>
                 <label style="display:block;font-size:0.8rem;color:#555;margin-bottom:3px;font-weight:bold;">詳細密碼</label>
-                <input id="authInputPassword" type="password" placeholder="請輸入指揮官密碼" autocomplete="current-password" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
+                <input id="authInputPassword" type="password" value="" placeholder="請輸入指揮官密碼" autocomplete="new-password" name="cmd_login_secret" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.88rem;box-sizing:border-box;" required />
               </div>
               <div id="authLoginError" style="color:#dc3545;font-size:0.8rem;display:none;line-height:1.4;font-weight:bold;"></div>
               <button id="authSubmitEmailBtn" type="submit" style="padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin-top:4px;">🔓 驗證密碼並登入指揮中心</button>
@@ -1465,12 +1468,30 @@ export class SupabaseAuth {
     const passcodeContent = modalOverlay.querySelector('#authPasscodeTabContent');
     const commanderContent = modalOverlay.querySelector('#authCommanderTabContent');
     const inputPasscode = modalOverlay.querySelector('#authInputPasscode');
+    const inputEmail = modalOverlay.querySelector('#authInputEmail');
+    const inputPassword = modalOverlay.querySelector('#authInputPassword');
     const submitPasscodeBtn = modalOverlay.querySelector('#authSubmitPasscodeBtn');
     const errPasscodeBox = modalOverlay.querySelector('#authPasscodeError');
     const formEmail = modalOverlay.querySelector('#authEmailForm');
     const forgotPwdLink = modalOverlay.querySelector('#authForgotPwdLink');
 
-    const handleClose = () => this.closeLoginModal();
+    // 關鍵強制清理函式：清空所有欄位，嚴防瀏覽器密碼庫自動帶入
+    const clearAllAuthFields = () => {
+      if (inputPasscode) inputPasscode.value = '';
+      if (inputEmail) inputEmail.value = '';
+      if (inputPassword) inputPassword.value = '';
+    };
+
+    // 立即清空，並在 DOM 渲染後連續排程清空，徹底攔截瀏覽器延遲 autofill
+    clearAllAuthFields();
+    setTimeout(clearAllAuthFields, 40);
+    setTimeout(clearAllAuthFields, 120);
+    setTimeout(clearAllAuthFields, 300);
+
+    const handleClose = () => {
+      clearAllAuthFields();
+      this.closeLoginModal();
+    };
     if (closeBtn) closeBtn.onclick = handleClose;
     if (cancelBtn) cancelBtn.onclick = handleClose;
 
@@ -1485,6 +1506,7 @@ export class SupabaseAuth {
         tabCommanderBtn.style.background = '#f1f5f9';
         tabCommanderBtn.style.color = '#64748b';
         tabCommanderBtn.style.borderBottom = 'none';
+        clearAllAuthFields();
         if (inputPasscode) inputPasscode.focus();
       };
 
@@ -1497,13 +1519,9 @@ export class SupabaseAuth {
         tabPasscodeBtn.style.background = '#f1f5f9';
         tabPasscodeBtn.style.color = '#64748b';
         tabPasscodeBtn.style.borderBottom = 'none';
+        clearAllAuthFields();
+        if (inputEmail) inputEmail.focus();
       };
-    }
-
-    // 密碼輸入框維持完全空白，嚴格不預填、不自動帶入 (依資安與指揮官要求)
-    if (inputPasscode) {
-      inputPasscode.value = '';
-      setTimeout(() => inputPasscode.focus(), 60);
     }
 
     // 虛擬數字鍵盤監聽
@@ -1537,6 +1555,7 @@ export class SupabaseAuth {
 
         const res = this.loginWithPasscode(code);
         if (res.success) {
+          clearAllAuthFields();
           this.closeLoginModal();
           const targetRole = res.role || 'commander';
           const roleName = ROLE_DISPLAY_NAMES[targetRole] || res.name || targetRole;
@@ -1583,8 +1602,8 @@ export class SupabaseAuth {
     if (formEmail) {
       formEmail.onsubmit = async (e) => {
         e.preventDefault();
-        const email = modalOverlay.querySelector('#authInputEmail').value;
-        const password = modalOverlay.querySelector('#authInputPassword').value;
+        const email = modalOverlay.querySelector('#authInputEmail')?.value;
+        const password = modalOverlay.querySelector('#authInputPassword')?.value;
         const errBox = modalOverlay.querySelector('#authLoginError');
 
         const res = await this.login(email, password);
@@ -1594,6 +1613,7 @@ export class SupabaseAuth {
             errBox.style.display = 'block';
           }
         } else {
+          clearAllAuthFields();
           this.closeLoginModal();
           const role = this.getUserRole();
           const roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '總指揮官');
@@ -1612,7 +1632,15 @@ export class SupabaseAuth {
   closeLoginModal() {
     if (typeof document !== 'undefined') {
       const overlay = document.getElementById('authModalOverlay');
-      if (overlay) overlay.style.display = 'none';
+      if (overlay) {
+        overlay.style.display = 'none';
+        const pInput = overlay.querySelector('#authInputPasscode');
+        const eInput = overlay.querySelector('#authInputEmail');
+        const pwdInput = overlay.querySelector('#authInputPassword');
+        if (pInput) pInput.value = '';
+        if (eInput) eInput.value = '';
+        if (pwdInput) pwdInput.value = '';
+      }
     }
     this._isModalOpen = false;
   }
