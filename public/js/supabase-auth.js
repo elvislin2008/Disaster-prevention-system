@@ -97,6 +97,14 @@ rebuildRolePasscodes();
 
 // 離線演練或本機開發保底預設帳號庫
 const SEED_ACCOUNTS = new Map([
+  ['fishyaya@apps.ntpc.edu.tw', {
+    password: 'admin123',
+    user: {
+      id: 'usr_fishyaya_001',
+      email: 'fishyaya@apps.ntpc.edu.tw',
+      user_metadata: { role: 'commander', name: '總指揮官' }
+    }
+  }],
   ['poyilin59@gmail.com', {
     password: 'admin123',
     user: {
@@ -332,10 +340,10 @@ export class SupabaseAuth {
         const userCredential = await fbAuth.signInWithEmailAndPassword(trimmedEmail, password);
         if (userCredential && userCredential.user) {
           const fbUser = userCredential.user;
-          const isCommander = (trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
+          const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
           let role = isCommander ? 'commander' : 'teacher';
           let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
-          if (displayName && (displayName.includes('poyilin59') || (isCommander && displayName.includes('@')))) {
+          if (displayName && (displayName.includes('poyilin59') || displayName.includes('fishyaya') || (isCommander && displayName.includes('@')))) {
             displayName = '總指揮官';
           }
           let assignedGrade = '';
@@ -812,7 +820,7 @@ export class SupabaseAuth {
     const user = this.getCurrentUser();
     if (user && user.email) {
       const email = String(user.email).trim().toLowerCase();
-      if (email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin')) {
+      if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin')) {
         return true;
       }
     }
@@ -1307,7 +1315,7 @@ export class SupabaseAuth {
       `;
     } else {
       let rawName = (user && user.user_metadata && user.user_metadata.name) || (user && user.email) || roleText;
-      if (rawName && (rawName.includes('poyilin59') || (role === 'commander' && rawName.includes('@')))) {
+      if (rawName && (rawName.includes('poyilin59') || rawName.includes('fishyaya') || (role === 'commander' && rawName.includes('@')))) {
         rawName = '總指揮官';
       }
       const displayName = this._escapeHtml(this._truncateName(rawName, 15));

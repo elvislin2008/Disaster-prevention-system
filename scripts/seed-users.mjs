@@ -75,6 +75,14 @@ async function main() {
   const users = [
     // 1. 總指揮官
     {
+      email: 'fishyaya@apps.ntpc.edu.tw',
+      name: '總指揮官',
+      role: 'commander',
+      assignedGrade: '',
+      assignedClass: '',
+      title: '防災應變總指揮官'
+    },
+    {
       email: 'poyilin59@gmail.com',
       name: '林總指揮官',
       role: 'commander',
