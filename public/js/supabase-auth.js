@@ -1302,7 +1302,7 @@ export class SupabaseAuth {
         <div class="auth-card" style="display:flex;align-items:center;height:38px;max-height:45px;gap:6px;font-size:0.8rem;background:rgba(255,255,255,0.92);padding:4px 8px;border-radius:6px;border:1px solid #c0d4e5;">
           <span style="color:#555;font-weight:bold;">未登入 (訪客)${offlineSuffix}</span>
           <button id="authLoginBtn" type="button" style="padding:4px 8px;background:#1F4E79;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">登入</button>
-          <button id="authDrillQuickBtn" type="button" style="padding:4px 8px;background:#fd7e14;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">8888演練</button>
+          <button id="authDrillQuickBtn" type="button" style="padding:4px 8px;background:#fd7e14;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">演練通行</button>
         </div>
       `;
     } else {
@@ -1318,7 +1318,7 @@ export class SupabaseAuth {
           <span class="badge" style="background:${badgeColor};color:#fff;padding:2px 6px;border-radius:4px;font-size:0.72rem;font-weight:bold;">${roleText}</span>
           <span class="name" style="font-weight:bold;color:#1F4E79;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</span>
           <span style="font-size:0.7rem;color:#dc3545;">${offlineSuffix}</span>
-          ${isDrill ? '<button id="authLockDrillBtn" type="button" style="padding:4px 8px;background:#dc3545;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">退出8888</button>' : '<button id="authLogoutBtn" type="button" style="padding:4px 8px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">登出</button>'}
+          ${isDrill ? '<button id="authLockDrillBtn" type="button" style="padding:4px 8px;background:#dc3545;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">退出演練</button>' : '<button id="authLogoutBtn" type="button" style="padding:4px 8px;background:#6c757d;color:#fff;border:none;border-radius:4px;font-size:0.75rem;font-weight:bold;cursor:pointer;">登出</button>'}
         </div>
       `;
     }

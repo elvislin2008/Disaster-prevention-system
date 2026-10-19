@@ -631,7 +631,7 @@ function onClassClick(cVal, gValOverride) {
         grid.parentNode.insertBefore(warnBox, grid);
       }
     }
-    warnBox.innerHTML = `<span>🔒 <b>唯讀檢視模式</b>：您目前為【${perm.role === 'teacher' ? '導師' : perm.role}】，非 <b>${gVal} ${cleanClassLabel(cVal, gVal)}</b> 之帶班導師，點名操作已鎖定為唯讀檢視。<br><span style="font-size:0.75rem; font-weight:normal; color:#666;">若需代為點名，請洽總指揮官或點擊右上角輸入演練通行碼 (8888) 解鎖。</span></span>`;
+    warnBox.innerHTML = `<span>🔒 <b>唯讀檢視模式</b>：您目前為【${perm.role === 'teacher' ? '導師' : perm.role}】，非 <b>${gVal} ${cleanClassLabel(cVal, gVal)}</b> 之帶班導師，點名操作已鎖定為唯讀檢視。<br><span style="font-size:0.75rem; font-weight:normal; color:#666;">若需代為點名，請洽總指揮官或點擊右上角輸入演練通行碼解鎖。</span></span>`;
     warnBox.style.display = "flex";
 
     if (btnSubmit) {
@@ -761,7 +761,7 @@ function renderMatrix() {
     btn.onclick = function() {
       if (!perm.canEdit) {
         if (typeof alert !== 'undefined') {
-          alert(`⚠️ 唯讀檢視模式：您非 ${gVal} ${cVal} 帶班導師，無法修改點名狀態。\n若需代為點名，請使用總指揮官帳號登入或輸入 8888 演練通行碼。`);
+          alert(`⚠️ 唯讀檢視模式：您非 ${gVal} ${cVal} 帶班導師，無法修改點名狀態。\n若需代為點名，請使用總指揮官帳號登入或輸入演練通行碼。`);
         }
         return;
       }
@@ -2445,7 +2445,7 @@ async function savePasscodeConfigModal(event) {
  */
 async function resetPasscodeConfigToDefault() {
   if (!checkSystemAdminAccess()) return;
-  if (!confirm('確定要將各組密碼恢復為原廠預設 (1199, 7777, 3333, 5555, 8888) 嗎？')) {
+  if (!confirm('確定要將各組密碼恢復為原廠預設嗎？')) {
     return;
   }
 
@@ -4211,7 +4211,7 @@ function switchPage(pageId, btn) {
       if (!hasCommanderAccess && !canPullout) {
         if (!isAuth) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('pullout_teacher');
-          alert('⚡ 災難快速通報：請輸入【抽離確認組】4 位數字代碼 (3333) 秒級進入！');
+          alert('⚡ 災難快速通報：請輸入【抽離確認組】數字通報碼進入！');
         } else {
           alert(`⛔ 存取被拒絕：【抽離確認】專區僅限抽離專責教師或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
@@ -4226,7 +4226,7 @@ function switchPage(pageId, btn) {
       if (!hasCommanderAccess && !canRescue && !canPatrol) {
         if (!isAuth) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('medical');
-          alert('⚡ 災難快速通報：請輸入【救護隊 (1199)】或【巡檢隊 (7777)】數字碼秒級進入！');
+          alert('⚡ 災難快速通報：請輸入【救護隊】或【巡檢隊】數字通報碼進入！');
         } else {
           alert(`⛔ 存取被拒絕：【危難救助】專區僅限緊急救護官、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
