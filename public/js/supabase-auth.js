@@ -756,6 +756,12 @@ export class SupabaseAuth {
       return 'visitor';
     }
 
+    // 核心系統管理者帳號：最高層級強制鎖定為 commander (總指揮官)
+    const email = String(this.currentSession.user.email || '').trim().toLowerCase();
+    if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin')) {
+      return 'commander';
+    }
+
     const meta = this.currentSession.user.user_metadata || {};
     const appMeta = this.currentSession.user.app_metadata || {};
     const rawRole = meta.role || appMeta.role;
@@ -1192,7 +1198,7 @@ export class SupabaseAuth {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && parsed.user) {
-            this.currentSession = parsed;
+            this.currentSession = this._normalizeSession(parsed);
           }
         }
       }
@@ -1251,14 +1257,24 @@ export class SupabaseAuth {
 
   _normalizeSession(session) {
     if (!session) return null;
+    const user = session.user || {};
+    const email = String(user.email || '').trim().toLowerCase();
+    const isCommander = (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin'));
+
+    const userMetadata = { ...(user.user_metadata || {}) };
+    if (isCommander) {
+      userMetadata.role = 'commander';
+      userMetadata.name = '總指揮官';
+    }
+
     return {
       access_token: session.access_token || `jwt_${Date.now()}`,
       expires_at: session.expires_at || (Math.floor(Date.now() / 1000) + 3600),
       user: {
-        id: session.user?.id || `usr_${Date.now()}`,
-        email: session.user?.email || '',
-        user_metadata: { ...(session.user?.user_metadata || {}) },
-        app_metadata: { ...(session.user?.app_metadata || {}) }
+        id: user.id || `usr_${Date.now()}`,
+        email: user.email || '',
+        user_metadata: userMetadata,
+        app_metadata: { ...(user.app_metadata || {}), ...(isCommander ? { role: 'commander' } : {}) }
       }
     };
   }
@@ -1625,7 +1641,11 @@ export class SupabaseAuth {
           this.closeLoginModal();
           const role = this.getUserRole();
           const roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '總指揮官');
-          alert('👑 歡迎總指揮官登入！身分：' + roleName);
+          if (role === 'commander') {
+            alert('👑 歡迎總指揮官登入！已啟用指揮中心全權限。');
+          } else {
+            alert('✅ 歡迎登入！身分：' + roleName);
+          }
           if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
             window.navigateByRole(role);
           }
