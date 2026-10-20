@@ -187,15 +187,23 @@ export class MockSupabaseAuth {
   getActiveRolePasscodes() {
     const cfg = this.getPasscodesConfig();
     const map = {};
-    if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '緊急救護官 (護理師)' };
-    map['119'] = { role: 'medical', name: '緊急救護官 (護理師)' };
-    if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
-    map['2222'] = { role: 'inspector', name: '建物巡檢組 (總務處)' };
-    if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' };
-    if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
-    map['4444'] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
-    if (cfg.commander_drill) map[String(cfg.commander_drill).trim()] = { role: 'commander', name: '演練總指揮官' };
+    // 預設與別名註冊
+    map['119'] = { role: 'medical', name: '搜救檢傷組' };
+    map['1199'] = { role: 'medical', name: '搜救檢傷組' };
+    map['2222'] = { role: 'medical', name: '搜救檢傷組' };
+    map['7777'] = { role: 'inspector', name: '建物巡檢組' };
+    map['3333'] = { role: 'pullout_teacher', name: '抽離專責教師' };
+    map['1111'] = { role: 'pullout_teacher', name: '抽離專責教師' };
+    map['5555'] = { role: 'visitor_manager', name: '訪客登記組' };
+    map['4444'] = { role: 'visitor_manager', name: '訪客登記組' };
     map['8888'] = { role: 'commander', name: '演練總指揮官 (8888)' };
+
+    // 動態最新設定覆蓋（自訂最高優先權）
+    if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
+    if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '搜救檢傷組 (危難救助組)' };
+    if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+    if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組' };
+    if (cfg.commander_drill) map[String(cfg.commander_drill).trim()] = { role: 'commander', name: '演練總指揮官' };
     return map;
   }
 

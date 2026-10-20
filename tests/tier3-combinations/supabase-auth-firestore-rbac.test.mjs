@@ -81,9 +81,13 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
   it('T3-21: Disaster Fast PIN login - grants duty roles (1199, 7777, 3333, 5555) but strictly blocks commander access', async () => {
     const auth = new MockSupabaseAuth();
 
-    // 1199 -> Medical
+    // 1199 and 2222 -> Medical (搜救檢傷組)
     await auth.loginWithPasscode('1199');
     assert.equal(auth.getUserRole(), 'medical');
+    assert.equal(auth.canAccessCommander(), false);
+
+    await auth.loginWithPasscode('2222');
+    assert.equal(auth.getUserRole(), 'medical', '2222 must map to medical (搜救檢傷組)');
     assert.equal(auth.canAccessCommander(), false);
 
     // 7777 -> Inspector
@@ -96,9 +100,13 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(auth.getUserRole(), 'pullout_teacher');
     assert.equal(auth.canAccessCommander(), false);
 
-    // 5555 -> Visitor Manager
+    // 5555 and 4444 -> Visitor Manager (訪客登記組)
     await auth.loginWithPasscode('5555');
     assert.equal(auth.getUserRole(), 'visitor_manager');
+    assert.equal(auth.canAccessCommander(), false);
+
+    await auth.loginWithPasscode('4444');
+    assert.equal(auth.getUserRole(), 'visitor_manager', '4444 must map to visitor_manager (訪客登記組)');
     assert.equal(auth.canAccessCommander(), false);
 
     // 8888 -> Drill Commander Override
@@ -169,6 +177,33 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(drillRes.success, true);
     assert.equal(auth.getUserRole(), 'commander');
     assert.equal(auth.canAccessCommander(), true);
+  });
+
+  it('T3-23: Passcode 2222 strictly maps to medical (搜救檢傷組) and 4444 strictly maps to visitor_manager (訪客登記組)', async () => {
+    const auth = new MockSupabaseAuth();
+
+    // Reset / ensure passcodes config with 2222 as medical and 4444 as visitor_manager
+    await auth.signInWithPassword({ email: 'commander@qs.edu.tw', password: 'cmd123456' });
+    await auth.updatePasscodesConfig({
+      pullout_teacher: '1111',
+      medical: '2222',
+      inspector: '3333',
+      visitor_manager: '4444'
+    });
+    await auth.signOut();
+
+    // Verify 2222 strictly routes to medical (搜救檢傷組)
+    const medRes = auth.loginWithPasscode('2222');
+    assert.equal(medRes.success, true);
+    assert.equal(auth.getUserRole(), 'medical', 'PIN 2222 must strictly enter medical (搜救檢傷組)');
+    assert.notEqual(auth.getUserRole(), 'visitor_manager', 'PIN 2222 must never enter visitor_manager');
+    assert.notEqual(auth.getUserRole(), 'inspector', 'PIN 2222 must never enter inspector');
+
+    // Verify 4444 strictly routes to visitor_manager (訪客登記組)
+    const visRes = auth.loginWithPasscode('4444');
+    assert.equal(visRes.success, true);
+    assert.equal(auth.getUserRole(), 'visitor_manager', 'PIN 4444 must strictly enter visitor_manager (訪客登記組)');
+    assert.notEqual(auth.getUserRole(), 'medical', 'PIN 4444 must never enter medical');
   });
 });
 

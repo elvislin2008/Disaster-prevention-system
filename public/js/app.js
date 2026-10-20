@@ -2479,7 +2479,7 @@ async function openPasscodeModal() {
 
   const auth = (typeof window !== 'undefined' && (window.AuthManager || window.auth || window.supabaseAuth)) ||
                (typeof globalThis !== 'undefined' && (globalThis.AuthManager || globalThis.auth || globalThis.supabaseAuth));
-  let cfg = { medical: '1199', inspector: '7777', pullout_teacher: '3333', visitor_manager: '5555' };
+  let cfg = { medical: '2222', inspector: '3333', pullout_teacher: '1111', visitor_manager: '4444' };
   if (auth && typeof auth.getPasscodesConfig === 'function') {
     cfg = auth.getPasscodesConfig();
   } else {
@@ -2496,10 +2496,10 @@ async function openPasscodeModal() {
   const insInput = document.getElementById('cfgPasscodeInspector');
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
-  if (pulInput) pulInput.value = cfg.pullout_teacher || '3333';
-  if (medInput) medInput.value = cfg.medical || '1199';
-  if (insInput) insInput.value = cfg.inspector || '7777';
-  if (visInput) visInput.value = cfg.visitor_manager || '5555';
+  if (pulInput) pulInput.value = cfg.pullout_teacher || '1111';
+  if (medInput) medInput.value = cfg.medical || '2222';
+  if (insInput) insInput.value = cfg.inspector || '3333';
+  if (visInput) visInput.value = cfg.visitor_manager || '4444';
 
   modal.style.display = 'flex';
 }
@@ -2526,10 +2526,10 @@ async function savePasscodeConfigModal(event) {
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
   const newConfig = {
-    pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
-    medical: medInput ? medInput.value.trim() : '1199',
-    inspector: insInput ? insInput.value.trim() : '7777',
-    visitor_manager: visInput ? visInput.value.trim() : '5555',
+    pullout_teacher: pulInput ? pulInput.value.trim() : '1111',
+    medical: medInput ? medInput.value.trim() : '2222',
+    inspector: insInput ? insInput.value.trim() : '3333',
+    visitor_manager: visInput ? visInput.value.trim() : '4444',
     updatedAt: Date.now()
   };
 
@@ -2609,10 +2609,10 @@ async function resetPasscodeConfigToDefault() {
   const insInput = document.getElementById('cfgPasscodeInspector');
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
-  if (pulInput) pulInput.value = '3333';
-  if (medInput) medInput.value = '1199';
-  if (insInput) insInput.value = '7777';
-  if (visInput) visInput.value = '5555';
+  if (pulInput) pulInput.value = '1111';
+  if (medInput) medInput.value = '2222';
+  if (insInput) insInput.value = '3333';
+  if (visInput) visInput.value = '4444';
 
   await savePasscodeConfigModal();
 }

@@ -35,20 +35,20 @@ const ROLE_DISPLAY_NAMES = {
   commander: '總指揮官',
   teacher: '班級導師',
   pullout_teacher: '抽離確認組 (避難引導組)',
-  medical: '危難救助組 (搶救組/緊急救護組)',
-  rescue_officer: '危難救助組 (搶救組/緊急救護組)',
+  medical: '搜救檢傷組 (危難救助組)',
+  rescue_officer: '搜救檢傷組 (危難救助組)',
   patrol: '建物巡檢組 (安全防護組)',
   inspector: '建物巡檢組 (安全防護組)',
-  visitor_manager: '訪客登記組',
+  visitor_manager: '訪客登記組 (代課/志工/廠商)',
   visitor: '訪客'
 };
 
 // 預設各組災難通報數字碼 (可由總指揮官隨時自訂修改並即時同步)
 export const DEFAULT_PASSCODES_CONFIG = {
-  pullout_teacher: '3333',  // 1. 抽離確認組：避難引導組 (抽離學生點名確認)
-  medical: '1199',          // 2. 危難救助組：搶救組、緊急救護組 (受困搶救/檢傷分類)
-  inspector: '7777',        // 3. 建物巡檢組：安全防護組 (建築物巡檢)
-  visitor_manager: '5555'   // 訪客登記組 (相容保底)
+  pullout_teacher: '1111',  // 1. 抽離確認組：避難引導組 (抽離學生點名確認)
+  medical: '2222',          // 2. 搜救檢傷組：危難救助組 (搶救組/緊急救護組 - 搜救與傷病處置)
+  inspector: '3333',        // 3. 建物巡檢組：安全防護組 (建築物巡檢)
+  visitor_manager: '4444'   // 4. 訪客登記組：確認代課老師、志工、廠商的人數
 };
 
 // 災難快速通報數字碼動態映射表
@@ -63,24 +63,35 @@ export function rebuildRolePasscodes(cfg = {}) {
     delete ROLE_PASSCODES[k];
   }
 
-  // 1. 抽離確認組：避難引導組 (進行抽離學生的點名確認)
-  const pulCode = String(merged.pullout_teacher || '3333').trim();
-  ROLE_PASSCODES[pulCode] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
+  // 1. 舊版相容碼預先登錄 (若使用者自訂新碼，自訂碼將於後方覆蓋生效)
+  ROLE_PASSCODES['119'] = { role: 'medical', name: '搜救檢傷組 (危難救助組)' };
+  ROLE_PASSCODES['1199'] = { role: 'medical', name: '搜救檢傷組 (危難救助組)' };
+  ROLE_PASSCODES['7777'] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+  ROLE_PASSCODES['5555'] = { role: 'visitor_manager', name: '訪客登記組' };
 
-  // 2. 危難救助組：搶救組 (搶救受困學生)、緊急救護組 (學生檢傷分類)
-  const medCode = String(merged.medical || '1199').trim();
-  ROLE_PASSCODES[medCode] = { role: 'medical', name: '危難救助組 (搶救組 / 緊急救護組)' };
-  ROLE_PASSCODES['119'] = { role: 'medical', name: '危難救助組 (搶救組 / 緊急救護組)' };
+  // 2. 抽離確認組：避難引導組 (進行抽離學生的點名確認)
+  const pulCode = String(merged.pullout_teacher || '1111').trim();
+  if (pulCode) {
+    ROLE_PASSCODES[pulCode] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
+  }
 
-  // 3. 建物巡檢組：安全防護組 (建築物巡檢)
-  const insCode = String(merged.inspector || '7777').trim();
-  ROLE_PASSCODES[insCode] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
-  ROLE_PASSCODES['2222'] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+  // 3. 搜救檢傷組：危難救助組 (搶救組 / 緊急救護組 - 搜救與傷病處置)
+  const medCode = String(merged.medical || '2222').trim();
+  if (medCode) {
+    ROLE_PASSCODES[medCode] = { role: 'medical', name: '搜救檢傷組 (危難救助組)' };
+  }
 
-  // 4. 訪客管理組 (相容保底)
-  const visCode = String(merged.visitor_manager || '5555').trim();
-  ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組' };
-  ROLE_PASSCODES['4444'] = { role: 'visitor_manager', name: '訪客登記組' };
+  // 4. 建物巡檢組：安全防護組 (建築物巡檢)
+  const insCode = String(merged.inspector || '3333').trim();
+  if (insCode) {
+    ROLE_PASSCODES[insCode] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+  }
+
+  // 5. 訪客登記組 (確認代課老師、志工、廠商的人數)
+  const visCode = String(merged.visitor_manager || '4444').trim();
+  if (visCode) {
+    ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組' };
+  }
 
   return ROLE_PASSCODES;
 }
