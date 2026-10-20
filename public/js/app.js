@@ -1902,6 +1902,13 @@ function executeBackendStressTest() {
   let currentSimMode = document.getElementById("simTimeSelect")?.value || "mon_am";
   if (!confirm("⚠️ 確定要執行當前在校班級併發壓力測試嗎？\n系統將自動對實際在校班級進行模擬點名寫入。")) return;
 
+  // 壓測前先重置前端快取的搜救與抽離狀態
+  rescueTriageMap = {};
+  searchStatusMap = {};
+  searchNotesMap = {};
+  pulloutStatusMap = {};
+  contactStates = {};
+
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     google.script.run.withSuccessHandler(function(res) {
       if (res && res.success) {
@@ -4394,7 +4401,8 @@ function syncRemoteState(deltaOrFull) {
   // 1. 班級點名細粒度增量 (支援 class_reports, batch, 或直接攜帶鍵值之複合載荷)
   const r = deltaOrFull.reports || deltaOrFull.classReports;
   if (r && typeof r === 'object' && (eventType === 'class_reports' || eventType === 'batch' || Object.keys(r).length > 0)) {
-    classReports = { ...classReports, ...r };
+    if (eventType === 'class_reports') classReports = { ...r };
+    else classReports = { ...classReports, ...r };
     shouldRenderOverview = true;
     shouldRenderSummary = true;
     shouldRenderRescue = true;
@@ -4403,7 +4411,12 @@ function syncRemoteState(deltaOrFull) {
   // 2. 抽離學生細粒度增量 (支援 pullouts, batch, 或直接攜帶鍵值之複合載荷)
   const p = deltaOrFull.pullouts || deltaOrFull.pulloutStatusMap;
   if (p && typeof p === 'object' && (eventType === 'pullouts' || eventType === 'batch' || Object.keys(p).length > 0)) {
-    pulloutStatusMap = { ...pulloutStatusMap, ...p };
+    const normalizedP = {};
+    for (const [k, v] of Object.entries(p)) {
+      normalizedP[k] = (typeof v === 'string') ? v : (v.status || 'pending');
+    }
+    if (eventType === 'pullouts') pulloutStatusMap = { ...normalizedP };
+    else pulloutStatusMap = { ...pulloutStatusMap, ...normalizedP };
     shouldRenderPullout = true;
     shouldRenderOverview = true;
     shouldRenderRescue = true;
@@ -4413,8 +4426,9 @@ function syncRemoteState(deltaOrFull) {
   // 3. 搜救檢傷細粒度增量 (支援 rescues, batch, 或直接攜帶鍵值之複合載荷)
   const rescuePayload = deltaOrFull.rescues || deltaOrFull.rescueTriageMap;
   if (rescuePayload && typeof rescuePayload === 'object' && (eventType === 'rescues' || eventType === 'batch' || Object.keys(rescuePayload).length > 0)) {
-    rescueTriageMap = { ...rescueTriageMap, ...rescuePayload };
-    const newSearchStatus = { ...searchStatusMap };
+    if (eventType === 'rescues') rescueTriageMap = { ...rescuePayload };
+    else rescueTriageMap = { ...rescueTriageMap, ...rescuePayload };
+    const newSearchStatus = (eventType === 'rescues') ? {} : { ...searchStatusMap };
     for (const [k, v] of Object.entries(rescuePayload)) {
       if (v && v.searchDone) newSearchStatus[k] = true;
       if (v && v.note) searchNotesMap[k] = v.note;

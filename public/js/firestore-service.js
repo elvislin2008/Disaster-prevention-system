@@ -868,18 +868,40 @@ export class FirestoreService {
   // 11. 清理與重置作業 (clearAllData, clearCollection)
   // ============================================================================
 
-  clearCollection(collName) {
+  async clearCollection(collName) {
     const localColl = this.localStore._getOrCreateMap(this.localStore.localCache, collName);
     const serverColl = this.localStore._getOrCreateMap(this.localStore.serverStore, collName);
     localColl.clear();
     serverColl.clear();
     this.localStore._persistCollection(collName);
     this.localStore._notifyColl(collName, false);
+
+    if (this._isCloudLive && this.db && typeof this.db.collection === 'function') {
+      try {
+        const cloudColl = this.db.collection(collName);
+        const snap = await cloudColl.get();
+        if (snap && snap.docs && snap.docs.length > 0) {
+          const batch = (typeof this.db.batch === 'function') ? this.db.batch() : null;
+          if (batch) {
+            for (const doc of snap.docs) {
+              batch.delete(doc.ref);
+            }
+            await batch.commit();
+          } else {
+            await Promise.all(snap.docs.map(doc => doc.ref.delete()));
+          }
+        }
+      } catch (e) {
+        console.warn(`[FirestoreService] 雲端清空集合 ${collName} 失敗：`, e);
+      }
+    }
   }
 
   async clearAllData() {
     const clearList = ['class_reports', 'pullouts', 'rescues', 'contacts', 'visitors'];
-    clearList.forEach(coll => this.clearCollection(coll));
+    for (const coll of clearList) {
+      await this.clearCollection(coll);
+    }
 
     // 重置 6 大建物為安全初始值
     for (const b of DEFAULT_BUILDINGS) {

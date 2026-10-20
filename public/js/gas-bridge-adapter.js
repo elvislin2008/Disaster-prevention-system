@@ -820,9 +820,9 @@ class GasRunner {
 
       // 壓測前先重置清除舊的搜救、抽離與聯繫狀態，確保畫面乾淨不殘留舊壓測資料
       if (typeof fs.clearCollection === 'function') {
-        fs.clearCollection('rescues');
-        fs.clearCollection('pullouts');
-        fs.clearCollection('contacts');
+        await fs.clearCollection('rescues');
+        await fs.clearCollection('pullouts');
+        await fs.clearCollection('contacts');
       }
 
       // 依使用者需求：
