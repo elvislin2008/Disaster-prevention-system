@@ -1902,6 +1902,12 @@ function executeBackendStressTest() {
   let currentSimMode = document.getElementById("simTimeSelect")?.value || "mon_am";
   if (!confirm("⚠️ 確定要執行當前在校班級併發壓力測試嗎？\n系統將自動對實際在校班級進行模擬點名寫入。")) return;
 
+  // 立即鎖定當前所選手動演練時段
+  simTimeMode = currentSimMode;
+  if (typeof window !== 'undefined') {
+    window.lastTimeSwitchTimestamp = Date.now();
+  }
+
   // 壓測前先重置前端快取的搜救與抽離狀態
   rescueTriageMap = {};
   searchStatusMap = {};
@@ -1912,6 +1918,12 @@ function executeBackendStressTest() {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     google.script.run.withSuccessHandler(function(res) {
       if (res && res.success) {
+        // 確保壓測回傳後嚴格維持當前所選演練時段
+        simTimeMode = currentSimMode;
+        if (typeof document !== 'undefined') {
+          let selectEl = document.getElementById("simTimeSelect");
+          if (selectEl && selectEl.value !== currentSimMode) selectEl.value = currentSimMode;
+        }
         alert("✅ 當前在校班級併發壓力測試完成！\n\n當前模擬時段：" + currentSimMode + "\n實際測試班級數：" + (res.classesCount || res.totalClasses || 0) + " 班\n總模擬學生人數：" + (res.studentsCount || res.totalStudents || 0) + " 人\n處理時間：" + (res.durationMs ? (res.durationMs / 1000).toFixed(2) : (res.totalDurationSec || 0)) + " s\n\n📊 壓力測試紀錄已同步寫入 Firestore。");
         google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
       } else {
@@ -4577,17 +4589,21 @@ function loadSavedFullState(state) {
     updateSecurityUI();
   }
 
-  // 防覆蓋保護：若使用者在 5 秒內剛手動切換時間，不被覆蓋
+  // 防覆蓋保護：若本機處於手動模擬演練時段（如 mon_am），絕不被遠端預設 auto 覆蓋
   let timeSinceSwitch = (typeof window !== 'undefined' && window.lastTimeSwitchTimestamp) ? (Date.now() - window.lastTimeSwitchTimestamp) : 999999;
   if (state.simTimeMode && timeSinceSwitch > 5000) {
-    if (simTimeMode !== state.simTimeMode) {
-      simTimeMode = state.simTimeMode;
-      if (typeof document !== 'undefined') {
-        let selectEl = document.getElementById("simTimeSelect");
-        if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+    const isLocalManual = (simTimeMode && simTimeMode !== 'auto');
+    const isRemoteAuto = (state.simTimeMode === 'auto');
+    if (!isLocalManual || !isRemoteAuto) {
+      if (simTimeMode !== state.simTimeMode) {
+        simTimeMode = state.simTimeMode;
+        if (typeof document !== 'undefined') {
+          let selectEl = document.getElementById("simTimeSelect");
+          if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+        }
+        updateGradeDropdown();
+        renderSchoolOverview();
       }
-      updateGradeDropdown();
-      renderSchoolOverview();
     }
   }
 
@@ -4739,13 +4755,17 @@ function syncRemoteState(deltaOrFull) {
     }
     let timeSinceSwitch = (typeof window !== 'undefined' && window.lastTimeSwitchTimestamp) ? (Date.now() - window.lastTimeSwitchTimestamp) : 999999;
     if (s.simTimeMode && timeSinceSwitch > 5000) {
-      if (simTimeMode !== s.simTimeMode) {
-        simTimeMode = s.simTimeMode;
-        if (typeof document !== 'undefined') {
-          let selectEl = document.getElementById("simTimeSelect");
-          if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+      const isLocalManual = (simTimeMode && simTimeMode !== 'auto');
+      const isRemoteAuto = (s.simTimeMode === 'auto');
+      if (!isLocalManual || !isRemoteAuto) {
+        if (simTimeMode !== s.simTimeMode) {
+          simTimeMode = s.simTimeMode;
+          if (typeof document !== 'undefined') {
+            let selectEl = document.getElementById("simTimeSelect");
+            if (selectEl && selectEl.value !== simTimeMode) selectEl.value = simTimeMode;
+          }
+          updateGradeDropdown();
         }
-        updateGradeDropdown();
       }
     }
     shouldRenderOverview = true;

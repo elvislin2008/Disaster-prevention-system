@@ -1069,6 +1069,7 @@ class GasRunner {
 
       // 儲存最新壓測紀錄至 system_config/state
       await fs.setSystemState({
+        simTimeMode: simTimeMode,
         lastStressTest: {
           simTimeMode,
           totalActiveClassesInTime: activeClasses.length,
