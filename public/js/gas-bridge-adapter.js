@@ -826,31 +826,36 @@ class GasRunner {
       }
 
       // 依使用者需求：
-      // 1. 壓測時只要 10-15 個班出現狀況就好，其他都是綠色完成點名。
-      // 2. 這 10-15 個班的情況為：學生抽離 (學習中心、母語、團隊) 或者是失蹤。
-      // 3. 抽離確認、危難救助 (搶救、檢傷與建物巡視) 只要顯示學生的狀況就好了，先不要代為處理，讓使用者可以現場展示點擊操作。
+      // 1. 壓測時「要有 10 個班出現失蹤狀況」(紅色班級、進入搜救檢傷名單共 10 班)
+      // 2. 另外分配抽離學生 (學習中心、本土語、團隊，各 2 班共 6 班) 供抽離確認操作
+      // 3. 其餘班級全數為綠色正常完成點名
+      // 4. 抽離確認與危難救助維持初始待操作狀態 (不代填地點、不代選檢傷卡、不點OK)
 
-      // 決定狀況班級數量：12 班 (10~15 班範圍內)
       const totalActive = activeClasses.length;
-      const anomalyCount = Math.min(totalActive, 12);
+      const missingTargetCount = Math.min(totalActive, 10); // 剛好 10 個紅色失蹤班級
+      const pulloutTotal = Math.min(Math.max(0, totalActive - missingTargetCount), 6); // 6 班抽離 (各 2 班)
 
-      // 在在校班級中均勻分散選取 12 個班級
-      const anomalyClassMap = new Map(); // targetIdx -> anomalyType ('study_center' | 'native_lang' | 'team' | 'missing')
+      const anomalyClassMap = new Map(); // classIdx -> anomalyType ('study_center' | 'native_lang' | 'team' | 'missing')
       if (totalActive > 0) {
-        const step = totalActive / anomalyCount;
-        for (let i = 0; i < anomalyCount; i++) {
-          const targetIdx = Math.floor(i * step);
-          // 4 種狀況輪流均勻分配：
-          // i % 4 === 0: 學習中心抽離 (studyCenter)
-          // i % 4 === 1: 本土語抽離 (nativeLang)
-          // i % 4 === 2: 團隊抽離 (team)
-          // i % 4 === 3: 失蹤搜救中 (missing)
-          let anomalyType = 'study_center';
-          if (i % 4 === 1) anomalyType = 'native_lang';
-          else if (i % 4 === 2) anomalyType = 'team';
-          else if (i % 4 === 3) anomalyType = 'missing';
+        // 均勻分散挑選 10 班作為失蹤 (missing)
+        const missingStep = totalActive / missingTargetCount;
+        const usedIndices = new Set();
+        for (let i = 0; i < missingTargetCount; i++) {
+          const idx = Math.floor(i * missingStep);
+          anomalyClassMap.set(idx, 'missing');
+          usedIndices.add(idx);
+        }
 
-          anomalyClassMap.set(targetIdx, anomalyType);
+        // 挑選 6 班作為抽離 (2 study_center, 2 native_lang, 2 team)
+        const pulloutTypes = ['study_center', 'study_center', 'native_lang', 'native_lang', 'team', 'team'];
+        let pTypeIdx = 0;
+        for (let i = 0; i < totalActive && pTypeIdx < pulloutTotal; i++) {
+          const candidate = (i * 7 + 3) % totalActive;
+          if (!usedIndices.has(candidate)) {
+            anomalyClassMap.set(candidate, pulloutTypes[pTypeIdx]);
+            usedIndices.add(candidate);
+            pTypeIdx++;
+          }
         }
       }
 

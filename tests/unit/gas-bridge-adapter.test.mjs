@@ -298,10 +298,10 @@ describe('Unit Tests: GASBridgeAdapter & google.script.run Emulator (Milestone 3
       assert.ok(res.classesCount > 0);
       assert.equal(res.mode, 'mon_am');
 
-      // Verify: 10-15 班有狀況 (抽離、失蹤)，失蹤者為 searching 待搜救狀態，其餘班級綠色全到
+      // Verify: 剛好 10 班失蹤 (搜救檢傷)，其餘班級綠色全到
       const allRescues = await firestore.getAllRescues();
       const allPullouts = await firestore.getAllPullouts();
-      assert.ok(Object.keys(allRescues).length > 0, 'Has missing students in rescues');
+      assert.equal(Object.keys(allRescues).length, 10, 'Has exactly 10 missing students in rescues');
       assert.ok(Object.keys(allPullouts).length > 0, 'Has pullout students in pullouts');
       
       // Rescues are in initial searching state, awaiting live demo triage
