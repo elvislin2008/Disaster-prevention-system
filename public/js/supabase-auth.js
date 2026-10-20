@@ -344,10 +344,14 @@ export class SupabaseAuth {
           let assignedGrade = '';
           let assignedClass = '';
 
+          if (isGmailUser || isCommander) {
+            role = 'commander';
+          }
+
           // 嘗試自 Firestore users 集合讀取自訂角色與指派班級
           try {
-            const fs = (typeof window !== 'undefined' && window.firestoreService) ||
-                       (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+            const fs = (typeof window !== 'undefined' && (window.firestoreService || window.FirestoreService)) ||
+                       (typeof globalThis !== 'undefined' && (globalThis.firestoreService || globalThis.FirestoreService));
             if (fs && typeof fs.getDoc === 'function' && typeof fs.doc === 'function') {
               const snap = await fs.getDoc(fs.doc('users', trimmedEmail));
               if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
@@ -358,6 +362,9 @@ export class SupabaseAuth {
                   if (uData.assignedGrade) assignedGrade = uData.assignedGrade;
                   if (uData.assignedClass) assignedClass = uData.assignedClass;
                 }
+              }
+              if (isGmailUser || isCommander) {
+                role = 'commander';
               }
               // 自動同步至 Firestore users 集合
               fs.setDoc(fs.doc('users', trimmedEmail), {
@@ -371,6 +378,10 @@ export class SupabaseAuth {
             }
           } catch (fsErr) {
             console.warn('[SupabaseAuth] 讀取使用者自訂權限略過：', fsErr);
+          }
+
+          if (isGmailUser || isCommander) {
+            role = 'commander';
           }
 
           const session = {
@@ -1719,15 +1730,18 @@ export class SupabaseAuth {
         } else {
           clearAllAuthFields();
           this.closeLoginModal();
-          const role = this.getUserRole();
-          let roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '總指揮官');
-          if (role === 'commander') {
+          const cleanEmail = String(email || '').trim().toLowerCase();
+          const isGmail = cleanEmail.endsWith('@gmail.com') || cleanEmail.includes('@gmail');
+          const isCmd = isGmail || cleanEmail === 'fishyaya@apps.ntpc.edu.tw' || cleanEmail === 'poyilin59@gmail.com' || cleanEmail.startsWith('commander') || cleanEmail.includes('admin');
+          const effectiveRole = isCmd ? 'commander' : this.getUserRole();
+          if (effectiveRole === 'commander') {
             alert('👑 歡迎總指揮官登入！已啟用指揮中心全權限。');
           } else {
+            let roleName = ROLE_DISPLAY_NAMES[effectiveRole] || (res.data?.user?.user_metadata?.name || '教職員');
             alert('✅ 歡迎登入！身分：【' + roleName + '】');
           }
           if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
-            window.navigateByRole(role);
+            window.navigateByRole(effectiveRole);
           }
         }
       };

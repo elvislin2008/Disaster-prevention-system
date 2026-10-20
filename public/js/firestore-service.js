@@ -1029,9 +1029,11 @@ export const firestoreService = new FirestoreService();
 // 掛載至全域
 if (typeof window !== 'undefined') {
   window.FirestoreService = firestoreService;
+  window.firestoreService = firestoreService;
 }
 if (typeof globalThis !== 'undefined') {
   globalThis.FirestoreService = firestoreService;
+  globalThis.firestoreService = firestoreService;
 }
 
 export default firestoreService;
