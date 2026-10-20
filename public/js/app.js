@@ -756,6 +756,8 @@ function renderMatrix() {
     if (!perm.canEdit) {
       btn.style.cursor = "not-allowed";
       btn.title = "唯讀檢視模式（非本班帶班導師）";
+    } else {
+      btn.title = "點按次數：按1下學習中心、按2下本土語、按3下團隊、按4下請假、按5下失蹤、按6下已接回";
     }
 
     btn.onclick = function() {
