@@ -2165,6 +2165,7 @@ async function renderUserPermissionTable() {
         </td>
         <td style="padding:6px 10px; text-align:center;">
           <button type="button" style="padding:4px 8px; background:#28a745; color:#fff; border:none; border-radius:4px; font-size:0.75rem; font-weight:bold; cursor:pointer;" onclick="saveSingleUserPermission('${u.email}', '${safeEmail}')">💾 儲存</button>
+          <button type="button" style="padding:4px 8px; background:#17a2b8; color:#fff; border:none; border-radius:4px; font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="promptSetUserPassword('${escapeHtml(u.email)}')">🔑 設密碼</button>
           ${!isMaster ? `<button type="button" style="padding:4px 8px; background:#dc3545; color:#fff; border:none; border-radius:4px; font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="deleteSingleUserPermission('${u.email}')">🗑️ 刪除</button>` : ''}
         </td>
       </tr>
@@ -2225,6 +2226,112 @@ async function saveSingleUserPermission(email, safeEmail) {
 }
 
 /**
+ * 為指定使用者設定密碼或重發密碼重設信
+ */
+async function promptSetUserPassword(email) {
+  if (!checkSystemAdminAccess()) return;
+  if (!email) return;
+
+  const choice = prompt(
+    `請為「${email}」設定登入密碼（至少 6 碼）：\n\n` +
+    `• 輸入新密碼並按確定：直接為此帳號設定登入密碼\n` +
+    `• 留空並按確定：發送「密碼重設信」至該電子信箱\n` +
+    `• 按取消：離開`
+  );
+
+  if (choice === null) return; // 使用者按取消
+
+  const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
+  const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function') ? appConfig.getFirebaseConfig() : null;
+  const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+
+  const trimmedPwd = choice.trim();
+
+  if (trimmedPwd) {
+    if (trimmedPwd.length < 6) {
+      alert('⚠️ 密碼長度至少需 6 個字元！');
+      return;
+    }
+
+    try {
+      const signUpRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: trimmedPwd,
+          returnSecureToken: true
+        })
+      });
+      const data = await signUpRes.json();
+
+      if (data.idToken) {
+        alert(`✅ 已成功為「${email}」在系統中建立登入帳號！\n\n初始密碼為：${trimmedPwd}\n請提醒該使用者以此密碼登入。`);
+        return;
+      }
+
+      if (data.error && data.error.message === 'EMAIL_EXISTS') {
+        const doSend = confirm(
+          `ℹ️「${email}」已在 Firebase Authentication 建立過帳號。\n\n` +
+          `是否立即寄送「密碼重設信」至該電子信箱（${email}），讓該人員點擊信中連結重設新密碼？`
+        );
+        if (doSend) {
+          const resetRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestType: 'PASSWORD_RESET',
+              email: email
+            })
+          });
+          const resetData = await resetRes.json();
+          if (resetData.error) {
+            alert('發送重設信失敗：' + (resetData.error.message || '未知錯誤'));
+          } else {
+            alert(`📧 密碼重設信已成功寄送至「${email}」！\n\n請提醒該使用者查收信件（若未收到請檢查「垃圾郵件」或「促銷內容」匣）。`);
+          }
+        }
+      } else {
+        alert('設定失敗：' + ((data.error && data.error.message) || '未知錯誤'));
+      }
+    } catch (err) {
+      alert('操作失敗：' + (err.message || err));
+    }
+  } else {
+    // 留空：直接寄送密碼重設信
+    try {
+      // 確保帳號存在於 Auth
+      await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: 'Tmp_' + Math.random().toString(36).substring(2, 10) + '!',
+          returnSecureToken: false
+        })
+      });
+
+      const resetRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestType: 'PASSWORD_RESET',
+          email: email
+        })
+      });
+      const resetData = await resetRes.json();
+      if (resetData.error) {
+        alert('發送重設信失敗：' + (resetData.error.message || '未知錯誤'));
+      } else {
+        alert(`📧 密碼重設信已成功寄送至「${email}」！\n\n請提醒該使用者查收信件（若未收到請檢查「垃圾郵件」或「促銷內容」匣）。`);
+      }
+    } catch (err) {
+      alert('發送重設信失敗：' + (err.message || err));
+    }
+  }
+}
+
+/**
  * 新增人員權限
  */
 async function addNewUserPermission() {
@@ -2232,14 +2339,21 @@ async function addNewUserPermission() {
 
   const emailInput = document.getElementById('permNewEmail');
   const nameInput = document.getElementById('permNewName');
+  const passwordInput = document.getElementById('permNewPassword');
   const roleSelect = document.getElementById('permNewRole');
 
   const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
   const name = nameInput ? nameInput.value.trim() : '';
+  const password = passwordInput ? passwordInput.value.trim() : '';
   const role = roleSelect ? roleSelect.value : 'commander';
 
   if (!email || !email.includes('@') || !email.includes('.')) {
     alert('⚠️ 請輸入有效的電子信箱格式！');
+    return;
+  }
+
+  if (password && password.length < 6) {
+    alert('⚠️ 登入密碼至少需 6 個字元！');
     return;
   }
 
@@ -2274,9 +2388,24 @@ async function addNewUserPermission() {
       })
     });
 
-    alert(`✅ 已成功指派「${name || email}」為【${ROLE_OPTIONS_MAP[role] || role}】！`);
+    if (password) {
+      try {
+        await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            returnSecureToken: false
+          })
+        });
+      } catch (_) {}
+    }
+
+    alert(`✅ 已成功指派「${name || email}」為【${ROLE_OPTIONS_MAP[role] || role}】！${password ? '\n已為其設定初始登入密碼。' : ''}`);
     if (emailInput) emailInput.value = '';
     if (nameInput) nameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
     await renderUserPermissionTable();
   } catch (err) {
     alert('新增失敗：' + (err.message || err));
@@ -4843,6 +4972,7 @@ const exportedAppMethods = {
   closeUserPermissionModal,
   renderUserPermissionTable,
   saveSingleUserPermission,
+  promptSetUserPassword,
   addNewUserPermission,
   deleteSingleUserPermission,
   openPasscodeModal,
@@ -4954,6 +5084,7 @@ export {
   closeUserPermissionModal,
   renderUserPermissionTable,
   saveSingleUserPermission,
+  promptSetUserPassword,
   addNewUserPermission,
   deleteSingleUserPermission,
   openPasscodeModal,

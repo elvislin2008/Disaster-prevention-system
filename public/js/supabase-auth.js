@@ -599,6 +599,25 @@ export class SupabaseAuth {
     const fbAuth = this._ensureFirebaseAuth();
     if (fbAuth) {
       try {
+        // 先嘗試註冊以確保該帳號存在於 Firebase Auth，避免因列舉保護而靜默不發送重設信
+        try {
+          const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) ||
+                            (typeof globalThis !== 'undefined' && globalThis.__APP_CONFIG__) || null;
+          const fbConfig = (appConfig && typeof appConfig.getFirebaseConfig === 'function')
+            ? appConfig.getFirebaseConfig()
+            : ((appConfig && appConfig.firebase) || null);
+          const apiKey = (fbConfig && fbConfig.apiKey) || 'AIzaSyBsLYXXrxxHIrgCvhgcS09xi9DGOUInfOc';
+          await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: trimmed,
+              password: 'Tmp_' + Math.random().toString(36).substring(2, 10) + '!',
+              returnSecureToken: false
+            })
+          });
+        } catch (_) {}
+
         await fbAuth.sendPasswordResetEmail(trimmed);
         return { success: true, error: null };
       } catch (e) {
