@@ -568,13 +568,11 @@ export class FirestoreService {
   }
 
   async setDoc(docRef, data, options = {}) {
-    try {
-      this.localStore.setDoc(docRef, data, options).catch(() => {});
-    } catch (e) {}
-
     if (this._isCloudLive && docRef && typeof docRef.set === 'function') {
       try {
-        return await docRef.set(data, options);
+        const res = await docRef.set(data, options);
+        this.localStore.setDoc(docRef, data, options).catch(() => {});
+        return res;
       } catch (e) {
         console.warn('[FirestoreService] 雲端 setDoc 失敗，已保留本地：', e);
       }
@@ -583,13 +581,11 @@ export class FirestoreService {
   }
 
   async deleteDoc(docRef) {
-    try {
-      this.localStore.deleteDoc(docRef).catch(() => {});
-    } catch (e) {}
-
     if (this._isCloudLive && docRef && typeof docRef.delete === 'function') {
       try {
-        return await docRef.delete();
+        const res = await docRef.delete();
+        this.localStore.deleteDoc(docRef).catch(() => {});
+        return res;
       } catch (e) {
         console.warn('[FirestoreService] 雲端 deleteDoc 失敗：', e);
       }

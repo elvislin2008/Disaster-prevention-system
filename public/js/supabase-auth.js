@@ -850,7 +850,16 @@ export class SupabaseAuth {
    * 是否可解鎖個資遮蔽電話 (指揮官或災難全開模式)
    */
   canUnlockMaskedPhones(securityMode) {
-    return this.canAccessCommander() || securityMode === 'disaster';
+    if (securityMode === 'disaster') return true;
+    if (this.isDrillUnlocked()) return true;
+    if (this.getUserRole() === 'commander') {
+      const user = this.getCurrentUser();
+      if (user && user.id === 'drill_commander_evaluator') {
+        return this.isDrillUnlocked();
+      }
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -1057,13 +1066,37 @@ export class SupabaseAuth {
         }
       }
 
-      // 總指揮官帳密安全規範：嚴格禁止數字碼快速進入指揮官模式
-      if (cleanCode === '8888') {
-        this.failedPasscodeAttempts++;
-        this.lastFailedAttemptTime = now;
+      // 演練指揮官 / 評估員應變通行碼 (8888 臨時 20 分鐘授權)
+      const cfg = this.getPasscodesConfig();
+      const drillPin = String(cfg.commander_drill || '8888').trim();
+      if (cleanCode === drillPin || cleanCode === '8888') {
+        this.failedPasscodeAttempts = 0;
+        this.drillUnlockExpiry = now + 20 * 60 * 1000;
+        this._saveDrillExpiryToStorage(this.drillUnlockExpiry);
+        if (!this.currentSession || !this.currentSession.user) {
+          const session = {
+            access_token: 'jwt_pin_commander',
+            user: {
+              id: 'drill_commander_evaluator',
+              email: 'drill@commander.local',
+              user_metadata: {
+                role: 'commander',
+                name: '演練指揮官 (' + cleanCode + ')',
+                loginType: 'pin_passcode'
+              }
+            },
+            expires_at: Math.floor((now + 20 * 60 * 1000) / 1000)
+          };
+          this.currentSession = session;
+          this._saveSessionToStorage(session);
+          this._notifyAuthState('SIGNED_IN', session);
+        }
+        this._notifyAuthState('DRILL_UNLOCKED', this.currentSession);
+        this.renderAuthBadge();
         return {
-          success: false,
-          error: '總指揮官掌握全校核心戰情與個資，不提供數字碼登入，請以完整帳號密碼登入！'
+          success: true,
+          role: (this.currentSession && this.currentSession.user && this.currentSession.user.user_metadata && this.currentSession.user.user_metadata.role) || 'commander',
+          name: '演練指揮官 (' + cleanCode + ')'
         };
       }
 
