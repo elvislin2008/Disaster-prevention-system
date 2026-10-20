@@ -243,4 +243,41 @@ describe('Unit Tests: Frontend App Logic & Milestone 5 Requirements', () => {
       assert.ok(htmlContent.includes('value="thu_night"'), 'Contains thu_night');
     });
   });
+
+  describe('8. Read-Only Attendance Board Page (📊 點名看板)', () => {
+    const htmlContent = readFileSync(resolve(rootDir, 'public/index.html'), 'utf8');
+
+    it('8.1 index.html contains 📊 點名看板 nav tab in all page views', () => {
+      assert.ok(htmlContent.includes('📊 點名看板'), 'Contains 📊 點名看板 tab label');
+      assert.ok(htmlContent.includes("switchPage('boardPage', this)"), 'Contains switchPage call to boardPage');
+    });
+
+    it('8.2 index.html contains boardPage container with read-only indicators and matrix container', () => {
+      assert.ok(htmlContent.includes('id="boardPage"'), 'Contains boardPage');
+      assert.ok(htmlContent.includes('id="boardOverviewContainer"'), 'Contains boardOverviewContainer');
+      assert.ok(htmlContent.includes('id="boardSummaryTableActive"'), 'Contains boardSummaryTableActive');
+      assert.ok(htmlContent.includes('id="boardSummaryTableDone"'), 'Contains boardSummaryTableDone');
+      assert.ok(htmlContent.includes('id="boardOverviewTopAnchor"'), 'Contains boardOverviewTopAnchor');
+      assert.ok(htmlContent.includes('👀 唯讀檢視模式'), 'Contains read-only mode badge');
+    });
+
+    it('8.3 boardPage contains 4 synced stat cards and speech stats elements', () => {
+      assert.ok(htmlContent.includes('id="board_statCardTotal"'), 'Contains board_statCardTotal');
+      assert.ok(htmlContent.includes('id="board_statCardExpected"'), 'Contains board_statCardExpected');
+      assert.ok(htmlContent.includes('id="board_statCardPresent"'), 'Contains board_statCardPresent');
+      assert.ok(htmlContent.includes('id="board_statCardAbsent"'), 'Contains board_statCardAbsent');
+      assert.ok(htmlContent.includes('id="board_spTotal"'), 'Contains board_spTotal');
+      assert.ok(htmlContent.includes('id="board_spLeave"'), 'Contains board_spLeave');
+      assert.ok(htmlContent.includes('id="board_spPresent"'), 'Contains board_spPresent');
+      assert.ok(htmlContent.includes('id="board_spRescuing"'), 'Contains board_spRescuing');
+      assert.ok(htmlContent.includes('id="board_buildingStatusTagContainer"'), 'Contains board_buildingStatusTagContainer');
+      assert.ok(htmlContent.includes('id="board_calcBreakdownContainer"'), 'Contains board_calcBreakdownContainer');
+    });
+
+    it('8.4 toggleFullscreenBoard method is exported by appMethods', () => {
+      assert.equal(typeof appMethods.toggleFullscreenBoard, 'function', 'toggleFullscreenBoard must be a function');
+      assert.equal(typeof appMethods.renderSchoolOverview, 'function', 'renderSchoolOverview must be a function');
+      assert.equal(typeof appMethods.renderSummaryTable, 'function', 'renderSummaryTable must be a function');
+    });
+  });
 });

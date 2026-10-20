@@ -3446,11 +3446,14 @@ async function executeRosterExcelImport() {
 function renderSchoolOverview() {
   if (typeof document === 'undefined') return;
   let container = document.getElementById("schoolOverviewContainer");
-  if (!container) return;
-  container.innerHTML = "";
+  let boardContainer = document.getElementById("boardOverviewContainer");
+  if (!container && !boardContainer) return;
+  if (container) container.innerHTML = "";
+  if (boardContainer) boardContainer.innerHTML = "";
 
   if (!allStudents || allStudents.length === 0) {
-    container.innerHTML = '<div style="color:#666; font-size:0.85rem;">目前資料庫中尚無學生資料。</div>';
+    if (container) container.innerHTML = '<div style="color:#666; font-size:0.85rem;">目前資料庫中尚無學生資料。</div>';
+    if (boardContainer) boardContainer.innerHTML = '<div style="color:#666; font-size:0.85rem;">目前資料庫中尚無學生資料。</div>';
     return;
   }
 
@@ -3466,12 +3469,22 @@ function renderSchoolOverview() {
   // 2. 嚴格依據 Config 表篩選「當前時段有班級在校」的年級
   let gradeList = Object.keys(gradeGroupMap).filter(g => isClassActiveAtTime(g, ""));
   if (gradeList.length === 0) {
-    container.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:12px; text-align:center; background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; line-height:1.6;">' +
-      '⚠️ 當前真實時間非在校時段（全校放學中）。<br>' +
-      '👉 如需進行防災演練測試，請在上方時段選單切換至【🕒 星期一 (09:00全校在校)】。<br>' +
-      '<button onclick="const sel = document.getElementById(\'simTimeSelect\'); if(sel){sel.value=\'mon_am\';} onSimTimeChange(\'mon_am\');" style="margin-top:8px; padding:6px 14px; background:#1F4E79; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔘 一鍵切換為【週一 上午 (全校在校)】進行演練</button>' +
-      '</div>';
-    const setNum = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+    if (container) {
+      container.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:12px; text-align:center; background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; line-height:1.6;">' +
+        '⚠️ 當前真實時間非在校時段（全校放學中）。<br>' +
+        '👉 如需進行防災演練測試，請在上方時段選單切換至【🕒 星期一 (09:00全校在校)】。<br>' +
+        '<button onclick="const sel = document.getElementById(\'simTimeSelect\'); if(sel){sel.value=\'mon_am\';} onSimTimeChange(\'mon_am\');" style="margin-top:8px; padding:6px 14px; background:#1F4E79; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔘 一鍵切換為【週一 上午 (全校在校)】進行演練</button>' +
+        '</div>';
+    }
+    if (boardContainer) {
+      boardContainer.innerHTML = '<div style="color:#1F4E79; font-weight:bold; font-size:0.85rem; padding:12px; text-align:center; background:#e8f4f8; border:1px solid #bee5eb; border-radius:6px; line-height:1.6;">' +
+        '⚠️ 當前真實時間非在校時段（全校放學中）。' +
+        '</div>';
+    }
+    const setNum = (id, val) => {
+      const el = document.getElementById(id); if (el) el.innerText = val;
+      const bEl = document.getElementById('board_' + id); if (bEl) bEl.innerText = val;
+    };
     setNum("spTotal", 0);
     setNum("spLeave", 0);
     setNum("spHospital", 0);
@@ -3485,6 +3498,8 @@ function renderSchoolOverview() {
     setNum("statCardAbsent", 0);
     let breakdown = document.getElementById("calcBreakdownContainer");
     if (breakdown) breakdown.innerHTML = '<span class="calc-breakdown-pill">總計在校: 0人</span>';
+    let boardBreakdown = document.getElementById("board_calcBreakdownContainer");
+    if (boardBreakdown) boardBreakdown.innerHTML = '<span class="calc-breakdown-pill">總計在校: 0人</span>';
     setNum("calcTotalLabel", 0);
     return;
   }
@@ -3670,7 +3685,16 @@ function renderSchoolOverview() {
     });
 
     gradeDiv.appendChild(grid);
-    container.appendChild(gradeDiv);
+    if (container) container.appendChild(gradeDiv);
+    if (boardContainer) {
+      let clone = gradeDiv.cloneNode(true);
+      let origCards = gradeDiv.querySelectorAll('.class-status-card');
+      let cloneCards = clone.querySelectorAll('.class-status-card');
+      origCards.forEach((c, idx) => {
+        cloneCards[idx].onclick = c.onclick;
+      });
+      boardContainer.appendChild(clone);
+    }
   });
 
   // 4. 校外人士彙整
@@ -3724,12 +3748,18 @@ function renderSchoolOverview() {
   });
 
   vSummarySection.appendChild(vGrid);
-  container.appendChild(vSummarySection);
+  if (container) container.appendChild(vSummarySection);
+  if (boardContainer) {
+    let cloneV = vSummarySection.cloneNode(true);
+    boardContainer.appendChild(cloneV);
+  }
 
   // 5. 更新數據膠囊與指揮官總覽
   breakdownHtml += '<span class="calc-breakdown-pill" style="background:#1F4E79; color:#fff;">總計在校: ' + grandTotal + '人</span>';
   let breakdownEl = document.getElementById("calcBreakdownContainer");
   if (breakdownEl) breakdownEl.innerHTML = breakdownHtml;
+  let boardBreakdownEl = document.getElementById("board_calcBreakdownContainer");
+  if (boardBreakdownEl) boardBreakdownEl.innerHTML = breakdownHtml;
 
   let calcLabelEl = document.getElementById("calcTotalLabel");
   if (calcLabelEl) calcLabelEl.innerText = grandTotal;
@@ -3738,6 +3768,8 @@ function renderSchoolOverview() {
   const setVal = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.innerText = val;
+    const bEl = document.getElementById("board_" + id);
+    if (bEl) bEl.innerText = val;
   };
 
   // 更新口頭報告詞膠囊
@@ -3757,28 +3789,28 @@ function renderSchoolOverview() {
 
   // 6. 建物安全標籤動態
   let bTagsContainer = document.getElementById("buildingStatusTagContainer");
-  if (bTagsContainer) {
-    let bTagHtml = "";
-    Object.keys(buildingStatusMap).forEach(bName => {
-      if (bName === "ALL") return;
-      let bData = buildingStatusMap[bName] || {};
-      let isSubmitted = (bData.submitted === true);
-      let hasDanger = false;
+  let boardBTagsContainer = document.getElementById("board_buildingStatusTagContainer");
+  let bTagHtml = "";
+  Object.keys(buildingStatusMap).forEach(bName => {
+    if (bName === "ALL") return;
+    let bData = buildingStatusMap[bName] || {};
+    let isSubmitted = (bData.submitted === true);
+    let hasDanger = false;
 
-      buildingCheckItems.forEach((_, idx) => {
-        if (bData["item_" + idx] === true) hasDanger = true;
-      });
-
-      if (isSubmitted && hasDanger) {
-        bTagHtml += '<span class="building-status-tag danger">🔴 ' + bName + ': 受損</span>';
-      } else if (isSubmitted) {
-        bTagHtml += '<span class="building-status-tag safe">🟢 ' + bName + ': 安全</span>';
-      } else {
-        bTagHtml += '<span class="building-status-tag pending">⏳ ' + bName + ': 待檢</span>';
-      }
+    buildingCheckItems.forEach((_, idx) => {
+      if (bData["item_" + idx] === true) hasDanger = true;
     });
-    bTagsContainer.innerHTML = bTagHtml;
-  }
+
+    if (isSubmitted && hasDanger) {
+      bTagHtml += '<span class="building-status-tag danger">🔴 ' + bName + ': 受損</span>';
+    } else if (isSubmitted) {
+      bTagHtml += '<span class="building-status-tag safe">🟢 ' + bName + ': 安全</span>';
+    } else {
+      bTagHtml += '<span class="building-status-tag pending">⏳ ' + bName + ': 待檢</span>';
+    }
+  });
+  if (bTagsContainer) bTagsContainer.innerHTML = bTagHtml;
+  if (boardBTagsContainer) boardBTagsContainer.innerHTML = bTagHtml;
 }
 
 function approveCalculatedTotal() {
@@ -3817,7 +3849,12 @@ function setCustomTotalAttendance() {
 
 function scrollToClassRow(classKey) {
   if (typeof document === 'undefined') return;
-  let targetRow = document.getElementById("row_active_" + classKey) || document.getElementById("row_done_" + classKey);
+  const isBoard = !!document.getElementById("boardPage")?.classList.contains("active");
+  const prefix = isBoard ? "board_" : "";
+  let targetRow = document.getElementById(prefix + "row_active_" + classKey) ||
+                  document.getElementById(prefix + "row_done_" + classKey) ||
+                  document.getElementById("row_active_" + classKey) ||
+                  document.getElementById("row_done_" + classKey);
   if (targetRow) {
     targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
   } else {
@@ -3827,21 +3864,27 @@ function scrollToClassRow(classKey) {
 
 function scrollToOverviewTop() {
   if (typeof document === 'undefined') return;
-  let topAnchor = document.getElementById("overviewTopAnchor");
+  const isBoard = !!document.getElementById("boardPage")?.classList.contains("active");
+  let topAnchor = isBoard ? document.getElementById("boardOverviewTopAnchor") : document.getElementById("overviewTopAnchor");
+  if (!topAnchor) topAnchor = document.getElementById("overviewTopAnchor") || document.getElementById("boardOverviewTopAnchor");
   if (topAnchor) topAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ==============================================================================
-// 失蹤學生緊急聯繫與搜救追蹤總表
+// 失蹤學生緊急聯繫與搜救追蹤總表 (含 📊 點名看板唯讀同步)
 // ==============================================================================
 function renderSummaryTable() {
   if (typeof document === 'undefined') return;
   let tbodyActive = document.getElementById("summaryTableActive");
   let tbodyDone = document.getElementById("summaryTableDone");
-  if (!tbodyActive || !tbodyDone) return;
+  let boardTbodyActive = document.getElementById("boardSummaryTableActive");
+  let boardTbodyDone = document.getElementById("boardSummaryTableDone");
+  if (!tbodyActive && !boardTbodyActive) return;
 
-  tbodyActive.innerHTML = "";
-  tbodyDone.innerHTML = "";
+  if (tbodyActive) tbodyActive.innerHTML = "";
+  if (tbodyDone) tbodyDone.innerHTML = "";
+  if (boardTbodyActive) boardTbodyActive.innerHTML = "";
+  if (boardTbodyDone) boardTbodyDone.innerHTML = "";
 
   let keys = Object.keys(classReports);
   let activeCount = 0, doneCount = 0;
@@ -4017,16 +4060,51 @@ function renderSummaryTable() {
       '<td><div class="contact-row-container"><div><label><input type="radio" name="tc_' + studentKey + '" value="未聯繫" ' + (state.status === "未聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'未聯繫\')">未聯繫</label> <label><input type="radio" name="tc_' + studentKey + '" value="聯繫中" ' + (state.status === "聯繫中" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'聯繫中\')">聯繫中</label> <label><input type="radio" name="tc_' + studentKey + '" value="已聯繫" ' + (state.status === "已聯繫" ? "checked" : "") + ' onchange="updateStatus(\'' + studentKey + '\', \'已聯繫\')">已聯繫</label></div><div class="retry-counter"><span>撥打<b>' + state.count + '</b>次</span> <button class="retry-btn" onclick="addRetry(\'' + studentKey + '\')">+1</button></div><input type="text" class="assignee-input-compact" placeholder="👤 處置組別/人" value="' + assigneeName + '" oninput="updateAssignee(\'' + studentKey + '\', this.value)"></div></td>';
 
     if (isCaseCompleted) {
-      tbodyDone.appendChild(row);
+      if (tbodyDone) tbodyDone.appendChild(row);
       doneCount++;
     } else {
-      tbodyActive.appendChild(row);
+      if (tbodyActive) tbodyActive.appendChild(row);
       activeCount++;
+    }
+
+    // 唯讀看板專用行 (完全無編輯按鈕、輸入框、單選鈕或 +1 動作)
+    if (boardTbodyActive || boardTbodyDone) {
+      let bRow = document.createElement("tr");
+      if (isCaseCompleted) {
+        bRow.id = item.isFirstInClass ? "board_row_done_" + k : "board_row_done_" + studentKey;
+        bRow.innerHTML = '<td><b>' + k + '</b></td>' +
+          '<td><b>' + s.seatRaw + ' ' + s.name + '</b></td>' +
+          '<td>' + teacherCellHtml + '</td>' +
+          '<td>' + badgeHtml + '</td>' +
+          '<td>' + (descText ? descText : '<span style="color:#888;">-</span>') + '</td>' +
+          '<td><span style="color:#155724; font-weight:bold;">✅ 已結案 (聯繫完畢)</span></td>';
+        if (boardTbodyDone) boardTbodyDone.appendChild(bRow);
+      } else {
+        bRow.id = item.isFirstInClass ? "board_row_active_" + k : "board_row_active_" + studentKey;
+        if (isHelpReq) bRow.className = "help-requested";
+        let contactStatusText = '<span style="font-weight:bold; color:' + (state.status === "已聯繫" ? "#155724" : state.status === "聯繫中" ? "#b25e00" : "#721c24") + ';">' + (state.status || '未聯繫') + '</span>';
+        contactStatusText += '<br><small style="color:#555;">(撥打 ' + (state.count || 0) + ' 次)</small>';
+        if (assigneeName) contactStatusText += '<br><small style="color:#1F4E79; font-weight:bold;">👤 處置: ' + assigneeName + '</small>';
+
+        bRow.innerHTML = '<td><b>' + k + '</b></td>' +
+          '<td><b>' + s.seatRaw + ' ' + s.name + '</b>' + origStatusTag + locText + helpTagHtml + '</td>' +
+          '<td>' + teacherCellHtml + '</td>' +
+          '<td>' + badgeHtml + '</td>' +
+          '<td>' + (descText ? descText : '<span style="color:#888;">搜救中未尋獲</span>') + '</td>' +
+          '<td>' + contactStatusText + '</td>';
+        if (boardTbodyActive) boardTbodyActive.appendChild(bRow);
+      }
     }
   });
 
-  if (activeCount === 0) tbodyActive.innerHTML = '<tr><td colspan="7" style="text-align:center; color:green; font-weight:bold;">✅ 目前尚無緊急處置案件！</td></tr>';
-  if (doneCount === 0) tbodyDone.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">尚無已完結歸檔項目</td></tr>';
+  if (activeCount === 0) {
+    if (tbodyActive) tbodyActive.innerHTML = '<tr><td colspan="7" style="text-align:center; color:green; font-weight:bold;">✅ 目前尚無緊急處置案件！</td></tr>';
+    if (boardTbodyActive) boardTbodyActive.innerHTML = '<tr><td colspan="6" style="text-align:center; color:green; font-weight:bold;">✅ 目前尚無緊急處置案件！</td></tr>';
+  }
+  if (doneCount === 0) {
+    if (tbodyDone) tbodyDone.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">尚無已完結歸檔項目</td></tr>';
+    if (boardTbodyDone) boardTbodyDone.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">尚無已完結歸檔項目</td></tr>';
+  }
 }
 
 function updateSearchNote(key, val) {
@@ -4263,6 +4341,11 @@ function switchPage(pageId, btn) {
     switchRescueSubTab(activeRescueSubTab);
   }
 
+  if (pageId === 'boardPage' || pageId === 'adminPage') {
+    renderSchoolOverview();
+    renderSummaryTable();
+  }
+
   document.querySelectorAll('.nav-tabs').forEach(nav => {
     let btns = nav.querySelectorAll('.tab-btn');
     btns.forEach(b => {
@@ -4273,6 +4356,29 @@ function switchPage(pageId, btn) {
       }
     });
   });
+}
+
+function toggleFullscreenBoard() {
+  if (typeof document === 'undefined') return;
+  const boardEl = document.getElementById("boardPage");
+  if (!boardEl) return;
+  if (!document.fullscreenElement) {
+    if (boardEl.requestFullscreen) {
+      boardEl.requestFullscreen();
+    } else if (boardEl.webkitRequestFullscreen) {
+      boardEl.webkitRequestFullscreen();
+    } else if (boardEl.msRequestFullscreen) {
+      boardEl.msRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
 }
 
 // ==============================================================================
@@ -4657,6 +4763,18 @@ function initApp() {
       syncRemoteState(realtimeState);
     });
   }
+
+  // 5. 支援 URL 參數直達特定頁面 (如 ?page=board 或 ?board 開啟點名看板)
+  if (typeof window !== 'undefined' && window.location) {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('page') === 'board' || urlParams.has('board')) {
+        switchPage('boardPage');
+      }
+    } catch (e) {
+      console.warn('[App] URL 參數解析異常：', e);
+    }
+  }
 }
 
 // 自動繫結至 window.onload (相容 ES Module 延遲載入)
@@ -4762,6 +4880,7 @@ const exportedAppMethods = {
   updateStatus,
   addRetry,
   switchPage,
+  toggleFullscreenBoard,
   navigateByRole,
   checkClassEditPermission,
   openClassRollCall,
@@ -4872,6 +4991,7 @@ export {
   updateStatus,
   addRetry,
   switchPage,
+  toggleFullscreenBoard,
   navigateByRole,
   checkClassEditPermission,
   openClassRollCall,

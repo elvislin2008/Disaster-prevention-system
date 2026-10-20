@@ -38,6 +38,7 @@
       <button class="tab-btn active" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
       <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
       <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 搜救檢傷與建物巡視</button>
+      <button class="tab-btn" onclick="switchPage('boardPage', this)">📊 點名看板</button>
       <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
     </div>
 
@@ -107,6 +108,7 @@
       <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
       <button class="tab-btn active" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
       <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 搜救檢傷與建物巡視</button>
+      <button class="tab-btn" onclick="switchPage('boardPage', this)">📊 點名看板</button>
       <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
     </div>
     <div class="pullout-sub-tabs">
@@ -179,6 +181,7 @@
       <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
       <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
       <button class="tab-btn active" onclick="switchPage('rescuePage', this)">🆘 搜救檢傷與建物巡視</button>
+      <button class="tab-btn" onclick="switchPage('boardPage', this)">📊 點名看板</button>
       <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
     </div>
     <div class="rescue-sub-tabs">
@@ -210,7 +213,116 @@
   </div>
 
   <!-- ========================================================================
-       分頁 4：🏫 指揮中心頁面 (#adminPage)
+       分頁 4：📊 點名看板頁面 (#boardPage - 唯讀面板)
+       ======================================================================== -->
+  <div id="boardPage" class="page">
+    <div class="title-spacer"></div>
+    <div class="nav-tabs">
+      <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
+      <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
+      <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 搜救檢傷與建物巡視</button>
+      <button class="tab-btn active" onclick="switchPage('boardPage', this)">📊 點名看板</button>
+      <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
+    </div>
+    <div id="boardOverviewTopAnchor"></div>
+
+    <!-- 四大狀態看板卡片 (全校人數, 應到人數, 實到人數, 未到/協尋人數) -->
+    <div class="status-cards-container">
+      <div class="card-total">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">全校人數</div>
+        <div id="board_statCardTotal" style="font-size:1.3rem; font-weight:900; color:#1F4E79;">0</div>
+      </div>
+      <div class="card-expected">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">應到人數</div>
+        <div id="board_statCardExpected" style="font-size:1.3rem; font-weight:900; color:#007bff;">0</div>
+      </div>
+      <div class="card-present">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">實到人數</div>
+        <div id="board_statCardPresent" style="font-size:1.3rem; font-weight:900; color:#28a745;">0</div>
+      </div>
+      <div class="card-absent">
+        <div style="font-size:0.75rem; color:#555; font-weight:bold;">未到/協尋人數</div>
+        <div id="board_statCardAbsent" style="font-size:1.3rem; font-weight:900; color:#dc3545;">0</div>
+      </div>
+    </div>
+
+    <!-- 全校點名概況與操作控制列 (唯讀展示) -->
+    <div class="card">
+      <div class="header-compact-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="header-title-text">📊 全校即時點名看板</span>
+          <span style="font-size:0.75rem; background:#e8f4f8; color:#1F4E79; padding:2px 8px; border-radius:12px; font-weight:bold;">👀 唯讀檢視模式</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-bg-toggle" onclick="toggleBgTheme()">🖼️ 底圖</button>
+          <button class="btn-info-inline" style="background:#1F4E79; color:#fff;" onclick="toggleFullscreenBoard()">🖥️ 全螢幕投影</button>
+        </div>
+      </div>
+
+      <!-- 即時口頭報告詞膠囊 -->
+      <div class="speech-stats-box">
+        <div class="speech-stats-title"><span>🎤 全校應出席與出缺席重要統計數據：</span></div>
+        <div class="speech-stats-content" id="boardSpeechBoxSchool">全校教職員工及學生應出席 <span class="speech-stats-num" id="board_spTotal">0</span> 人，請假 <span class="speech-stats-num" id="board_spLeave">0</span> 人，送醫 <span class="speech-stats-num" id="board_spHospital">0</span> 人，陪同就醫 <span class="speech-stats-num" id="board_spEscort">0</span> 人，現場出席人數 <span class="speech-stats-num" id="board_spPresent">0</span> 人，另有校外人士 <span class="speech-stats-num" id="board_spVisitor">0</span> 名，報告完畢。<b style="color:#dc3545;">(搜救中 <span class="speech-stats-num" id="board_spRescuing">0</span> 人)</b></div>
+        <div style="margin-top:6px; padding:4px 6px; background:#f0f7ff; border-radius:6px; font-size:0.78rem; font-weight:bold; color:#1F4E79;">🏢 各棟建物安全檢核動態：<span id="board_buildingStatusTagContainer"></span></div>
+        <div style="margin-top:6px; padding:6px 8px; border:1px dashed #1F4E79; border-radius:6px; background:#ffffff;">
+          <div style="font-size:0.82rem; font-weight:bold; color:#1F4E79; margin-bottom:4px;">🧮 當前時段在校班級應出席人數加總過程：</div>
+          <div id="board_calcBreakdownContainer" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;"></div>
+        </div>
+      </div>
+
+      <!-- 全校班級矩陣狀態圖容器 (唯讀) -->
+      <div id="boardOverviewContainer" style="margin-top:8px;">
+        <div style="color:#666; font-size:0.85rem;">載入全校點名進度中...</div>
+      </div>
+    </div>
+
+    <!-- 失蹤學生緊急聯繫與搜救追蹤（唯讀名單） -->
+    <div class="card">
+      <h3 style="margin-top:0; color:#e63946; font-size:1rem;">🚨 失蹤學生搜救與處置進度清單</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>班級</th>
+              <th>學生姓名 (原狀態)</th>
+              <th>帶班導師</th>
+              <th>搜救狀態</th>
+              <th>尋獲地點與描述</th>
+              <th>聯繫狀態</th>
+            </tr>
+          </thead>
+          <tbody id="boardSummaryTableActive">
+            <tr><td colspan="6" style="text-align:center; color:#888;">目前尚無緊急失蹤案件</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 已完結案件（唯讀歸檔） -->
+    <div class="card" style="background: rgba(235, 247, 238, 0.92); border: 1px solid #a3e0b5;">
+      <h3 style="margin-top:0; color:#155724; font-size:0.95rem;">✅ 已完結案件歸檔</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>班級</th>
+              <th>學生姓名</th>
+              <th>帶班導師</th>
+              <th>搜救狀態</th>
+              <th>尋獲地點與描述</th>
+              <th>處理結案</th>
+            </tr>
+          </thead>
+          <tbody id="boardSummaryTableDone">
+            <tr><td colspan="6" style="text-align:center; color:#666;">尚無已完結歸檔項目</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       分頁 5：🏫 指揮中心頁面 (#adminPage)
        ======================================================================== -->
   <div id="adminPage" class="page">
     <div class="title-spacer"></div>
@@ -218,6 +330,7 @@
       <button class="tab-btn" onclick="switchPage('teacherPage', this)">📋 老師點名</button>
       <button class="tab-btn" onclick="switchPage('pulloutPage', this)">🔄 抽離確認</button>
       <button class="tab-btn" onclick="switchPage('rescuePage', this)">🆘 搜救檢傷與建物巡視</button>
+      <button class="tab-btn" onclick="switchPage('boardPage', this)">📊 點名看板</button>
       <button class="tab-btn active" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
     </div>
     <div id="overviewTopAnchor"></div>

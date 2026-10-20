@@ -114,6 +114,12 @@ body {
   display: block;
 }
 
+#boardPage:fullscreen {
+  overflow-y: auto;
+  background-color: #f4f7f9;
+  padding: 16px 24px;
+}
+
 .title-spacer {
   height: 180px;
   width: 100%;
@@ -139,15 +145,17 @@ body {
   display: flex;
   gap: 4px;
   margin-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 10px 2px;
+  padding: 9px 2px;
   border: none;
   background: rgba(208, 215, 222, 0.95);
   color: #222;
-  font-size: clamp(0.74rem, 2.3vw, 0.88rem);
+  font-size: clamp(0.70rem, 1.9vw, 0.86rem);
   font-weight: bold;
   border-radius: 8px;
   cursor: pointer;
