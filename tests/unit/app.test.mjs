@@ -252,12 +252,11 @@ describe('Unit Tests: Frontend App Logic & Milestone 5 Requirements', () => {
       assert.ok(htmlContent.includes("switchPage('boardPage', this)"), 'Contains switchPage call to boardPage');
     });
 
-    it('8.2 index.html contains boardPage container with read-only indicators and matrix container', () => {
+    it('8.2 index.html contains boardPage container with read-only indicators and matrix container, without search tables', () => {
       assert.ok(htmlContent.includes('id="boardPage"'), 'Contains boardPage');
       assert.ok(htmlContent.includes('id="boardOverviewContainer"'), 'Contains boardOverviewContainer');
-      assert.ok(htmlContent.includes('id="boardSummaryTableActive"'), 'Contains boardSummaryTableActive');
-      assert.ok(htmlContent.includes('id="boardSummaryTableDone"'), 'Contains boardSummaryTableDone');
-      assert.ok(htmlContent.includes('id="boardOverviewTopAnchor"'), 'Contains boardOverviewTopAnchor');
+      assert.ok(!htmlContent.includes('id="boardSummaryTableActive"'), 'Does NOT contain boardSummaryTableActive');
+      assert.ok(!htmlContent.includes('id="boardSummaryTableDone"'), 'Does NOT contain boardSummaryTableDone');
       assert.ok(htmlContent.includes('👀 唯讀檢視模式'), 'Contains read-only mode badge');
     });
 

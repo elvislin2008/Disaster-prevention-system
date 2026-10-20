@@ -3688,10 +3688,10 @@ function renderSchoolOverview() {
     if (container) container.appendChild(gradeDiv);
     if (boardContainer) {
       let clone = gradeDiv.cloneNode(true);
-      let origCards = gradeDiv.querySelectorAll('.class-status-card');
       let cloneCards = clone.querySelectorAll('.class-status-card');
-      origCards.forEach((c, idx) => {
-        cloneCards[idx].onclick = c.onclick;
+      cloneCards.forEach(c => {
+        c.onclick = null;
+        c.style.cursor = 'default';
       });
       boardContainer.appendChild(clone);
     }
