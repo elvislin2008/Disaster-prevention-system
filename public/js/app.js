@@ -3080,11 +3080,12 @@ function exportRosterCSV() {
     return;
   }
 
-  let csv = '\uFEFF年級,班級,座號,姓名,性別,在籍狀態,家長電話,導師\n';
+  let csv = '\uFEFF年級,班級,座號,學生姓名,家長姓名,家長電話,在籍狀態\n';
   rosterFilteredStudents.forEach(s => {
     const statusMap = { active: '正常在籍', transferred_out: '已轉出', transferred_in: '新轉入' };
     const stLabel = statusMap[s.status] || (s.isActive === false ? '已轉出' : '正常在籍');
-    csv += `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${s.gender || '學生'}","${stLabel}","${s.phone || ''}","${s.teacher || ''}"\n`;
+    const parentName = s.parent || (s.name ? `${s.name}家長` : '');
+    csv += `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${parentName}","${s.phone || ''}","${stLabel}"\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -3168,18 +3169,18 @@ function closeExcelImportModal() {
  * 下載全校名冊標準 Excel 範例檔 (.xlsx)
  */
 function downloadRosterExcelTemplate() {
-  const headers = ['年級', '班級', '座號', '姓名', '性別', '家長電話', '導師姓名', '導師電話', '在籍狀態'];
+  const headers = ['年級', '班級', '座號', '學生姓名', '家長姓名', '家長電話', '在籍狀態'];
   const sampleRows = [
-    ['一', '1', '1', '陳大文', '男', '0912-345-001', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '1', '2', '林小華', '女', '0912-345-002', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '1', '3', '黃志強', '男', '0912-345-003', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '2', '1', '張小明', '男', '0922-333-001', '王美華老師', '0988-222-333', '正常在籍'],
-    ['二', '1', '1', '王小美', '女', '0933-444-001', '張雅晴老師', '0988-333-444', '正常在籍'],
-    ['三', '1', '1', '李大同', '男', '0944-555-001', '吳志豪老師', '0988-444-555', '正常在籍'],
-    ['四', '1', '1', '劉小芬', '女', '0955-666-001', '陳淑惠老師', '0988-555-666', '新轉入'],
-    ['五', '1', '1', '趙小龍', '男', '0966-777-001', '謝建國老師', '0988-666-777', '正常在籍'],
-    ['六', '1', '1', '周大福', '男', '0977-888-001', '周俊傑老師', '0988-777-888', '正常在籍'],
-    ['幼兒園', '企鵝班', '1', '孫小寶', '男', '0988-999-001', '幼教李老師', '0988-888-999', '正常在籍']
+    ['一', '1', '1', '陳大文', '陳爸爸', '0912-345-001', '正常在籍'],
+    ['一', '1', '2', '林小華', '林媽媽', '0912-345-002', '正常在籍'],
+    ['一', '1', '3', '黃志強', '黃爸爸', '0912-345-003', '正常在籍'],
+    ['一', '2', '1', '張小明', '張媽媽', '0922-333-001', '正常在籍'],
+    ['二', '1', '1', '王小美', '王爸爸', '0933-444-001', '正常在籍'],
+    ['三', '1', '1', '李大同', '李媽媽', '0944-555-001', '正常在籍'],
+    ['四', '1', '1', '劉小芬', '劉爸爸', '0955-666-001', '新轉入'],
+    ['五', '1', '1', '趙小龍', '趙媽媽', '0966-777-001', '正常在籍'],
+    ['六', '1', '1', '周大福', '周爸爸', '0977-888-001', '正常在籍'],
+    ['幼兒園', '企鵝班', '1', '孫小寶', '孫媽媽', '0988-999-001', '正常在籍']
   ];
 
   const xlsxLib = (typeof window !== 'undefined' && window.XLSX) || (typeof globalThis !== 'undefined' && globalThis.XLSX) || null;
@@ -3187,7 +3188,7 @@ function downloadRosterExcelTemplate() {
     const ws = xlsxLib.utils.aoa_to_sheet([headers, ...sampleRows]);
     ws['!cols'] = [
       { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 14 },
-      { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }
+      { wch: 14 }, { wch: 16 }, { wch: 12 }
     ];
     const wb = xlsxLib.utils.book_new();
     xlsxLib.utils.book_append_sheet(wb, ws, '全校師生名冊範本');
@@ -3202,18 +3203,18 @@ function downloadRosterExcelTemplate() {
  * 備用下載 CSV 範本檔 (UTF-8 with BOM)
  */
 function downloadRosterCsvTemplate() {
-  let csv = '\uFEFF年級,班級,座號,姓名,性別,家長電話,導師姓名,導師電話,在籍狀態\n';
+  let csv = '\uFEFF年級,班級,座號,學生姓名,家長姓名,家長電話,在籍狀態\n';
   const sampleRows = [
-    ['一', '1', '1', '陳大文', '男', '0912-345-001', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '1', '2', '林小華', '女', '0912-345-002', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '1', '3', '黃志強', '男', '0912-345-003', '林慧珍老師', '0988-111-222', '正常在籍'],
-    ['一', '2', '1', '張小明', '男', '0922-333-001', '王美華老師', '0988-222-333', '正常在籍'],
-    ['二', '1', '1', '王小美', '女', '0933-444-001', '張雅晴老師', '0988-333-444', '正常在籍'],
-    ['三', '1', '1', '李大同', '男', '0944-555-001', '吳志豪老師', '0988-444-555', '正常在籍'],
-    ['四', '1', '1', '劉小芬', '女', '0955-666-001', '陳淑惠老師', '0988-555-666', '新轉入'],
-    ['五', '1', '1', '趙小龍', '男', '0966-777-001', '謝建國老師', '0988-666-777', '正常在籍'],
-    ['六', '1', '1', '周大福', '男', '0977-888-001', '周俊傑老師', '0988-777-888', '正常在籍'],
-    ['幼兒園', '企鵝班', '1', '孫小寶', '男', '0988-999-001', '幼教李老師', '0988-888-999', '正常在籍']
+    ['一', '1', '1', '陳大文', '陳爸爸', '0912-345-001', '正常在籍'],
+    ['一', '1', '2', '林小華', '林媽媽', '0912-345-002', '正常在籍'],
+    ['一', '1', '3', '黃志強', '黃爸爸', '0912-345-003', '正常在籍'],
+    ['一', '2', '1', '張小明', '張媽媽', '0922-333-001', '正常在籍'],
+    ['二', '1', '1', '王小美', '王爸爸', '0933-444-001', '正常在籍'],
+    ['三', '1', '1', '李大同', '李媽媽', '0944-555-001', '正常在籍'],
+    ['四', '1', '1', '劉小芬', '劉爸爸', '0955-666-001', '新轉入'],
+    ['五', '1', '1', '趙小龍', '趙媽媽', '0966-777-001', '正常在籍'],
+    ['六', '1', '1', '周大福', '周爸爸', '0977-888-001', '正常在籍'],
+    ['幼兒園', '企鵝班', '1', '孫小寶', '孫媽媽', '0988-999-001', '正常在籍']
   ];
   sampleRows.forEach(row => {
     csv += row.map(v => `"${v}"`).join(',') + '\n';
@@ -3276,35 +3277,43 @@ async function handleExcelFileSelected(event) {
 function parseRosterDataArray(rows) {
   if (!Array.isArray(rows) || rows.length < 2) return [];
 
-  // 尋找表頭欄位索引
+  // 尋找表頭欄位索引 (優先匹配新版 7 欄格式：年級、班級、座號、學生姓名、家長姓名、家長電話、在籍狀態)
   const headerRow = rows[0].map(h => String(h || '').trim().toLowerCase());
-  let colGrade = headerRow.findIndex(h => h.includes('年級') || h.includes('grade') || h.includes('年段'));
+  let colGrade = headerRow.findIndex(h => h.includes('年級') || h.includes('grade') || h.includes('年段') || h.includes('群組'));
   let colClass = headerRow.findIndex(h => h.includes('班級') || h.includes('班') || h.includes('class'));
   let colSeat = headerRow.findIndex(h => h.includes('座號') || h.includes('號') || h.includes('seat'));
-  let colName = headerRow.findIndex(h => h.includes('姓名') || h.includes('name'));
+  let colStudentName = headerRow.findIndex(h => h.includes('學生姓名') || (h.includes('姓名') && !h.includes('家長') && !h.includes('導師')) || (h.includes('name') && !h.includes('parent') && !h.includes('teacher')));
+  let colParentName = headerRow.findIndex(h => h.includes('家長姓名') || (h.includes('家長') && !h.includes('電話') && !h.includes('手機')) || h.includes('parent'));
   let colGender = headerRow.findIndex(h => h.includes('性別') || h.includes('稱謂') || h.includes('身分') || h.includes('gender'));
-  let colPhone = headerRow.findIndex(h => h.includes('家長電話') || h.includes('電話') || h.includes('手機') || h.includes('phone'));
-  let colTeacher = headerRow.findIndex(h => h.includes('導師姓名') || h.includes('導師') || h.includes('teacher'));
+  let colPhone = headerRow.findIndex(h => h.includes('家長電話') || (h.includes('電話') && !h.includes('導師')) || (h.includes('手機') && !h.includes('導師')) || h.includes('phone'));
+  let colTeacher = headerRow.findIndex(h => h.includes('導師姓名') || (h.includes('導師') && !h.includes('電話') && !h.includes('手機')) || h.includes('teacher'));
   let colTeacherPhone = headerRow.findIndex(h => h.includes('導師電話') || h.includes('導師手機') || h.includes('teacherphone'));
   let colStatus = headerRow.findIndex(h => h.includes('在籍') || h.includes('狀態') || h.includes('status'));
 
-  // 若標頭未明確匹配，依預設欄位順序退回
+  // 若標頭未明確匹配，依標準欄位順序退回 (依據總欄位數判斷 7 欄或 9 欄)
   if (colGrade === -1) colGrade = 0;
   if (colClass === -1) colClass = 1;
   if (colSeat === -1) colSeat = 2;
-  if (colName === -1) colName = 3;
-  if (colGender === -1) colGender = 4;
-  if (colPhone === -1) colPhone = 5;
-  if (colTeacher === -1) colTeacher = 6;
-  if (colTeacherPhone === -1) colTeacherPhone = 7;
-  if (colStatus === -1) colStatus = 8;
+  if (colStudentName === -1) {
+    colStudentName = headerRow.findIndex(h => h.includes('姓名') || h.includes('name'));
+    if (colStudentName === -1) colStudentName = 3;
+  }
+  if (colParentName === -1 && headerRow.length <= 8 && colGender === -1) {
+    colParentName = 4;
+  }
+  if (colPhone === -1) {
+    colPhone = colParentName === 4 ? 5 : 5;
+  }
+  if (colStatus === -1) {
+    colStatus = headerRow.length <= 8 ? 6 : 8;
+  }
 
   const result = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r || r.length === 0) continue;
     const rawGrade = r[colGrade];
-    const rawName = r[colName];
+    const rawName = r[colStudentName];
     // 若該列全為空或缺少姓名，則跳過
     if (!rawName && !rawGrade) continue;
 
@@ -3312,10 +3321,11 @@ function parseRosterDataArray(rows) {
     const className = normalizeClassName(r[colClass]);
     const { seatNum, seatRaw } = normalizeSeatNumAndRaw(r[colSeat]);
     const name = String(rawName || `學生_${grade}${className}_${seatRaw}`).trim();
-    const gender = String(r[colGender] || '學生').trim();
-    const phone = String(r[colPhone] || '').trim();
-    const teacher = String(r[colTeacher] || `${grade}年級${className}班導師`).trim();
-    const teacherPhone = String(r[colTeacherPhone] || '').trim();
+    const parent = (colParentName !== -1 && r[colParentName]) ? String(r[colParentName]).trim() : `家長_${grade}${className}_${seatRaw}`;
+    const gender = (colGender !== -1 && r[colGender]) ? String(r[colGender]).trim() : '學生';
+    const phone = (colPhone !== -1 && r[colPhone]) ? String(r[colPhone]).trim() : '';
+    const teacher = (colTeacher !== -1 && r[colTeacher]) ? String(r[colTeacher]).trim() : `${grade}年級${className}班導師`;
+    const teacherPhone = (colTeacherPhone !== -1 && r[colTeacherPhone]) ? String(r[colTeacherPhone]).trim() : '';
     const { status, isActive } = normalizeStatus(r[colStatus]);
     const id = `${grade}_${className}_${seatRaw}`;
     const classKey = `${grade} ${className}`;
@@ -3327,7 +3337,7 @@ function parseRosterDataArray(rows) {
       seatNum,
       seatRaw,
       name,
-      parent: `家長_${grade}${className}_${seatRaw}`,
+      parent,
       phone,
       teacher,
       teacherPhone,
@@ -3438,9 +3448,8 @@ function renderExcelPreview(students) {
           <td style="padding:4px 8px;">${escapeHtml(s.className)}</td>
           <td style="padding:4px 8px;">${escapeHtml(s.seatRaw)}</td>
           <td style="padding:4px 8px; font-weight:bold; color:#1F4E79;">${escapeHtml(s.name)}</td>
-          <td style="padding:4px 8px;">${escapeHtml(s.gender)}</td>
+          <td style="padding:4px 8px;">${escapeHtml(s.parent || '-')}</td>
           <td style="padding:4px 8px;">${escapeHtml(s.phone || '-')}</td>
-          <td style="padding:4px 8px;">${escapeHtml(s.teacher || '-')}</td>
           <td style="padding:4px 8px;">${stBadge}</td>
         </tr>
       `;

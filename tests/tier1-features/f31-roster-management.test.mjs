@@ -176,4 +176,43 @@ describe('Tier 1: Feature 31 - Full Roster & Transfer Status Management (師生�
     const templatePath = 'public/templates/清水國小全校師生名冊_匯入範本.xlsx';
     assert.ok(existsSync(templatePath), 'Excel template file must exist at public/templates/清水國小全校師生名冊_匯入範本.xlsx');
   });
+
+  it('F31-9: parseRosterDataArray parses 7-column Excel format (年級, 班級, 座號, 學生姓名, 家長姓名, 家長電話, 在籍狀態)', () => {
+    const raw7ColRows = [
+      ['年級', '班級', '座號', '學生姓名', '家長姓名', '家長電話', '在籍狀態'],
+      ['一', '1', '1', '陳大文', '陳爸爸', '0912-345-001', '正常在籍'],
+      ['二', '2', '05號', '林小華', '林媽媽', '0922-333-002', '新轉入'],
+      ['三', '3', '12', '張大同', '張家長', '0933-444-003', '已轉出']
+    ];
+
+    const parsed = parseRosterDataArray(raw7ColRows);
+    assert.equal(parsed.length, 3, 'Should parse 3 student records');
+
+    assert.equal(parsed[0].grade, '一');
+    assert.equal(parsed[0].className, '1');
+    assert.equal(parsed[0].seatRaw, '01號');
+    assert.equal(parsed[0].name, '陳大文');
+    assert.equal(parsed[0].parent, '陳爸爸');
+    assert.equal(parsed[0].phone, '0912-345-001');
+    assert.equal(parsed[0].status, 'active');
+    assert.equal(parsed[0].isActive, true);
+
+    assert.equal(parsed[1].grade, '二');
+    assert.equal(parsed[1].className, '2');
+    assert.equal(parsed[1].seatRaw, '05號');
+    assert.equal(parsed[1].name, '林小華');
+    assert.equal(parsed[1].parent, '林媽媽');
+    assert.equal(parsed[1].phone, '0922-333-002');
+    assert.equal(parsed[1].status, 'transferred_in');
+    assert.equal(parsed[1].isActive, true);
+
+    assert.equal(parsed[2].grade, '三');
+    assert.equal(parsed[2].className, '3');
+    assert.equal(parsed[2].seatRaw, '12號');
+    assert.equal(parsed[2].name, '張大同');
+    assert.equal(parsed[2].parent, '張家長');
+    assert.equal(parsed[2].phone, '0933-444-003');
+    assert.equal(parsed[2].status, 'transferred_out');
+    assert.equal(parsed[2].isActive, false);
+  });
 });
