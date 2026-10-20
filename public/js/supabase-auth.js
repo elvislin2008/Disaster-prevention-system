@@ -491,9 +491,7 @@ export class SupabaseAuth {
 
           return {
             data: { user: null, session: null },
-            error: new Error((isGmailUser || isCommander)
-              ? '密碼錯誤！總指揮官可直接輸入備用密碼「admin123」登入，或查看信箱垃圾郵件中的重設信。'
-              : '密碼錯誤！請確認密碼是否正確，或點擊下方忘記密碼重設。')
+            error: new Error('密碼錯誤！請確認密碼是否正確，或點擊下方忘記密碼重設。')
           };
         }
         if (errCode === 'auth/user-not-found' || errMsg.includes('EMAIL_NOT_FOUND')) {
@@ -1601,12 +1599,6 @@ export class SupabaseAuth {
           <!-- 分頁 2：總指揮官詳細帳號密碼登入 (最高權限) -->
           <!-- ========================================== -->
           <div id="authCommanderTabContent" style="display:${isCommanderActive ? 'block' : 'none'};">
-            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#6b21a8;margin-bottom:12px;line-height:1.4;">
-              🔒 <b>總指揮官帳號安全登入：</b><br>
-              • 掌握全校個資電話、全局戰情、名冊與權限指派。<br>
-              • 總指揮官備用密碼為：<b style="color:#b91c1c;font-size:0.85rem;background:#fee2e2;padding:1px 5px;border-radius:3px;">admin123</b>。
-            </div>
-
             <form id="authEmailForm" autocomplete="off" onsubmit="return false;" style="display:flex;flex-direction:column;gap:10px;">
               <!-- 阻絕瀏覽器自動帶入舊帳密之虛擬無效輸入項 -->
               <input type="text" style="display:none !important;" aria-hidden="true" tabindex="-1" autocomplete="off" />
