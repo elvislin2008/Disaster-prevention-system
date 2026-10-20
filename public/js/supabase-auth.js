@@ -334,7 +334,8 @@ export class SupabaseAuth {
         const userCredential = await fbAuth.signInWithEmailAndPassword(trimmedEmail, password);
         if (userCredential && userCredential.user) {
           const fbUser = userCredential.user;
-          const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin'));
+          const isGmailUser = trimmedEmail.endsWith('@gmail.com');
+          const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin') || isGmailUser);
           let role = isCommander ? 'commander' : 'teacher';
           let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
           if (displayName && (displayName.includes('poyilin59') || displayName.includes('fishyaya') || (isCommander && displayName.includes('@')))) {
@@ -352,22 +353,21 @@ export class SupabaseAuth {
               if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
                 const uData = typeof snap.data === 'function' ? snap.data() : snap.data;
                 if (uData) {
-                  if (uData.role) role = uData.role;
+                  if (uData.role && !isCommander && !isGmailUser) role = uData.role;
                   if (uData.name) displayName = uData.name;
                   if (uData.assignedGrade) assignedGrade = uData.assignedGrade;
                   if (uData.assignedClass) assignedClass = uData.assignedClass;
                 }
-              } else {
-                // 自動建立初始記錄供後台管理檢視
-                fs.setDoc(fs.doc('users', trimmedEmail), {
-                  email: trimmedEmail,
-                  name: displayName,
-                  role: role,
-                  assignedGrade,
-                  assignedClass,
-                  createdAt: Date.now()
-                }).catch(() => {});
               }
+              // 自動同步至 Firestore users 集合
+              fs.setDoc(fs.doc('users', trimmedEmail), {
+                email: trimmedEmail,
+                name: displayName,
+                role: role,
+                assignedGrade,
+                assignedClass,
+                updatedAt: Date.now()
+              }, { merge: true }).catch(() => {});
             }
           } catch (fsErr) {
             console.warn('[SupabaseAuth] 讀取使用者自訂權限略過：', fsErr);
@@ -527,6 +527,68 @@ export class SupabaseAuth {
       data: { user: null, session: null },
       error: new Error('Invalid login credentials')
     };
+  }
+
+  /**
+   * 透過 Google 帳號 (Gmail) 快速彈窗登入 (直接給予最高指揮官權限)
+   */
+  async loginWithGoogle() {
+    const fbAuth = this._ensureFirebaseAuth();
+    if (!fbAuth) {
+      return { data: { user: null, session: null }, error: new Error('尚未連線至 Firebase Auth 服務') };
+    }
+    if (typeof window === 'undefined' || !window.firebase || !window.firebase.auth || !window.firebase.auth.GoogleAuthProvider) {
+      return { data: { user: null, session: null }, error: new Error('尚未載入 Google 登入模組') };
+    }
+    try {
+      const provider = new window.firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const userCredential = await fbAuth.signInWithPopup(provider);
+      if (userCredential && userCredential.user) {
+        const fbUser = userCredential.user;
+        const trimmedEmail = String(fbUser.email || '').trim().toLowerCase();
+        const isGmailUser = trimmedEmail.endsWith('@gmail.com');
+        const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin') || isGmailUser);
+        let role = isCommander ? 'commander' : 'teacher';
+        let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
+
+        // 同步至 Firestore users 集合
+        try {
+          const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                     (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+          if (fs && typeof fs.setDoc === 'function' && typeof fs.doc === 'function') {
+            await fs.setDoc(fs.doc('users', trimmedEmail), {
+              email: trimmedEmail,
+              name: displayName,
+              role: role,
+              updatedAt: Date.now()
+            }, { merge: true });
+          }
+        } catch (_) {}
+
+        const session = {
+          access_token: await fbUser.getIdToken().catch(() => `fb_${fbUser.uid}_${Date.now()}`),
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id: fbUser.uid,
+            email: fbUser.email,
+            user_metadata: {
+              name: displayName,
+              role: role
+            }
+          }
+        };
+        this.currentSession = session;
+        this._saveSessionToStorage(session);
+        this._notifyAuthState('SIGNED_IN', session);
+        this.renderAuthBadge();
+        return { data: { user: session.user, session }, error: null };
+      }
+      return { data: { user: null, session: null }, error: new Error('Google 登入未完成') };
+    } catch (err) {
+      console.warn('[Firebase Auth Google Sign-In] 失敗：', err);
+      return { data: { user: null, session: null }, error: err };
+    }
   }
 
   /**
@@ -753,9 +815,10 @@ export class SupabaseAuth {
       return 'visitor';
     }
 
-    // 核心系統管理者帳號：最高層級強制鎖定為 commander (總指揮官)
+    // 核心系統管理者與 Gmail 帳號：最高層級直接強制鎖定為 commander (總指揮官)
     const email = String(this.currentSession.user.email || '').trim().toLowerCase();
-    if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin')) {
+    const isGmailUser = email.endsWith('@gmail.com');
+    if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser) {
       return 'commander';
     }
 
@@ -823,7 +886,8 @@ export class SupabaseAuth {
     const user = this.getCurrentUser();
     if (user && user.email) {
       const email = String(user.email).trim().toLowerCase();
-      if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin')) {
+      const isGmailUser = email.endsWith('@gmail.com');
+      if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser) {
         return true;
       }
     }
@@ -1277,12 +1341,15 @@ export class SupabaseAuth {
     if (!session) return null;
     const user = session.user || {};
     const email = String(user.email || '').trim().toLowerCase();
-    const isCommander = (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin'));
+    const isGmailUser = email.endsWith('@gmail.com');
+    const isCommander = (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser);
 
     const userMetadata = { ...(user.user_metadata || {}) };
     if (isCommander) {
       userMetadata.role = 'commander';
-      userMetadata.name = '總指揮官';
+      if (!userMetadata.name || userMetadata.name.includes('@')) {
+        userMetadata.name = '總指揮官';
+      }
     }
 
     return {
@@ -1475,6 +1542,15 @@ export class SupabaseAuth {
               <div style="text-align:right;margin-top:2px;">
                 <a href="javascript:void(0)" id="authForgotPwdLink" style="font-size:0.75rem;color:#007bff;text-decoration:none;">忘記密碼？發送重設信至信箱</a>
               </div>
+              <div style="display:flex;align-items:center;margin:8px 0 4px 0;">
+                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+                <span style="font-size:0.75rem;color:#888;padding:0 8px;">或</span>
+                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+              </div>
+              <button id="authGoogleLoginBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;background:#fff;border:1.5px solid #dadce0;border-radius:6px;font-weight:bold;font-size:0.85rem;color:#3c4043;cursor:pointer;box-shadow:0 1px 2px rgba(60,64,67,0.15);">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
+                使用 Google (Gmail) 快速登入 (最高權限)
+              </button>
             </form>
           </div>
         </div>
@@ -1652,6 +1728,31 @@ export class SupabaseAuth {
           }
           if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
             window.navigateByRole(role);
+          }
+        }
+      };
+    }
+
+    // Google 快速登入 (最高權限)
+    const googleLoginBtn = modalOverlay.querySelector('#authGoogleLoginBtn');
+    if (googleLoginBtn) {
+      googleLoginBtn.onclick = async () => {
+        const errBox = modalOverlay.querySelector('#authLoginError');
+        if (errBox) errBox.style.display = 'none';
+        const res = await this.loginWithGoogle();
+        if (res.error) {
+          if (errBox) {
+            errBox.textContent = 'Google 登入失敗：' + (res.error.message || res.error);
+            errBox.style.display = 'block';
+          } else {
+            alert('Google 登入失敗：' + (res.error.message || res.error));
+          }
+        } else {
+          clearAllAuthFields();
+          this.closeLoginModal();
+          alert('👑 歡迎總指揮官！已透過 Google (Gmail) 登入並啟用最高指揮官全權限。');
+          if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
+            window.navigateByRole('commander');
           }
         }
       };

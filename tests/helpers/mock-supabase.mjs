@@ -110,6 +110,10 @@ export class MockSupabaseAuth {
       return 'commander';
     }
     if (!this.currentSession || !this.currentSession.user) return 'visitor';
+    const email = String(this.currentSession.user.email || '').trim().toLowerCase();
+    if (email.endsWith('@gmail.com') || email === 'fishyaya@apps.ntpc.edu.tw') {
+      return 'commander';
+    }
     return this.currentSession.user.user_metadata?.role || 'visitor';
   }
 

@@ -2023,7 +2023,8 @@ function checkSystemAdminAccess() {
   const user = typeof auth.getCurrentUser === 'function' ? auth.getCurrentUser() : null;
   const email = (user && user.email) ? String(user.email).trim().toLowerCase() : '';
   const isCommander = role === 'commander';
-  const isAdminEmail = email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin');
+  const isGmail = email.endsWith('@gmail.com');
+  const isAdminEmail = email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmail;
   if (isCommander || isAdminEmail) {
     return true;
   }
@@ -2143,24 +2144,26 @@ async function renderUserPermissionTable() {
   let html = '';
   userList.forEach((u, idx) => {
     const isMaster = u.email === 'fishyaya@apps.ntpc.edu.tw' || u.email === 'poyilin59@gmail.com';
+    const isGmail = u.email && u.email.endsWith('@gmail.com');
     const safeEmail = u.email.replace(/[^a-zA-Z0-9]/g, '_');
     const displayAccount = isMaster ? '👑 總指揮官主帳號 (系統管理)' : escapeHtml(u.email);
+    const effectiveRole = (isMaster || isGmail) ? 'commander' : (u.role || 'commander');
 
     html += `
       <tr style="border-bottom:1px solid #eee; background:${idx % 2 === 0 ? '#fff' : '#fdfdfd'};">
         <td style="padding:8px 10px; font-weight:bold; color:#1F4E79;">
-          ${displayAccount} ${isMaster ? '<span style="background:#e83e8c; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">主要管理者</span>' : ''}
+          ${displayAccount} ${isMaster ? '<span style="background:#e83e8c; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">主要管理者</span>' : (isGmail ? '<span style="background:#6f42c1; color:#fff; font-size:0.7rem; padding:1px 5px; border-radius:3px;">Gmail最高權限</span>' : '')}
         </td>
         <td style="padding:6px 10px;">
           <input id="permNameInput_${safeEmail}" type="text" value="${escapeHtml(u.name)}" style="width:120px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:0.82rem;" />
         </td>
         <td style="padding:6px 10px;">
           <select id="permRoleSelect_${safeEmail}" style="padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:0.82rem; background:#fff;">
-            <option value="commander" ${u.role === 'commander' ? 'selected' : ''}>👑 總指揮官 (commander)</option>
-            <option value="medical" ${u.role === 'medical' ? 'selected' : ''}>🚑 緊急救護官 (medical)</option>
-            <option value="inspector" ${u.role === 'inspector' ? 'selected' : ''}>🏢 建物巡檢組 (inspector)</option>
-            <option value="pullout_teacher" ${u.role === 'pullout_teacher' ? 'selected' : ''}>🔄 抽離專責教師 (pullout)</option>
-            <option value="visitor_manager" ${u.role === 'visitor_manager' ? 'selected' : ''}>📝 訪客登記組 (visitor)</option>
+            <option value="commander" ${effectiveRole === 'commander' ? 'selected' : ''}>👑 總指揮官 (commander)</option>
+            <option value="medical" ${effectiveRole === 'medical' ? 'selected' : ''}>🚑 緊急救護官 (medical)</option>
+            <option value="inspector" ${effectiveRole === 'inspector' ? 'selected' : ''}>🏢 建物巡檢組 (inspector)</option>
+            <option value="pullout_teacher" ${effectiveRole === 'pullout_teacher' ? 'selected' : ''}>🔄 抽離專責教師 (pullout)</option>
+            <option value="visitor_manager" ${effectiveRole === 'visitor_manager' ? 'selected' : ''}>📝 訪客登記組 (visitor)</option>
           </select>
         </td>
         <td style="padding:6px 10px; text-align:center;">
