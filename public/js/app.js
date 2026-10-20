@@ -2336,14 +2336,14 @@ async function openPasscodeModal() {
     } catch (e) {}
   }
 
+  const pulInput = document.getElementById('cfgPasscodePullout');
   const medInput = document.getElementById('cfgPasscodeMedical');
   const insInput = document.getElementById('cfgPasscodeInspector');
-  const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
+  if (pulInput) pulInput.value = cfg.pullout_teacher || '3333';
   if (medInput) medInput.value = cfg.medical || '1199';
   if (insInput) insInput.value = cfg.inspector || '7777';
-  if (pulInput) pulInput.value = cfg.pullout_teacher || '3333';
   if (visInput) visInput.value = cfg.visitor_manager || '5555';
 
   modal.style.display = 'flex';
@@ -2365,15 +2365,15 @@ async function savePasscodeConfigModal(event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
   if (!checkSystemAdminAccess()) return;
 
+  const pulInput = document.getElementById('cfgPasscodePullout');
   const medInput = document.getElementById('cfgPasscodeMedical');
   const insInput = document.getElementById('cfgPasscodeInspector');
-  const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
   const newConfig = {
+    pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
     medical: medInput ? medInput.value.trim() : '1199',
     inspector: insInput ? insInput.value.trim() : '7777',
-    pullout_teacher: pulInput ? pulInput.value.trim() : '3333',
     visitor_manager: visInput ? visInput.value.trim() : '5555',
     updatedAt: Date.now()
   };
@@ -2449,14 +2449,14 @@ async function resetPasscodeConfigToDefault() {
     return;
   }
 
+  const pulInput = document.getElementById('cfgPasscodePullout');
   const medInput = document.getElementById('cfgPasscodeMedical');
   const insInput = document.getElementById('cfgPasscodeInspector');
-  const pulInput = document.getElementById('cfgPasscodePullout');
   const visInput = document.getElementById('cfgPasscodeVisitor');
 
+  if (pulInput) pulInput.value = '3333';
   if (medInput) medInput.value = '1199';
   if (insInput) insInput.value = '7777';
-  if (pulInput) pulInput.value = '3333';
   if (visInput) visInput.value = '5555';
 
   await savePasscodeConfigModal();
@@ -4097,11 +4097,11 @@ function addRetry(key) {
 
 const ROLE_NAME_ZH = {
   commander: '總指揮官',
-  medical: '緊急應變小組',
-  patrol: '緊急應變小組',
-  inspector: '緊急應變小組',
-  rescue_officer: '緊急應變小組',
-  pullout_teacher: '抽離專責教師',
+  pullout_teacher: '抽離確認組 (避難引導組)',
+  medical: '危難救助組 (搶救組/緊急救護組)',
+  rescue_officer: '危難救助組 (搶救組/緊急救護組)',
+  patrol: '建物巡檢組 (安全防護組)',
+  inspector: '建物巡檢組 (安全防護組)',
   visitor_manager: '訪客登記組',
   teacher: '班級導師',
   visitor: '一般訪客'
@@ -4210,9 +4210,9 @@ function switchPage(pageId, btn) {
       if (!hasCommanderAccess && !canPullout) {
         if (!isAuth) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('pullout_teacher');
-          alert('⚡ 災難快速通報：請輸入【抽離確認組】數字通報碼進入！');
+          alert('⚡ 災難快速通報：請輸入【抽離確認組 (避難引導組)】數字通報碼進入！');
         } else {
-          alert(`⛔ 存取被拒絕：【抽離確認】專區僅限抽離專責教師或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+          alert(`⛔ 存取被拒絕：【抽離確認】專區僅限抽離確認組 (避難引導組) 或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
         return;
       }
@@ -4225,9 +4225,9 @@ function switchPage(pageId, btn) {
       if (!hasCommanderAccess && !canRescue && !canPatrol) {
         if (!isAuth) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('medical');
-          alert('⚡ 災難快速通報：請輸入【救護隊】或【巡檢隊】數字通報碼進入！');
+          alert('⚡ 災難快速通報：請輸入【危難救助組】或【建物巡檢組】數字通報碼進入！');
         } else {
-          alert(`⛔ 存取被拒絕：【危難救助】專區僅限緊急救護官、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+          alert(`⛔ 存取被拒絕：【危難救助】專區僅限危難救助組、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
         return;
       }

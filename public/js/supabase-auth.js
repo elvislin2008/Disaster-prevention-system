@@ -34,21 +34,21 @@ const VALID_ROLES = [
 const ROLE_DISPLAY_NAMES = {
   commander: '總指揮官',
   teacher: '班級導師',
-  pullout_teacher: '抽離教師',
-  medical: '緊急應變小組',
-  rescue_officer: '緊急應變小組',
-  patrol: '緊急應變小組',
-  inspector: '緊急應變小組',
-  visitor_manager: '訪客登記',
+  pullout_teacher: '抽離確認組 (避難引導組)',
+  medical: '危難救助組 (搶救組/緊急救護組)',
+  rescue_officer: '危難救助組 (搶救組/緊急救護組)',
+  patrol: '建物巡檢組 (安全防護組)',
+  inspector: '建物巡檢組 (安全防護組)',
+  visitor_manager: '訪客登記組',
   visitor: '訪客'
 };
 
 // 預設各組災難通報數字碼 (可由總指揮官隨時自訂修改並即時同步)
 export const DEFAULT_PASSCODES_CONFIG = {
-  medical: '1199',          // 緊急應變小組 (救護隊)
-  inspector: '7777',        // 緊急應變小組 (巡檢隊)
-  pullout_teacher: '3333',  // 抽離組
-  visitor_manager: '5555'   // 訪客組
+  pullout_teacher: '3333',  // 1. 抽離確認組：避難引導組 (抽離學生點名確認)
+  medical: '1199',          // 2. 危難救助組：搶救組、緊急救護組 (受困搶救/檢傷分類)
+  inspector: '7777',        // 3. 建物巡檢組：安全防護組 (建築物巡檢)
+  visitor_manager: '5555'   // 訪客登記組 (相容保底)
 };
 
 // 災難快速通報數字碼動態映射表
@@ -63,24 +63,24 @@ export function rebuildRolePasscodes(cfg = {}) {
     delete ROLE_PASSCODES[k];
   }
 
-  // 1. 緊急應變小組 (救護隊)
-  const medCode = String(merged.medical || '1199').trim();
-  ROLE_PASSCODES[medCode] = { role: 'medical', name: '緊急應變小組' };
-  ROLE_PASSCODES['119'] = { role: 'medical', name: '緊急應變小組' };
-
-  // 2. 緊急應變小組 (建物巡檢 / 安全防護組)
-  const insCode = String(merged.inspector || '7777').trim();
-  ROLE_PASSCODES[insCode] = { role: 'inspector', name: '緊急應變小組' };
-  ROLE_PASSCODES['2222'] = { role: 'inspector', name: '緊急應變小組' };
-
-  // 3. 抽離確認組
+  // 1. 抽離確認組：避難引導組 (進行抽離學生的點名確認)
   const pulCode = String(merged.pullout_teacher || '3333').trim();
-  ROLE_PASSCODES[pulCode] = { role: 'pullout_teacher', name: '抽離專責教師 (特教組)' };
+  ROLE_PASSCODES[pulCode] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
 
-  // 4. 訪客管理組
+  // 2. 危難救助組：搶救組 (搶救受困學生)、緊急救護組 (學生檢傷分類)
+  const medCode = String(merged.medical || '1199').trim();
+  ROLE_PASSCODES[medCode] = { role: 'medical', name: '危難救助組 (搶救組 / 緊急救護組)' };
+  ROLE_PASSCODES['119'] = { role: 'medical', name: '危難救助組 (搶救組 / 緊急救護組)' };
+
+  // 3. 建物巡檢組：安全防護組 (建築物巡檢)
+  const insCode = String(merged.inspector || '7777').trim();
+  ROLE_PASSCODES[insCode] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+  ROLE_PASSCODES['2222'] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
+
+  // 4. 訪客管理組 (相容保底)
   const visCode = String(merged.visitor_manager || '5555').trim();
-  ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
-  ROLE_PASSCODES['4444'] = { role: 'visitor_manager', name: '訪客登記組 (守衛室)' };
+  ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組' };
+  ROLE_PASSCODES['4444'] = { role: 'visitor_manager', name: '訪客登記組' };
 
   return ROLE_PASSCODES;
 }
@@ -1534,11 +1534,7 @@ export class SupabaseAuth {
           clearAllAuthFields();
           this.closeLoginModal();
           const targetRole = res.role || 'commander';
-          let roleName = ROLE_DISPLAY_NAMES[targetRole] || res.name || targetRole;
-          const emergencyTeams = ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組', 'medical', 'patrol', 'inspector', 'rescue_officer'];
-          if (emergencyTeams.some(t => String(roleName).includes(t) || targetRole === t)) {
-            roleName = '緊急應變小組';
-          }
+          let roleName = res.name || ROLE_DISPLAY_NAMES[targetRole] || targetRole;
           alert('⚡ 歡迎快速通報登入！身分：【' + roleName + '】');
           if (typeof window !== 'undefined' && typeof window.navigateByRole === 'function') {
             window.navigateByRole(targetRole);
@@ -1597,10 +1593,6 @@ export class SupabaseAuth {
           this.closeLoginModal();
           const role = this.getUserRole();
           let roleName = ROLE_DISPLAY_NAMES[role] || (res.data?.user?.user_metadata?.name || '總指揮官');
-          const emergencyTeams = ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組', 'medical', 'patrol', 'inspector', 'rescue_officer'];
-          if (emergencyTeams.some(t => String(roleName).includes(t) || role === t)) {
-            roleName = '緊急應變小組';
-          }
           if (role === 'commander') {
             alert('👑 歡迎總指揮官登入！已啟用指揮中心全權限。');
           } else {
