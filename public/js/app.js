@@ -3073,6 +3073,7 @@ async function deleteRosterStudent(studentId) {
 
 /**
  * 匯出名冊 CSV (UTF-8 with BOM 確保 Excel 開啟不亂碼)
+ * 若當前篩選為「緊急應變小組」，自動匯出為 3 欄格式（組別, 編號, 姓名）
  */
 function exportRosterCSV() {
   if (rosterFilteredStudents.length === 0) {
@@ -3080,19 +3081,32 @@ function exportRosterCSV() {
     return;
   }
 
-  let csv = '\uFEFF年級,班級,座號,學生姓名,家長姓名,家長電話,在籍狀態\n';
-  rosterFilteredStudents.forEach(s => {
-    const statusMap = { active: '正常在籍', transferred_out: '已轉出', transferred_in: '新轉入' };
-    const stLabel = statusMap[s.status] || (s.isActive === false ? '已轉出' : '正常在籍');
-    const parentName = s.parent || (s.name ? `${s.name}家長` : '');
-    csv += `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${parentName}","${s.phone || ''}","${stLabel}"\n`;
-  });
+  const isAllEmergency = rosterFilteredStudents.every(s => s.grade === '緊急應變小組');
+  let csv = '';
+  let filename = '';
+
+  if (isAllEmergency) {
+    csv = '\uFEFF組別,編號,姓名\n';
+    rosterFilteredStudents.forEach(s => {
+      csv += `"${s.className}","${s.seatRaw}","${s.name}"\n`;
+    });
+    filename = `清水國小緊急應變小組名冊_${new Date().toISOString().slice(0, 10)}.csv`;
+  } else {
+    csv = '\uFEFF年級,班級,座號,學生姓名,家長姓名,家長電話,在籍狀態\n';
+    rosterFilteredStudents.forEach(s => {
+      const statusMap = { active: '正常在籍', transferred_out: '已轉出', transferred_in: '新轉入' };
+      const stLabel = statusMap[s.status] || (s.isActive === false ? '已轉出' : '正常在籍');
+      const parentName = s.parent || (s.name ? `${s.name}家長` : '');
+      csv += `"${s.grade}","${s.className}","${s.seatRaw}","${s.name}","${parentName}","${s.phone || ''}","${stLabel}"\n`;
+    });
+    filename = `清水國小師生在籍名冊_${new Date().toISOString().slice(0, 10)}.csv`;
+  }
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `清水國小師生在籍名冊_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -3232,6 +3246,72 @@ function downloadRosterCsvTemplate() {
 }
 
 /**
+ * 下載緊急應變小組標準 Excel 範例檔 (.xlsx) - 3 欄格式（組別、編號、姓名）
+ */
+function downloadEmergencyTeamExcelTemplate() {
+  const headers = ['組別', '編號', '姓名'];
+  const sampleRows = [
+    ['指揮官', '1', '陳校長'],
+    ['通報組', '1', '黃主任'],
+    ['通報組', '2', '林組員'],
+    ['避難引導組', '1', '張主任'],
+    ['避難引導組', '2', '王組員'],
+    ['安全防護組', '1', '李主任'],
+    ['安全防護組', '2', '劉組員'],
+    ['搶救組', '1', '吳主任'],
+    ['搶救組', '2', '蔡組員'],
+    ['緊急救護組', '1', '孫護理師'],
+    ['緊急救護組', '2', '郭組員']
+  ];
+
+  const xlsxLib = (typeof window !== 'undefined' && window.XLSX) || (typeof globalThis !== 'undefined' && globalThis.XLSX) || null;
+  if (xlsxLib && typeof xlsxLib.utils === 'object' && typeof xlsxLib.writeFile === 'function') {
+    const ws = xlsxLib.utils.aoa_to_sheet([headers, ...sampleRows]);
+    ws['!cols'] = [
+      { wch: 16 }, { wch: 10 }, { wch: 16 }
+    ];
+    const wb = xlsxLib.utils.book_new();
+    xlsxLib.utils.book_append_sheet(wb, ws, '緊急應變小組');
+    xlsxLib.writeFile(wb, '清水國小緊急應變小組_匯入範本.xlsx');
+  } else {
+    downloadEmergencyTeamCsvTemplate();
+  }
+}
+
+/**
+ * 下載緊急應變小組 CSV 範本檔 (UTF-8 with BOM) - 3 欄格式（組別、編號、姓名）
+ */
+function downloadEmergencyTeamCsvTemplate() {
+  let csv = '\uFEFF組別,編號,姓名\n';
+  const sampleRows = [
+    ['指揮官', '1', '陳校長'],
+    ['通報組', '1', '黃主任'],
+    ['通報組', '2', '林組員'],
+    ['避難引導組', '1', '張主任'],
+    ['避難引導組', '2', '王組員'],
+    ['安全防護組', '1', '李主任'],
+    ['安全防護組', '2', '劉組員'],
+    ['搶救組', '1', '吳主任'],
+    ['搶救組', '2', '蔡組員'],
+    ['緊急救護組', '1', '孫護理師'],
+    ['緊急救護組', '2', '郭組員']
+  ];
+  sampleRows.forEach(row => {
+    csv += row.map(v => `"${v}"`).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '清水國小緊急應變小組_匯入範本.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * 處理選取之 Excel / CSV 檔案
  */
 async function handleExcelFileSelected(event) {
@@ -3271,14 +3351,94 @@ async function handleExcelFileSelected(event) {
 }
 
 /**
+ * 正規化緊急應變小組組別名稱
+ */
+function normalizeEmergencyGroupName(rawGroup) {
+  if (!rawGroup) return '通報組';
+  let str = String(rawGroup).trim();
+  str = str.replace(/^緊急應變小組[\s_]*/, '');
+  if (str.includes('指揮')) return '指揮官';
+  if (str.includes('通報')) return '通報組';
+  if (str.includes('避難') || str.includes('引導')) return '避難引導組';
+  if (str.includes('安全') || str.includes('防護')) return '安全防護組';
+  if (str.includes('救護') || str.includes('醫護')) return '緊急救護組';
+  if (str.includes('搶救')) return '搶救組';
+  if (str && !str.endsWith('組') && !str.includes('官') && !str.includes('隊')) {
+    str += '組';
+  }
+  return str || '通報組';
+}
+
+/**
  * 將解析後的二維陣列轉為正規化的學生名冊物件陣列
  * 遵守鐵律 2：年級字串維持單字大寫（「一」、「二」...），嚴禁使用正則強轉為「一年級」
+ * 支援「緊急應變小組」專屬 3 欄格式（組別、編號、姓名）與全校標準 7 欄格式
  */
 function parseRosterDataArray(rows) {
   if (!Array.isArray(rows) || rows.length < 2) return [];
 
-  // 尋找表頭欄位索引 (優先匹配新版 7 欄格式：年級、班級、座號、學生姓名、家長姓名、家長電話、在籍狀態)
   const headerRow = rows[0].map(h => String(h || '').trim().toLowerCase());
+
+  // 1. 優先檢測是否為「緊急應變小組」專用 3 欄格式（組別、編號、姓名）
+  const colEmGroup = headerRow.findIndex(h => h.includes('組別') || (h.includes('組') && !h.includes('群組')) || h.includes('隊別'));
+  const colEmNumber = headerRow.findIndex(h => h.includes('編號') || h.includes('序號') || (h.includes('號') && !h.includes('座') && !h.includes('年')));
+  const colEmSeat = headerRow.findIndex(h => h.includes('座號'));
+  const colEmName = headerRow.findIndex(h => (h.includes('姓名') && !h.includes('家長') && !h.includes('導師')) || h.includes('人員') || h.includes('name'));
+
+  const hasNoGradeCol = headerRow.findIndex(h => h.includes('年級') || h.includes('grade')) === -1;
+  const isEmergency3Col = (
+    (colEmGroup !== -1 && (colEmNumber !== -1 || colEmSeat !== -1) && colEmName !== -1 && hasNoGradeCol) ||
+    (headerRow.length <= 4 && colEmGroup !== -1 && colEmName !== -1 && hasNoGradeCol)
+  );
+
+  if (isEmergency3Col) {
+    const colGroup = colEmGroup !== -1 ? colEmGroup : 0;
+    const colNumber = colEmNumber !== -1 ? colEmNumber : (colEmSeat !== -1 ? colEmSeat : 1);
+    const colName = colEmName !== -1 ? colEmName : 2;
+
+    const result = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length === 0) continue;
+      const rawGroup = r[colGroup];
+      const rawNum = r[colNumber];
+      const rawName = r[colName];
+      if (!rawName && !rawGroup) continue;
+
+      const grade = '緊急應變小組';
+      const className = normalizeEmergencyGroupName(rawGroup);
+      const { seatNum, seatRaw } = normalizeSeatNumAndRaw(rawNum);
+      const name = String(rawName || `應變人員_${className}_${seatRaw}`).trim();
+      const parent = '清水國小應變中心';
+      const phone = '';
+      const teacher = `${className}組長`;
+      const teacherPhone = '';
+      const gender = '教職員';
+      const id = `${grade}_${className}_${seatRaw}`;
+      const classKey = `${grade} ${className}`;
+
+      result.push({
+        id,
+        grade,
+        className,
+        seatNum,
+        seatRaw,
+        name,
+        parent,
+        phone,
+        teacher,
+        teacherPhone,
+        gender,
+        classKey,
+        status: 'active',
+        isActive: true,
+        updatedAt: new Date().toISOString()
+      });
+    }
+    return result;
+  }
+
+  // 2. 標準全校名冊欄位解析 (優先匹配 7 欄格式：年級、班級、座號、學生姓名、家長姓名、家長電話、在籍狀態)
   let colGrade = headerRow.findIndex(h => h.includes('年級') || h.includes('grade') || h.includes('年段') || h.includes('群組'));
   let colClass = headerRow.findIndex(h => h.includes('班級') || h.includes('班') || h.includes('class'));
   let colSeat = headerRow.findIndex(h => h.includes('座號') || h.includes('號') || h.includes('seat'));
@@ -3318,13 +3478,13 @@ function parseRosterDataArray(rows) {
     if (!rawName && !rawGrade) continue;
 
     const grade = normalizeGradeString(rawGrade);
-    const className = normalizeClassName(r[colClass]);
+    const className = grade === '緊急應變小組' ? normalizeEmergencyGroupName(r[colClass]) : normalizeClassName(r[colClass]);
     const { seatNum, seatRaw } = normalizeSeatNumAndRaw(r[colSeat]);
     const name = String(rawName || `學生_${grade}${className}_${seatRaw}`).trim();
-    const parent = (colParentName !== -1 && r[colParentName]) ? String(r[colParentName]).trim() : `家長_${grade}${className}_${seatRaw}`;
-    const gender = (colGender !== -1 && r[colGender]) ? String(r[colGender]).trim() : '學生';
+    const parent = (colParentName !== -1 && r[colParentName]) ? String(r[colParentName]).trim() : (grade === '緊急應變小組' ? '清水國小應變中心' : `家長_${grade}${className}_${seatRaw}`);
+    const gender = (colGender !== -1 && r[colGender]) ? String(r[colGender]).trim() : (grade === '緊急應變小組' ? '教職員' : '學生');
     const phone = (colPhone !== -1 && r[colPhone]) ? String(r[colPhone]).trim() : '';
-    const teacher = (colTeacher !== -1 && r[colTeacher]) ? String(r[colTeacher]).trim() : `${grade}年級${className}班導師`;
+    const teacher = (colTeacher !== -1 && r[colTeacher]) ? String(r[colTeacher]).trim() : (grade === '緊急應變小組' ? `${className}組長` : `${grade}年級${className}班導師`);
     const teacherPhone = (colTeacherPhone !== -1 && r[colTeacherPhone]) ? String(r[colTeacherPhone]).trim() : '';
     const { status, isActive } = normalizeStatus(r[colStatus]);
     const id = `${grade}_${className}_${seatRaw}`;
@@ -5027,6 +5187,8 @@ const exportedAppMethods = {
   closeExcelImportModal,
   downloadRosterExcelTemplate,
   downloadRosterCsvTemplate,
+  downloadEmergencyTeamExcelTemplate,
+  downloadEmergencyTeamCsvTemplate,
   handleExcelFileSelected,
   parseRosterDataArray,
   executeRosterExcelImport,
@@ -5139,6 +5301,8 @@ export {
   closeExcelImportModal,
   downloadRosterExcelTemplate,
   downloadRosterCsvTemplate,
+  downloadEmergencyTeamExcelTemplate,
+  downloadEmergencyTeamCsvTemplate,
   handleExcelFileSelected,
   parseRosterDataArray,
   executeRosterExcelImport,

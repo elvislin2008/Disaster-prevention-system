@@ -215,4 +215,47 @@ describe('Tier 1: Feature 31 - Full Roster & Transfer Status Management (師生�
     assert.equal(parsed[2].status, 'transferred_out');
     assert.equal(parsed[2].isActive, false);
   });
+
+  it('F31-10: parseRosterDataArray parses 3-column Emergency Response Team format (組別, 編號, 姓名)', () => {
+    const rawEmergencyRows = [
+      ['組別', '編號', '姓名'],
+      ['指揮官', '1', '陳校長'],
+      ['通報組', '1', '黃主任'],
+      ['避難引導組', '2', '王組員'],
+      ['安全防護', '3', '李組長'],
+      ['救護', '1', '孫護理師']
+    ];
+
+    const parsed = parseRosterDataArray(rawEmergencyRows);
+    assert.equal(parsed.length, 5, 'Should parse 5 emergency team members');
+
+    assert.equal(parsed[0].grade, '緊急應變小組');
+    assert.equal(parsed[0].className, '指揮官');
+    assert.equal(parsed[0].seatRaw, '01號');
+    assert.equal(parsed[0].name, '陳校長');
+    assert.equal(parsed[0].id, '緊急應變小組_指揮官_01號');
+    assert.equal(parsed[0].classKey, '緊急應變小組 指揮官');
+    assert.equal(parsed[0].gender, '教職員');
+
+    assert.equal(parsed[1].grade, '緊急應變小組');
+    assert.equal(parsed[1].className, '通報組');
+    assert.equal(parsed[1].seatRaw, '01號');
+    assert.equal(parsed[1].name, '黃主任');
+
+    assert.equal(parsed[2].grade, '緊急應變小組');
+    assert.equal(parsed[2].className, '避難引導組');
+    assert.equal(parsed[2].seatRaw, '02號');
+    assert.equal(parsed[2].name, '王組員');
+
+    // Test group name normalization: 安全防護 -> 安全防護組
+    assert.equal(parsed[3].grade, '緊急應變小組');
+    assert.equal(parsed[3].className, '安全防護組');
+    assert.equal(parsed[3].seatRaw, '03號');
+
+    // Test group name normalization: 救護 -> 緊急救護組
+    assert.equal(parsed[4].grade, '緊急應變小組');
+    assert.equal(parsed[4].className, '緊急救護組');
+    assert.equal(parsed[4].seatRaw, '01號');
+    assert.equal(parsed[4].name, '孫護理師');
+  });
 });

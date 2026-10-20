@@ -797,15 +797,17 @@
         <!-- 步驟 1：下載範本 -->
         <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
-            <div style="font-size:0.9rem; font-weight:bold; color:#166534; margin-bottom:3px;">📥 步驟一：下載全校名冊 Excel 標準範例檔</div>
+            <div style="font-size:0.9rem; font-weight:bold; color:#166534; margin-bottom:3px;">📥 步驟一：下載標準 Excel / CSV 範例檔</div>
             <div style="font-size:0.78rem; color:#15803d; line-height:1.4;">
-              欄位依序包含：<b>年級、班級、座號、學生姓名、家長姓名、家長電話、在籍狀態</b>。<br>
-              支援格式：<code>.xlsx</code>、<code>.xls</code>、<code>.csv</code>，請依照範本欄位格式填寫。
+              <b>全校學生名冊 (7 欄)</b>：年級、班級、座號、學生姓名、家長姓名、家長電話、在籍狀態。<br>
+              <b>緊急應變小組 (3 欄)</b>：組別、編號、姓名（如：通報組、避難引導組、安全防護組、搶救組、緊急救護組、指揮官）。
             </div>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="btn-verify-speech" style="background:#059669; color:#fff; padding:7px 12px; font-size:0.82rem; font-weight:bold;" onclick="downloadRosterExcelTemplate()">📥 下載 Excel 範本 (.xlsx)</button>
-            <button type="button" class="btn-verify-speech" style="background:#4b5563; color:#fff; padding:7px 12px; font-size:0.82rem;" onclick="downloadRosterCsvTemplate()">📄 備用 CSV 範本</button>
+            <button type="button" class="btn-verify-speech" style="background:#059669; color:#fff; padding:7px 12px; font-size:0.82rem; font-weight:bold;" onclick="downloadRosterExcelTemplate()">📥 全校名冊 (.xlsx)</button>
+            <button type="button" class="btn-verify-speech" style="background:#4b5563; color:#fff; padding:7px 12px; font-size:0.82rem;" onclick="downloadRosterCsvTemplate()">📄 全校 CSV</button>
+            <button type="button" class="btn-verify-speech" style="background:#0284c7; color:#fff; padding:7px 12px; font-size:0.82rem; font-weight:bold;" onclick="downloadEmergencyTeamExcelTemplate()">🛡️ 應變小組 (.xlsx)</button>
+            <button type="button" class="btn-verify-speech" style="background:#475569; color:#fff; padding:7px 12px; font-size:0.82rem;" onclick="downloadEmergencyTeamCsvTemplate()">📄 應變小組 CSV</button>
           </div>
         </div>
 
@@ -909,11 +911,11 @@
        5. GAS 仿真適配器 (gas-bridge-adapter.js)
        6. 前端業務邏輯 (app.js)
        ======================================================================== -->
-  <script src="js/config.js?v=20261020_2240"></script>
-  <script type="module" src="js/supabase-auth.js?v=20261020_2240"></script>
-  <script type="module" src="js/firestore-service.js?v=20261020_2240"></script>
-  <script type="module" src="js/offline-manager.js?v=20261020_2240"></script>
-  <script type="module" src="js/gas-bridge-adapter.js?v=20261020_2240"></script>
-  <script type="module" src="js/app.js?v=20261020_2240"></script>
+  <script src="js/config.js?v=20261020_2248"></script>
+  <script type="module" src="js/supabase-auth.js?v=20261020_2248"></script>
+  <script type="module" src="js/firestore-service.js?v=20261020_2248"></script>
+  <script type="module" src="js/offline-manager.js?v=20261020_2248"></script>
+  <script type="module" src="js/gas-bridge-adapter.js?v=20261020_2248"></script>
+  <script type="module" src="js/app.js?v=20261020_2248"></script>
 </body>
 </html>
