@@ -1257,10 +1257,10 @@ function switchRescueSubTab(tabType) {
     const role = auth.getUserRole();
     const roleTitle = ROLE_NAME_ZH[role] || '一般訪客';
 
-    // 切換 A 區塊 (傷病處置與搜救) 嚴格查驗：僅限救護官或總指揮官
+    // 切換 A 區塊 (搜救與傷病處置) 嚴格查驗：僅限危難救助組 (搶救組、緊急救護組) 或總指揮官
     if (tabType === 'A') {
       if (!hasCommanderAccess && !canRescue) {
-        alert(`⛔ 存取被拒絕：【A 區：傷病處置與搜救】僅限緊急救護官或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+        alert(`⛔ 存取被拒絕：【A 區：搜救與傷病處置】僅限危難救助組（搶救組、緊急救護組）或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
         return;
       }
     }
@@ -4118,7 +4118,7 @@ function navigateByRole(role) {
     // 總指揮官 ➔ 自動切換至 🏫 指揮中心
     switchPage('adminPage');
   } else if (cleanRole === 'medical' || cleanRole === 'rescue_officer') {
-    // 緊急救護官 ➔ 自動切換至 🆘 危難救助 (A區：傷病處置與搜救)
+    // 危難救助組 (搶救組、緊急救護組) ➔ 自動切換至 🆘 危難救助 (A區：搜救與傷病處置)
     switchPage('rescuePage');
     if (typeof switchRescueSubTab === 'function') {
       switchRescueSubTab('A');

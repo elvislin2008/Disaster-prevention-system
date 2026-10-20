@@ -182,11 +182,11 @@
       <button class="tab-btn" onclick="switchPage('adminPage', this)">🏫 指揮中心</button>
     </div>
     <div class="rescue-sub-tabs">
-      <button id="subBtnRescueA" class="rescue-sub-btn active-rescue" onclick="switchRescueSubTab('A')">🚨 A 區塊：傷病處置與搜救</button>
+      <button id="subBtnRescueA" class="rescue-sub-btn active-rescue" onclick="switchRescueSubTab('A')">🚨 A 區塊：搜救與傷病處置</button>
       <button id="subBtnRescueB" class="rescue-sub-btn" onclick="switchRescueSubTab('B')">🏢 B 區塊：建物安全檢核</button>
     </div>
     <div id="cardRescueA" class="card">
-      <h3 style="margin-top:0; color:#dc3545; font-size:1rem;">🚨 A 區塊：危難救助與急救傷病處置</h3>
+      <h3 style="margin-top:0; color:#dc3545; font-size:1rem;">🚨 A 區塊：搜救與傷病處置</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -521,22 +521,22 @@
             </div>
           </div>
 
-          <!-- 2. 危難救助組 -->
+          <!-- 2. 危難救助組 (A 區塊) -->
           <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #dc3545; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:bold; color:#dc3545; font-size:0.9rem;">🚑 危難救助組</div>
-              <div style="font-size:0.75rem; color:#666;">搶救組 (搶救受困學生)、緊急救護組 (學生檢傷分類)</div>
+              <div style="font-weight:bold; color:#dc3545; font-size:0.9rem;">🚨 危難救助組 (A 區塊：搜救與傷病處置)</div>
+              <div style="font-size:0.75rem; color:#666;">搶救組 (搶救受困學生)、緊急救護組 (學生檢傷分類) — 共用此密碼</div>
             </div>
             <div style="width:140px;">
               <input id="cfgPasscodeMedical" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #dc3545; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
             </div>
           </div>
 
-          <!-- 3. 建物巡檢組 -->
+          <!-- 3. 建物巡檢組 (B 區塊) -->
           <div style="background:#fff; border:1px solid #dee2e6; border-left:4px solid #d97706; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:bold; color:#d97706; font-size:0.9rem;">🏢 建物巡檢組</div>
-              <div style="font-size:0.75rem; color:#666;">安全防護組 (建築物巡檢)</div>
+              <div style="font-weight:bold; color:#d97706; font-size:0.9rem;">🏢 建物巡檢組 (B 區塊：建物安全檢核)</div>
+              <div style="font-size:0.75rem; color:#666;">安全防護組 (建築物安全巡檢)</div>
             </div>
             <div style="width:140px;">
               <input id="cfgPasscodeInspector" type="text" inputmode="numeric" maxlength="8" style="width:100%; padding:8px; border:1.5px solid #d97706; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center; box-sizing:border-box;" required />
