@@ -463,6 +463,11 @@ class GasRunner {
         if (val.searchDone) searchStatus[key] = true;
       }
 
+      const pulloutMap = {};
+      for (const [key, val] of Object.entries(pullouts || {})) {
+        pulloutMap[key] = (typeof val === 'string') ? val : (val.status || 'pending');
+      }
+
       const contacts = {};
       const helpRequests = {};
       for (const [key, val] of Object.entries(contactsObj)) {
@@ -475,7 +480,7 @@ class GasRunner {
       const stateResult = {
         // 大寫相容規格 (Mock & Backend)
         CLASS_REPORTS_DATA: reports || {},
-        PULLOUT_STATUS_MAP: pullouts || {},
+        PULLOUT_STATUS_MAP: pulloutMap,
         RESCUE_TRIAGE_MAP: rescues || {},
         SEARCH_STATUS_MAP: searchStatus,
         CONTACT_STATES: contacts,
@@ -486,7 +491,7 @@ class GasRunner {
 
         // 前端 v204 Index.txt 原生變數名稱對齊 (L702-708)
         classReports: reports || {},
-        pulloutStatusMap: pullouts || {},
+        pulloutStatusMap: pulloutMap,
         rescueTriageMap: rescues || {},
         searchStatusMap: searchStatus,
         contactStates: contacts,
@@ -813,9 +818,45 @@ class GasRunner {
         }
       }
 
-      // 依使用者需求：壓力測試模擬「每班均有傷員」，讓指揮官與救護小組可以查看並點掉 (安全送班 / OK確認 / 完結)
+      // 壓測前先重置清除舊的搜救、抽離與聯繫狀態，確保畫面乾淨不殘留舊壓測資料
+      if (typeof fs.clearCollection === 'function') {
+        fs.clearCollection('rescues');
+        fs.clearCollection('pullouts');
+        fs.clearCollection('contacts');
+      }
+
+      // 依使用者需求：
+      // 1. 壓測時只要 10-15 個班出現狀況就好，其他都是綠色完成點名。
+      // 2. 這 10-15 個班的情況為：學生抽離 (學習中心、母語、團隊) 或者是失蹤。
+      // 3. 抽離確認、危難救助 (搶救、檢傷與建物巡視) 只要顯示學生的狀況就好了，先不要代為處理，讓使用者可以現場展示點擊操作。
+
+      // 決定狀況班級數量：12 班 (10~15 班範圍內)
+      const totalActive = activeClasses.length;
+      const anomalyCount = Math.min(totalActive, 12);
+
+      // 在在校班級中均勻分散選取 12 個班級
+      const anomalyClassMap = new Map(); // targetIdx -> anomalyType ('study_center' | 'native_lang' | 'team' | 'missing')
+      if (totalActive > 0) {
+        const step = totalActive / anomalyCount;
+        for (let i = 0; i < anomalyCount; i++) {
+          const targetIdx = Math.floor(i * step);
+          // 4 種狀況輪流均勻分配：
+          // i % 4 === 0: 學習中心抽離 (studyCenter)
+          // i % 4 === 1: 本土語抽離 (nativeLang)
+          // i % 4 === 2: 團隊抽離 (team)
+          // i % 4 === 3: 失蹤搜救中 (missing)
+          let anomalyType = 'study_center';
+          if (i % 4 === 1) anomalyType = 'native_lang';
+          else if (i % 4 === 2) anomalyType = 'team';
+          else if (i % 4 === 3) anomalyType = 'missing';
+
+          anomalyClassMap.set(targetIdx, anomalyType);
+        }
+      }
+
       let idx = 0;
-      for (const classKey of activeClasses) {
+      for (let classIdx = 0; classIdx < activeClasses.length; classIdx++) {
+        const classKey = activeClasses[classIdx];
         idx++;
         const parts = classKey.split(' ');
         const grade = parts[0];
@@ -834,56 +875,175 @@ class GasRunner {
         const teacherPhone = firstStudent ? firstStudent.teacherPhone : `0988-000-${String(idx).padStart(3, '0')}`;
 
         const sKey = `${classKey}_${seatRaw}`;
-        // 依序輪流分配黃卡、紅卡、綠卡檢傷分類
-        const triageColor = (idx % 3 === 0) ? 'red' : ((idx % 3 === 1) ? 'yellow' : 'green');
-        const triageNote = triageColor === 'red' ? '📌 演練傷情：頭部外傷 (急救中)' : (triageColor === 'yellow' ? '📌 演練傷情：手臂骨折待後送' : '📌 演練傷情：肢體輕微擦傷');
-        const escortCount = (triageColor === 'green') ? 0 : (triageColor === 'red' ? 2 : 1);
-
-        const report = {
-          total: 28,
-          presentCount: 27,
-          leave: [],
-          pickedUp: [],
-          studyCenter: [],
-          nativeLang: [],
-          team: [],
-          missing: [{
-            seatRaw: seatRaw,
-            name: studentName,
-            phone: parentPhone,
-            teacher: teacherName,
-            teacherPhone: teacherPhone,
-            locationTag: triageNote
-          }],
-          leaveCount: 0,
-          missingCount: 1,
-          timestamp: Date.now()
+        const studentObj = {
+          seatRaw: seatRaw,
+          name: studentName,
+          phone: parentPhone,
+          teacher: teacherName,
+          teacherPhone: teacherPhone
         };
 
-        // 寫入 rescues 集合：狀態為 injured (受傷)，初始 searchDone: false 供指揮官查看與點掉
-        await fs.setRescue(sKey, {
-          targetKey: sKey,
-          studentKey: sKey,
-          classKey: classKey,
-          name: studentName,
-          status: 'injured',
-          triage: triageColor,
-          escortCount: escortCount,
-          searchDone: false,
-          locationFound: '班級走廊/操場前',
-          note: triageNote,
-          updatedAt: Date.now()
-        });
+        const anomalyType = anomalyClassMap.get(classIdx);
 
-        // 寫入 contacts 集合：初態為 未聯繫，供指揮中心聯繫核實
-        await fs.setContact(sKey, {
-          studentKey: sKey,
-          status: '未聯繫',
-          count: 0,
-          updatedAt: Date.now()
-        });
+        if (!anomalyType) {
+          // ==========================================
+          // 綠色班級：全班正常到齊，完成點名
+          // ==========================================
+          const report = {
+            total: 28,
+            presentCount: 28,
+            leave: [],
+            pickedUp: [],
+            studyCenter: [],
+            nativeLang: [],
+            team: [],
+            missing: [],
+            leaveCount: 0,
+            missingCount: 0,
+            timestamp: Date.now()
+          };
+          await fs.setClassReport(classKey, report);
+        } else if (anomalyType === 'study_center') {
+          // ==========================================
+          // 狀況 1：學習中心抽離 (待確認，不代為處理)
+          // ==========================================
+          const report = {
+            total: 28,
+            presentCount: 27,
+            leave: [],
+            pickedUp: [],
+            studyCenter: [studentObj],
+            nativeLang: [],
+            team: [],
+            missing: [],
+            leaveCount: 0,
+            missingCount: 0,
+            timestamp: Date.now()
+          };
+          await fs.setClassReport(classKey, report);
 
-        await fs.setClassReport(classKey, report);
+          await fs.setPullout(sKey, {
+            studentKey: sKey,
+            classKey: classKey,
+            category: 'study_center',
+            status: 'pending', // 保持待確認
+            safe: false,
+            updatedAt: Date.now()
+          });
+        } else if (anomalyType === 'native_lang') {
+          // ==========================================
+          // 狀況 2：本土語抽離 (待確認，不代為處理)
+          // ==========================================
+          const report = {
+            total: 28,
+            presentCount: 27,
+            leave: [],
+            pickedUp: [],
+            studyCenter: [],
+            nativeLang: [studentObj],
+            team: [],
+            missing: [],
+            leaveCount: 0,
+            missingCount: 0,
+            timestamp: Date.now()
+          };
+          await fs.setClassReport(classKey, report);
+
+          await fs.setPullout(sKey, {
+            studentKey: sKey,
+            classKey: classKey,
+            category: 'native_lang',
+            status: 'pending', // 保持待確認
+            safe: false,
+            updatedAt: Date.now()
+          });
+        } else if (anomalyType === 'team') {
+          // ==========================================
+          // 狀況 3：團隊抽離 (待確認，不代為處理)
+          // ==========================================
+          const report = {
+            total: 28,
+            presentCount: 27,
+            leave: [],
+            pickedUp: [],
+            studyCenter: [],
+            nativeLang: [],
+            team: [studentObj],
+            missing: [],
+            leaveCount: 0,
+            missingCount: 0,
+            timestamp: Date.now()
+          };
+          await fs.setClassReport(classKey, report);
+
+          await fs.setPullout(sKey, {
+            studentKey: sKey,
+            classKey: classKey,
+            category: 'team',
+            status: 'pending', // 保持待確認
+            safe: false,
+            updatedAt: Date.now()
+          });
+        } else if (anomalyType === 'missing') {
+          // ==========================================
+          // 狀況 4：失蹤搜救中 (只要顯示搜救中，不代為處理)
+          // ==========================================
+          const missingStudent = { ...studentObj, locationTag: '' };
+          const report = {
+            total: 28,
+            presentCount: 27,
+            leave: [],
+            pickedUp: [],
+            studyCenter: [],
+            nativeLang: [],
+            team: [],
+            missing: [missingStudent],
+            leaveCount: 0,
+            missingCount: 1,
+            timestamp: Date.now()
+          };
+          await fs.setClassReport(classKey, report);
+
+          // 寫入 rescues 集合：
+          // 只要顯示學生的狀況 (搜救中 searching)，先不要代為處理 (未選檢傷、未選陪同、未點OK、未填地點)
+          await fs.setRescue(sKey, {
+            targetKey: sKey,
+            studentKey: sKey,
+            classKey: classKey,
+            name: studentName,
+            status: 'searching', // 1. 搜救中 (等待操作)
+            triage: 'none',      // 尚未點選檢傷分類卡
+            escortCount: 0,      // 尚未點選陪同就醫人數
+            searchDone: false,   // 尚未點 OK 確認
+            locationFound: '',   // 未填地點
+            note: '',            // 未填備註
+            updatedAt: Date.now()
+          });
+
+          // 寫入 contacts 集合：初態為 未聯繫
+          await fs.setContact(sKey, {
+            studentKey: sKey,
+            status: '未聯繫',
+            count: 0,
+            updatedAt: Date.now()
+          });
+        }
+      }
+
+      // 重置 6 大建物為安全待檢初始值，不預先代為送出或打勾，讓使用者可以現場展示點選
+      const defaultBuildings = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
+      for (const bName of defaultBuildings) {
+        if (typeof fs.setBuilding === 'function') {
+          await fs.setBuilding(bName, {
+            buildingName: bName,
+            submitted: false,
+            indicators: {
+              column: true, beam: true, wall: true, stair: true,
+              ceiling: true, window: true, water_elec: true, crack: true
+            },
+            notes: {}
+          });
+        }
       }
 
       // 儲存最新壓測紀錄至 system_config/state

@@ -4295,8 +4295,13 @@ function loadSavedFullState(state) {
   else if (state.RESCUE_TRIAGE_MAP !== undefined) rescueTriageMap = state.RESCUE_TRIAGE_MAP || {};
 
   // 5. 抽離追蹤狀態
-  if (state.pulloutStatusMap !== undefined) pulloutStatusMap = state.pulloutStatusMap || {};
-  else if (state.PULLOUT_STATUS_MAP !== undefined) pulloutStatusMap = state.PULLOUT_STATUS_MAP || {};
+  const rawPullouts = (state.pulloutStatusMap !== undefined) ? state.pulloutStatusMap : state.PULLOUT_STATUS_MAP;
+  if (rawPullouts !== undefined) {
+    pulloutStatusMap = {};
+    for (const [k, v] of Object.entries(rawPullouts || {})) {
+      pulloutStatusMap[k] = (typeof v === 'string') ? v : (v.status || 'pending');
+    }
+  }
 
   // 6. 訪客數據
   if (state.visitorCounts !== undefined) visitorCounts = state.visitorCounts || { student: 0, teacher: 0, parent: 0, vendor: 0 };

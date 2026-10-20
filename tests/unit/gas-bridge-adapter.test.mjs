@@ -298,14 +298,24 @@ describe('Unit Tests: GASBridgeAdapter & google.script.run Emulator (Milestone 3
       assert.ok(res.classesCount > 0);
       assert.equal(res.mode, 'mon_am');
 
-      // Verify: 每班均有傷員供指揮官查看與點掉
+      // Verify: 10-15 班有狀況 (抽離、失蹤)，失蹤者為 searching 待搜救狀態，其餘班級綠色全到
       const allRescues = await firestore.getAllRescues();
-      let injuredCount = 0;
+      const allPullouts = await firestore.getAllPullouts();
+      assert.ok(Object.keys(allRescues).length > 0, 'Has missing students in rescues');
+      assert.ok(Object.keys(allPullouts).length > 0, 'Has pullout students in pullouts');
+      
+      // Rescues are in initial searching state, awaiting live demo triage
       for (const r of Object.values(allRescues)) {
-        if (r.status === 'injured') injuredCount++;
+        assert.equal(r.status, 'searching');
+        assert.equal(r.searchDone, false);
+        assert.equal(r.triage, 'none');
       }
 
-      assert.equal(injuredCount, res.classesCount, 'Every active class has an injured casualty simulated for commander triage');
+      // Pullouts are pending per Iron Rule 4
+      for (const p of Object.values(allPullouts)) {
+        assert.equal(p.status, 'pending');
+        assert.equal(p.safe, false);
+      }
 
       // Check getLatestStressTestClassList
       const listData = await new Promise(resolve => {
