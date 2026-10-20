@@ -106,6 +106,8 @@ function isCommanderEmail(rawEmail) {
     e.includes('@gmail') ||
     e.startsWith('commander') ||
     e.includes('admin') ||
+    e.includes('lucyhuang') ||
+    e.includes('fiven') ||
     COMMANDER_MASTER_EMAILS.includes(e)
   );
 }
