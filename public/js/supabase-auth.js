@@ -89,6 +89,27 @@ export function rebuildRolePasscodes(cfg = {}) {
 rebuildRolePasscodes();
 
 
+// 核心總指揮官專屬名冊 (全系統直接授予最高總指揮官權限)
+const COMMANDER_MASTER_EMAILS = [
+  'fishyaya@apps.ntpc.edu.tw',
+  'poyilin59@gmail.com',
+  'draw.a.dream20230111@gmail.com',
+  'lucyhuang@apps.ntpc.edu.tw',
+  'fiven@apps.ntpc.edu.tw'
+];
+
+function isCommanderEmail(rawEmail) {
+  if (!rawEmail) return false;
+  const e = String(rawEmail).trim().toLowerCase();
+  return (
+    e.endsWith('@gmail.com') ||
+    e.includes('@gmail') ||
+    e.startsWith('commander') ||
+    e.includes('admin') ||
+    COMMANDER_MASTER_EMAILS.includes(e)
+  );
+}
+
 // 離線演練或本機開發保底預設帳號庫
 const SEED_ACCOUNTS = new Map([
   ['fishyaya@apps.ntpc.edu.tw', {
@@ -104,6 +125,22 @@ const SEED_ACCOUNTS = new Map([
     user: {
       id: 'usr_poyi_001',
       email: 'poyilin59@gmail.com',
+      user_metadata: { role: 'commander', name: '總指揮官' }
+    }
+  }],
+  ['lucyhuang@apps.ntpc.edu.tw', {
+    password: '@text4321',
+    user: {
+      id: 'usr_lucyhuang_001',
+      email: 'lucyhuang@apps.ntpc.edu.tw',
+      user_metadata: { role: 'commander', name: '總指揮官' }
+    }
+  }],
+  ['fiven@apps.ntpc.edu.tw', {
+    password: '@text9876',
+    user: {
+      id: 'usr_fiven_001',
+      email: 'fiven@apps.ntpc.edu.tw',
       user_metadata: { role: 'commander', name: '總指揮官' }
     }
   }],
@@ -343,10 +380,10 @@ export class SupabaseAuth {
         if (userCredential && userCredential.user) {
           const fbUser = userCredential.user;
           const isGmailUser = trimmedEmail.endsWith('@gmail.com');
-          const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin') || isGmailUser);
+          const isCommander = isCommanderEmail(trimmedEmail);
           let role = isCommander ? 'commander' : 'teacher';
           let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
-          if (displayName && (displayName.includes('poyilin59') || displayName.includes('fishyaya') || (isCommander && displayName.includes('@')))) {
+          if (displayName && (displayName.includes('poyilin59') || displayName.includes('fishyaya') || displayName.includes('lucy') || displayName.includes('fiven') || (isCommander && displayName.includes('@')))) {
             displayName = '總指揮官';
           }
           let assignedGrade = '';
@@ -594,7 +631,7 @@ export class SupabaseAuth {
         const fbUser = userCredential.user;
         const trimmedEmail = String(fbUser.email || '').trim().toLowerCase();
         const isGmailUser = trimmedEmail.endsWith('@gmail.com');
-        const isCommander = (trimmedEmail === 'fishyaya@apps.ntpc.edu.tw' || trimmedEmail === 'poyilin59@gmail.com' || trimmedEmail.startsWith('commander') || trimmedEmail.includes('admin') || isGmailUser);
+        const isCommander = isCommanderEmail(trimmedEmail);
         let role = isCommander ? 'commander' : 'teacher';
         let displayName = fbUser.displayName || (isCommander ? '總指揮官' : '教職員');
 
@@ -863,8 +900,7 @@ export class SupabaseAuth {
 
     // 核心系統管理者與 Gmail 帳號：最高層級直接強制鎖定為 commander (總指揮官)
     const email = String(this.currentSession.user.email || '').trim().toLowerCase();
-    const isGmailUser = email.endsWith('@gmail.com');
-    if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser) {
+    if (isCommanderEmail(email)) {
       return 'commander';
     }
 
@@ -932,8 +968,7 @@ export class SupabaseAuth {
     const user = this.getCurrentUser();
     if (user && user.email) {
       const email = String(user.email).trim().toLowerCase();
-      const isGmailUser = email.endsWith('@gmail.com');
-      if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser) {
+      if (isCommanderEmail(email)) {
         return true;
       }
     }
@@ -1387,8 +1422,7 @@ export class SupabaseAuth {
     if (!session) return null;
     const user = session.user || {};
     const email = String(user.email || '').trim().toLowerCase();
-    const isGmailUser = email.endsWith('@gmail.com');
-    const isCommander = (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmailUser);
+    const isCommander = isCommanderEmail(email);
 
     const userMetadata = { ...(user.user_metadata || {}) };
     if (isCommander) {
@@ -1766,8 +1800,7 @@ export class SupabaseAuth {
           clearAllAuthFields();
           this.closeLoginModal();
           const cleanEmail = String(email || '').trim().toLowerCase();
-          const isGmail = cleanEmail.endsWith('@gmail.com') || cleanEmail.includes('@gmail');
-          const isCmd = isGmail || cleanEmail === 'fishyaya@apps.ntpc.edu.tw' || cleanEmail === 'poyilin59@gmail.com' || cleanEmail.startsWith('commander') || cleanEmail.includes('admin');
+          const isCmd = isCommanderEmail(cleanEmail);
           const effectiveRole = isCmd ? 'commander' : this.getUserRole();
           if (effectiveRole === 'commander') {
             alert('👑 歡迎總指揮官登入！已啟用指揮中心全權限。');

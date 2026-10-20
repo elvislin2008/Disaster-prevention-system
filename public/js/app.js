@@ -2024,7 +2024,8 @@ function checkSystemAdminAccess() {
   const email = (user && user.email) ? String(user.email).trim().toLowerCase() : '';
   const isCommander = role === 'commander';
   const isGmail = email.endsWith('@gmail.com');
-  const isAdminEmail = email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com' || email.startsWith('commander') || email.includes('admin') || isGmail;
+  const masterAdmins = ['fishyaya@apps.ntpc.edu.tw', 'poyilin59@gmail.com', 'lucyhuang@apps.ntpc.edu.tw', 'fiven@apps.ntpc.edu.tw', 'draw.a.dream20230111@gmail.com'];
+  const isAdminEmail = masterAdmins.includes(email) || email.startsWith('commander') || email.includes('admin') || isGmail;
   if (isCommander || isAdminEmail) {
     return true;
   }
@@ -2141,9 +2142,9 @@ async function renderUserPermissionTable() {
     return a.email.localeCompare(b.email);
   });
 
-  let html = '';
+  const masterAdmins = ['fishyaya@apps.ntpc.edu.tw', 'poyilin59@gmail.com', 'lucyhuang@apps.ntpc.edu.tw', 'fiven@apps.ntpc.edu.tw', 'draw.a.dream20230111@gmail.com'];
   userList.forEach((u, idx) => {
-    const isMaster = u.email === 'fishyaya@apps.ntpc.edu.tw' || u.email === 'poyilin59@gmail.com';
+    const isMaster = masterAdmins.includes(u.email);
     const isGmail = u.email && u.email.endsWith('@gmail.com');
     const safeEmail = u.email.replace(/[^a-zA-Z0-9]/g, '_');
     const displayAccount = isMaster ? '👑 總指揮官主帳號 (系統管理)' : escapeHtml(u.email);
@@ -2421,7 +2422,8 @@ async function addNewUserPermission() {
 async function deleteSingleUserPermission(email) {
   if (!checkSystemAdminAccess()) return;
 
-  if (email === 'fishyaya@apps.ntpc.edu.tw' || email === 'poyilin59@gmail.com') {
+  const masterAdmins = ['fishyaya@apps.ntpc.edu.tw', 'poyilin59@gmail.com', 'lucyhuang@apps.ntpc.edu.tw', 'fiven@apps.ntpc.edu.tw', 'draw.a.dream20230111@gmail.com'];
+  if (masterAdmins.includes(email)) {
     alert('⚠️ 主要系統管理者帳號不可刪除！');
     return;
   }
