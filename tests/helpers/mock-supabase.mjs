@@ -196,14 +196,12 @@ export class MockSupabaseAuth {
     map['1111'] = { role: 'pullout_teacher', name: '抽離專責教師' };
     map['5555'] = { role: 'visitor_manager', name: '訪客登記組' };
     map['4444'] = { role: 'visitor_manager', name: '訪客登記組' };
-    map['8888'] = { role: 'commander', name: '演練總指揮官 (8888)' };
 
     // 動態最新設定覆蓋（自訂最高優先權）
     if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
     if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '搜救檢傷組 (搶救組/緊急救護組)' };
     if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
     if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組' };
-    if (cfg.commander_drill) map[String(cfg.commander_drill).trim()] = { role: 'commander', name: '演練總指揮官' };
     return map;
   }
 
@@ -222,22 +220,11 @@ export class MockSupabaseAuth {
   // Passcode Quick Login (supports dynamic passcodes set by commander)
   loginWithPasscode(passcode) {
     const code = String(passcode || '').trim();
-    const cfg = this.getPasscodesConfig();
-    const drillPin = String(cfg.commander_drill || '8888').trim();
-    if (code === drillPin || code === '8888') {
-      this.drillUnlockExpiry = Date.now() + 20 * 60 * 1000;
-      const session = {
-        access_token: 'jwt_pin_commander',
-        user: {
-          id: 'drill_commander_evaluator',
-          email: 'drill@commander.local',
-          user_metadata: { role: 'commander', name: '演練總指揮官 (' + code + ')', loginType: 'pin_passcode' }
-        },
-        expires_at: Math.floor(Date.now() / 1000) + 3600
+    if (code === '8888') {
+      return {
+        success: false,
+        error: '⚠️ 8888 密碼已停用！總指揮官請使用專屬帳號密碼登入。'
       };
-      this.currentSession = session;
-      this._notifyAuthState('SIGNED_IN', session);
-      return { success: true, role: 'commander', name: '演練總指揮官 (' + code + ')' };
     }
 
     const roleMap = this.getActiveRolePasscodes();

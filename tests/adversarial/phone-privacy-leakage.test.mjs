@@ -105,9 +105,9 @@ describe('Adversarial Verification: 3. Phone Masking Privacy Leakage', () => {
     await auth.login('teacher1_1@qs.edu.tw', 'tea123456');
     assert.equal(auth.canUnlockMaskedPhones('drill'), false);
 
-    // Enter correct 8888 passcode
-    const unlockRes = auth.loginWithPasscode('8888');
-    assert.equal(unlockRes.success, true);
+    // Verify drill passcode
+    const ok = auth.verifyDrillPasscode('8888');
+    assert.equal(ok, true);
     assert.equal(auth.isDrillUnlocked(), true);
     assert.equal(auth.canUnlockMaskedPhones('drill'), true);
     assert.equal(auth.getMaskedPhone('0912345678', 'drill'), '0912345678');

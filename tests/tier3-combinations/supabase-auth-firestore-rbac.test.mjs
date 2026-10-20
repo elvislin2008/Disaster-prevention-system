@@ -109,11 +109,12 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(auth.getUserRole(), 'visitor_manager', '4444 must map to visitor_manager (訪客登記組)');
     assert.equal(auth.canAccessCommander(), false);
 
-    // 8888 -> Drill Commander Override
+    // 8888 -> Strictly blocked from quick login and never grants commander role
     const drillRes = auth.loginWithPasscode('8888');
-    assert.equal(drillRes.success, true);
-    assert.equal(auth.getUserRole(), 'commander');
-    assert.equal(auth.canAccessCommander(), true);
+    assert.equal(drillRes.success, false);
+    assert.ok(drillRes.error.includes('總指揮官') || drillRes.error.includes('8888'));
+    assert.notEqual(auth.getUserRole(), 'commander');
+    assert.equal(auth.canAccessCommander(), false);
 
     // Invalid PIN returns success: false
     const invalidRes = auth.loginWithPasscode('0000');
@@ -138,15 +139,13 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
       medical: '9999',
       inspector: '8877',
       pullout_teacher: '6666',
-      visitor_manager: '4321',
-      commander_drill: '9876'
+      visitor_manager: '4321'
     });
     assert.equal(res.success, true);
     assert.equal(res.config.medical, '9999');
     assert.equal(res.config.inspector, '8877');
     assert.equal(res.config.pullout_teacher, '6666');
     assert.equal(res.config.visitor_manager, '4321');
-    assert.equal(res.config.commander_drill, '9876');
 
     // 4. Logout commander
     await auth.signOut();
@@ -171,12 +170,6 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     const visRes = auth.loginWithPasscode('4321');
     assert.equal(visRes.success, true);
     assert.equal(auth.getUserRole(), 'visitor_manager');
-
-    // 9. Test logging in with newly configured PIN 9876 for drill commander
-    const drillRes = auth.loginWithPasscode('9876');
-    assert.equal(drillRes.success, true);
-    assert.equal(auth.getUserRole(), 'commander');
-    assert.equal(auth.canAccessCommander(), true);
   });
 
   it('T3-23: Passcode 2222 strictly maps to medical (搜救檢傷組) and 4444 strictly maps to visitor_manager (訪客登記組)', async () => {
