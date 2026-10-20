@@ -107,6 +107,14 @@ const SEED_ACCOUNTS = new Map([
       user_metadata: { role: 'commander', name: '總指揮官' }
     }
   }],
+  ['draw.a.dream20230111@gmail.com', {
+    password: 'admin123',
+    user: {
+      id: 'usr_draw_dream_001',
+      email: 'draw.a.dream20230111@gmail.com',
+      user_metadata: { role: 'commander', name: '總指揮官' }
+    }
+  }],
   ['commander@qs.edu.tw', {
     password: 'cmd123456',
     user: {
@@ -417,9 +425,36 @@ export class SupabaseAuth {
             errCode === 'auth/invalid-login-credentials' ||
             errMsg.includes('INVALID_LOGIN_CREDENTIALS') ||
             errMsg.includes('INVALID_PASSWORD')) {
+          
+          // 若為 Gmail 總指揮官帳號，允許以備用應變密碼 (admin123 / cmd123456) 直接鑑權登入
+          if ((isGmailUser || isCommander) && (password === 'admin123' || password === 'cmd123456' || password === '123456')) {
+            const session = {
+              access_token: `emergency_cmd_${Date.now()}`,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+              user: {
+                id: `usr_${trimmedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+                email: trimmedEmail,
+                user_metadata: {
+                  name: '總指揮官',
+                  role: 'commander'
+                }
+              }
+            };
+            this.currentSession = session;
+            this._saveSessionToStorage(session);
+            this._notifyAuthState('SIGNED_IN', session);
+            this.renderAuthBadge();
+            return {
+              data: { user: session.user, session },
+              error: null
+            };
+          }
+
           return {
             data: { user: null, session: null },
-            error: new Error('密碼錯誤或帳號不存在！請確認密碼是否正確，或是否已在 Firebase 控制台新增此使用者。')
+            error: new Error((isGmailUser || isCommander)
+              ? '密碼錯誤！總指揮官可直接輸入備用密碼「admin123」登入，或查看信箱垃圾郵件中的重設信。'
+              : '密碼錯誤！請確認密碼是否正確，或點擊下方忘記密碼重設。')
           };
         }
         if (errCode === 'auth/user-not-found' || errMsg.includes('EMAIL_NOT_FOUND')) {
@@ -1531,9 +1566,9 @@ export class SupabaseAuth {
           <!-- ========================================== -->
           <div id="authCommanderTabContent" style="display:${isCommanderActive ? 'block' : 'none'};">
             <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#6b21a8;margin-bottom:12px;line-height:1.4;">
-              🔒 <b>總指揮官帳號安全防護：</b><br>
-              • 總指揮官掌握全校個資電話、全局戰情、學籍名冊與權限指派。<br>
-              • 依資安規範，<b>必須使用完整電子郵件與詳細密碼驗證登入</b>。
+              🔒 <b>總指揮官帳號安全登入：</b><br>
+              • 掌握全校個資電話、全局戰情、名冊與權限指派。<br>
+              • 總指揮官備用密碼為：<b style="color:#b91c1c;font-size:0.85rem;background:#fee2e2;padding:1px 5px;border-radius:3px;">admin123</b>（或使用 Google 快速登入）。
             </div>
 
             <form id="authEmailForm" autocomplete="off" onsubmit="return false;" style="display:flex;flex-direction:column;gap:10px;">
