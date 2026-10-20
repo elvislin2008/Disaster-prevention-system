@@ -4227,9 +4227,9 @@ function switchPage(pageId, btn) {
       if (!hasCommanderAccess && !canRescue && !canPatrol) {
         if (!isAuth) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('medical');
-          alert('⚡ 災難快速通報：請輸入【危難救助組】或【建物巡檢組】數字通報碼進入！');
+          alert('⚡ 災難快速通報：請輸入【搶救組】、【緊急救護組】或【安全防護組】數字通報碼進入！');
         } else {
-          alert(`⛔ 存取被拒絕：【搜救檢傷與建物巡視】專區僅限危難救助組、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+          alert(`⛔ 存取被拒絕：【搜救檢傷與建物巡視】專區僅限【搶救組】、【緊急救護組】、【安全防護組】或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
         return;
       }
