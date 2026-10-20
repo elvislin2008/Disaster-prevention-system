@@ -34,7 +34,7 @@ export class MockSupabaseAuth {
     });
     this._registerUser('visitor@qs.edu.tw', 'vis123456', {
       role: 'visitor_manager',
-      name: '訪客登記組員'
+      name: '登記校外人員組員'
     });
   }
 
@@ -194,14 +194,14 @@ export class MockSupabaseAuth {
     map['7777'] = { role: 'inspector', name: '建物巡檢組' };
     map['3333'] = { role: 'pullout_teacher', name: '抽離專責教師' };
     map['1111'] = { role: 'pullout_teacher', name: '抽離專責教師' };
-    map['5555'] = { role: 'visitor_manager', name: '訪客登記組' };
-    map['4444'] = { role: 'visitor_manager', name: '訪客登記組' };
+    map['5555'] = { role: 'visitor_manager', name: '登記校外人員組' };
+    map['4444'] = { role: 'visitor_manager', name: '登記校外人員組' };
 
     // 動態最新設定覆蓋（自訂最高優先權）
     if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
     if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '搜救檢傷組 (搶救組/緊急救護組)' };
     if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
-    if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組' };
+    if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '登記校外人員組' };
     return map;
   }
 

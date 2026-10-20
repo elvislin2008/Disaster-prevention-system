@@ -1711,11 +1711,11 @@ function openVisitorModal() {
     if (!hasCommanderAccess && !isVisitorMgr) {
       if (!isAuth) {
         if (typeof auth.openLoginModal === 'function') auth.openLoginModal();
-        alert('🔒 權限受限：您必須先登入【訪客登記組】或【總指揮官】帳號才能登記校外/臨時人員！');
+        alert('🔒 權限受限：您必須先登入【登記校外人員組】或【總指揮官】帳號才能登記校外/臨時人員！');
       } else {
         const role = auth.getUserRole();
         const roleTitle = ROLE_NAME_ZH[role] || role;
-        alert(`⛔ 存取被拒絕：校外人員登記僅限訪客登記組或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+        alert(`⛔ 存取被拒絕：校外人員登記僅限登記校外人員組或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
       }
       return;
     }
@@ -2079,7 +2079,7 @@ const ROLE_OPTIONS_MAP = {
   medical: '🚑 緊急救護官',
   inspector: '🏢 建物巡檢組',
   pullout_teacher: '🔄 抽離專責教師',
-  visitor_manager: '📝 訪客登記組'
+  visitor_manager: '📝 登記校外人員組'
 };
 
 /**
@@ -2176,7 +2176,7 @@ async function renderUserPermissionTable() {
             <option value="medical" ${effectiveRole === 'medical' ? 'selected' : ''}>🚑 緊急救護官 (medical)</option>
             <option value="inspector" ${effectiveRole === 'inspector' ? 'selected' : ''}>🏢 建物巡檢組 (inspector)</option>
             <option value="pullout_teacher" ${effectiveRole === 'pullout_teacher' ? 'selected' : ''}>🔄 抽離專責教師 (pullout)</option>
-            <option value="visitor_manager" ${effectiveRole === 'visitor_manager' ? 'selected' : ''}>📝 訪客登記組 (visitor)</option>
+            <option value="visitor_manager" ${effectiveRole === 'visitor_manager' ? 'selected' : ''}>📝 登記校外人員組 (visitor)</option>
           </select>
         </td>
         <td style="padding:6px 10px; text-align:center;">
@@ -4504,7 +4504,7 @@ const ROLE_NAME_ZH = {
   rescue_officer: '搜救檢傷組 (搶救組/緊急救護組)',
   patrol: '建物巡檢組 (安全防護組)',
   inspector: '建物巡檢組 (安全防護組)',
-  visitor_manager: '訪客登記組',
+  visitor_manager: '登記校外人員組',
   teacher: '班級導師',
   visitor: '一般訪客'
 };
@@ -4535,7 +4535,7 @@ function navigateByRole(role) {
     // 抽離專責教師 ➔ 自動切換至 🔄 抽離確認
     switchPage('pulloutPage');
   } else if (cleanRole === 'visitor_manager') {
-    // 訪客登記組 ➔ 老師點名頁面並自動開啟外來人員登記
+    // 登記校外人員組 ➔ 老師點名頁面並自動開啟外來人員登記
     switchPage('teacherPage');
     if (typeof openVisitorModal === 'function') {
       openVisitorModal();

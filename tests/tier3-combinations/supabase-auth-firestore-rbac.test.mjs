@@ -100,13 +100,13 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(auth.getUserRole(), 'pullout_teacher');
     assert.equal(auth.canAccessCommander(), false);
 
-    // 5555 and 4444 -> Visitor Manager (訪客登記組)
+    // 5555 and 4444 -> Visitor Manager (登記校外人員組)
     await auth.loginWithPasscode('5555');
     assert.equal(auth.getUserRole(), 'visitor_manager');
     assert.equal(auth.canAccessCommander(), false);
 
     await auth.loginWithPasscode('4444');
-    assert.equal(auth.getUserRole(), 'visitor_manager', '4444 must map to visitor_manager (訪客登記組)');
+    assert.equal(auth.getUserRole(), 'visitor_manager', '4444 must map to visitor_manager (登記校外人員組)');
     assert.equal(auth.canAccessCommander(), false);
 
     // 8888 -> Strictly blocked from quick login and never grants commander role
@@ -172,7 +172,7 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.equal(auth.getUserRole(), 'visitor_manager');
   });
 
-  it('T3-23: Passcode 2222 strictly maps to medical (搜救檢傷組) and 4444 strictly maps to visitor_manager (訪客登記組)', async () => {
+  it('T3-23: Passcode 2222 strictly maps to medical (搜救檢傷組) and 4444 strictly maps to visitor_manager (登記校外人員組)', async () => {
     const auth = new MockSupabaseAuth();
 
     // Reset / ensure passcodes config with 2222 as medical and 4444 as visitor_manager
@@ -192,10 +192,10 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     assert.notEqual(auth.getUserRole(), 'visitor_manager', 'PIN 2222 must never enter visitor_manager');
     assert.notEqual(auth.getUserRole(), 'inspector', 'PIN 2222 must never enter inspector');
 
-    // Verify 4444 strictly routes to visitor_manager (訪客登記組)
+    // Verify 4444 strictly routes to visitor_manager (登記校外人員組)
     const visRes = auth.loginWithPasscode('4444');
     assert.equal(visRes.success, true);
-    assert.equal(auth.getUserRole(), 'visitor_manager', 'PIN 4444 must strictly enter visitor_manager (訪客登記組)');
+    assert.equal(auth.getUserRole(), 'visitor_manager', 'PIN 4444 must strictly enter visitor_manager (登記校外人員組)');
     assert.notEqual(auth.getUserRole(), 'medical', 'PIN 4444 must never enter medical');
   });
 });

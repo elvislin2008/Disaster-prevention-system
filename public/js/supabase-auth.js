@@ -27,7 +27,7 @@ const VALID_ROLES = [
   'rescue_officer',   // 搜救與救護官 (同義相容)
   'patrol',           // 建物巡檢組員
   'inspector',        // 建物巡檢組長 (同義相容)
-  'visitor_manager',  // 訪客登記組員
+  'visitor_manager',  // 登記校外人員組員
   'visitor'           // 訪客 (預設無編輯權限)
 ];
 
@@ -39,7 +39,7 @@ const ROLE_DISPLAY_NAMES = {
   rescue_officer: '搜救檢傷組 (搶救組/緊急救護組)',
   patrol: '建物巡檢組 (安全防護組)',
   inspector: '建物巡檢組 (安全防護組)',
-  visitor_manager: '訪客登記組 (代課/志工/廠商)',
+  visitor_manager: '登記校外人員組 (代課/志工/廠商)',
   visitor: '訪客'
 };
 
@@ -48,7 +48,7 @@ export const DEFAULT_PASSCODES_CONFIG = {
   pullout_teacher: '1111',  // 1. 抽離確認組：避難引導組 (抽離學生點名確認)
   medical: '2222',          // 2. 搜救檢傷組：搶救組/緊急救護組 (搜救與傷病處置)
   inspector: '3333',        // 3. 建物巡檢組：安全防護組 (建築物巡檢)
-  visitor_manager: '4444'   // 4. 訪客登記組：確認代課老師、志工、廠商的人數
+  visitor_manager: '4444'   // 4. 登記校外人員組：確認代課老師、志工、廠商的人數
 };
 
 // 災難快速通報數字碼動態映射表
@@ -67,7 +67,7 @@ export function rebuildRolePasscodes(cfg = {}) {
   ROLE_PASSCODES['119'] = { role: 'medical', name: '搜救檢傷組 (搶救組/緊急救護組)' };
   ROLE_PASSCODES['1199'] = { role: 'medical', name: '搜救檢傷組 (搶救組/緊急救護組)' };
   ROLE_PASSCODES['7777'] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
-  ROLE_PASSCODES['5555'] = { role: 'visitor_manager', name: '訪客登記組' };
+  ROLE_PASSCODES['5555'] = { role: 'visitor_manager', name: '登記校外人員組' };
 
   // 2. 抽離確認組：避難引導組 (進行抽離學生的點名確認)
   const pulCode = String(merged.pullout_teacher || '1111').trim();
@@ -87,10 +87,10 @@ export function rebuildRolePasscodes(cfg = {}) {
     ROLE_PASSCODES[insCode] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
   }
 
-  // 5. 訪客登記組 (確認代課老師、志工、廠商的人數)
+  // 5. 登記校外人員組 (確認代課老師、志工、廠商的人數)
   const visCode = String(merged.visitor_manager || '4444').trim();
   if (visCode) {
-    ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '訪客登記組' };
+    ROLE_PASSCODES[visCode] = { role: 'visitor_manager', name: '登記校外人員組' };
   }
 
   return ROLE_PASSCODES;
@@ -215,7 +215,7 @@ const SEED_ACCOUNTS = new Map([
     user: {
       id: 'usr_vis_001',
       email: 'visitor@qs.edu.tw',
-      user_metadata: { role: 'visitor_manager', name: '訪客登記組員' }
+      user_metadata: { role: 'visitor_manager', name: '登記校外人員組員' }
     }
   }]
 ]);
