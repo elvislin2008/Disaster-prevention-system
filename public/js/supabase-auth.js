@@ -1241,16 +1241,6 @@ export class SupabaseAuth {
         }
       }
 
-      // 總指揮官帳密安全規範：嚴格禁止以 8888 數字通報碼登入指揮官模式 (8888 密碼已完全移除)
-      if (cleanCode === '8888') {
-        this.failedPasscodeAttempts++;
-        this.lastFailedAttemptTime = now;
-        return {
-          success: false,
-          error: '⚠️ 8888 密碼已停用！總指揮官請使用專屬帳號密碼登入，數字通報碼僅提供四組應變人員使用。'
-        };
-      }
-
       // 各應變組別數字通報碼 (動態查表)
       const match = ROLE_PASSCODES[cleanCode];
       if (match) {

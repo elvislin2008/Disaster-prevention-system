@@ -177,7 +177,7 @@ describe('Unit Tests: SupabaseAuth & AuthManager (Milestone 2)', () => {
     it('3.1 Passcode 8888 is strictly blocked from quick login and never grants commander role', () => {
       const res = auth.loginWithPasscode('8888');
       assert.equal(res.success, false);
-      assert.ok(res.error.includes('總指揮官'));
+      assert.ok(res.error.includes('通報碼錯誤') || res.error.includes('代碼'));
       assert.equal(auth.getUserRole(), 'visitor');
       assert.equal(auth.canAccessCommander(), false);
     });

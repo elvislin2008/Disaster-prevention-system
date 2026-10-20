@@ -112,7 +112,7 @@ describe('Tier 3: Pairwise - Supabase Login Role Check with Firestore RBAC Acces
     // 8888 -> Strictly blocked from quick login and never grants commander role
     const drillRes = auth.loginWithPasscode('8888');
     assert.equal(drillRes.success, false);
-    assert.ok(drillRes.error.includes('總指揮官') || drillRes.error.includes('8888'));
+    assert.ok(drillRes.error);
     assert.notEqual(auth.getUserRole(), 'commander');
     assert.equal(auth.canAccessCommander(), false);
 

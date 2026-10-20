@@ -220,13 +220,6 @@ export class MockSupabaseAuth {
   // Passcode Quick Login (supports dynamic passcodes set by commander)
   loginWithPasscode(passcode) {
     const code = String(passcode || '').trim();
-    if (code === '8888') {
-      return {
-        success: false,
-        error: '⚠️ 8888 密碼已停用！總指揮官請使用專屬帳號密碼登入。'
-      };
-    }
-
     const roleMap = this.getActiveRolePasscodes();
     if (roleMap[code]) {
       const match = roleMap[code];
