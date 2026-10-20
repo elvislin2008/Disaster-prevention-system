@@ -4220,7 +4220,7 @@ function switchPage(pageId, btn) {
       }
     }
 
-    // 3. 🆘 危難救助：嚴格限制緊急救護官 (medical)、建物巡檢組 (inspector) 或 總指揮官 (commander)
+    // 3. 🆘 搜救檢傷與建物巡視：嚴格限制緊急救護官 (medical)、建物巡檢組 (inspector) 或 總指揮官 (commander)
     else if (pageId === 'rescuePage') {
       const canRescue = typeof auth.canAccessRescue === 'function' && auth.canAccessRescue();
       const canPatrol = typeof auth.canAccessPatrol === 'function' && auth.canAccessPatrol();
@@ -4229,7 +4229,7 @@ function switchPage(pageId, btn) {
           if (typeof auth.openLoginModal === 'function') auth.openLoginModal('medical');
           alert('⚡ 災難快速通報：請輸入【危難救助組】或【建物巡檢組】數字通報碼進入！');
         } else {
-          alert(`⛔ 存取被拒絕：【危難救助】專區僅限危難救助組、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
+          alert(`⛔ 存取被拒絕：【搜救檢傷與建物巡視】專區僅限危難救助組、建物巡檢組或總指揮官使用！\n您目前的登入身分為【${roleTitle}】。`);
         }
         return;
       }

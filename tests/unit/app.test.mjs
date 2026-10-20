@@ -181,7 +181,7 @@ describe('Unit Tests: Frontend App Logic & Milestone 5 Requirements', () => {
     it('7.2 index.html contains the 4 navigation tabs', () => {
       assert.ok(htmlContent.includes('📋 老師點名'));
       assert.ok(htmlContent.includes('🔄 抽離確認'));
-      assert.ok(htmlContent.includes('🆘 危難救助'));
+      assert.ok(htmlContent.includes('🆘 搜救檢傷與建物巡視'));
       assert.ok(htmlContent.includes('🏫 指揮中心'));
     });
 

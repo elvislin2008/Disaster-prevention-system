@@ -129,7 +129,7 @@ describe('Tier 1: Feature 8 - Non-Intrusive Auth UI', () => {
   });
 
   it('F08-2: Top navigation bar preserves 4 primary tabs alongside auth status widget', () => {
-    const navTabs = ['📋 老師點名', '🔄 抽離確認', '🆘 危難救助', '🏫 指揮中心'];
+    const navTabs = ['📋 老師點名', '🔄 抽離確認', '🆘 搜救檢傷與建物巡視', '🏫 指揮中心'];
     const navLayout = {
       tabs: navTabs,
       authWidgetPosition: 'nav-right'

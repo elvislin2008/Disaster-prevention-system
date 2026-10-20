@@ -147,7 +147,7 @@ body {
   border: none;
   background: rgba(208, 215, 222, 0.95);
   color: #222;
-  font-size: 0.88rem;
+  font-size: clamp(0.74rem, 2.3vw, 0.88rem);
   font-weight: bold;
   border-radius: 8px;
   cursor: pointer;
