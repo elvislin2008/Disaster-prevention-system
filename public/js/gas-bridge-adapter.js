@@ -860,6 +860,7 @@ class GasRunner {
       }
 
       let idx = 0;
+      let totalStressStudents = 0;
       for (let classIdx = 0; classIdx < activeClasses.length; classIdx++) {
         const classKey = activeClasses[classIdx];
         idx++;
@@ -867,11 +868,26 @@ class GasRunner {
         const grade = parts[0];
         const className = parts[1] || parts[0];
 
-        // 查找本班學生名冊以取得真實姓名與電話 (若有)，否則自動生成
-        let firstStudent = null;
-        if (typeof window !== 'undefined' && Array.isArray(window.allStudents)) {
-          firstStudent = window.allStudents.find(s => s.grade === grade && s.className === className);
+        // 取得本班學生在籍人數與真實名單 (精確依據 115 官方名冊或當前學籍，避免人數失真)
+        let classStudents = [];
+        if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
+          classStudents = window.allStudents.filter(s => s.grade === grade && s.className === className && s.status !== 'transferred_out' && s.isActive !== false);
+        } else if (Array.isArray(this._adapter?.options?.students)) {
+          classStudents = this._adapter.options.students.filter(s => s.grade === grade && s.className === className && s.status !== 'transferred_out' && s.isActive !== false);
         }
+
+        let classTotal = classStudents.length;
+        if (classTotal === 0) {
+          const spec = OFFICIAL_115_CLASS_SPECS.find(s => s.grade === grade && s.className === className);
+          if (spec && typeof spec.count === 'number') {
+            classTotal = spec.count;
+          } else {
+            classTotal = 24;
+          }
+        }
+        totalStressStudents += classTotal;
+
+        const firstStudent = classStudents[0] || (typeof window !== 'undefined' && Array.isArray(window.allStudents) ? window.allStudents.find(s => s.grade === grade && s.className === className) : null);
 
         const seatRaw = firstStudent ? firstStudent.seatRaw : '01號';
         const studentName = firstStudent ? firstStudent.name : `學生_${grade}${className}_01號`;
@@ -895,8 +911,8 @@ class GasRunner {
           // 綠色班級：全班正常到齊，完成點名
           // ==========================================
           const report = {
-            total: 28,
-            presentCount: 28,
+            total: classTotal,
+            presentCount: classTotal,
             leave: [],
             pickedUp: [],
             studyCenter: [],
@@ -913,8 +929,8 @@ class GasRunner {
           // 狀況 1：學習中心抽離 (待確認，不代為處理)
           // ==========================================
           const report = {
-            total: 28,
-            presentCount: 27,
+            total: classTotal,
+            presentCount: Math.max(0, classTotal - 1),
             leave: [],
             pickedUp: [],
             studyCenter: [studentObj],
@@ -940,8 +956,8 @@ class GasRunner {
           // 狀況 2：本土語抽離 (待確認，不代為處理)
           // ==========================================
           const report = {
-            total: 28,
-            presentCount: 27,
+            total: classTotal,
+            presentCount: Math.max(0, classTotal - 1),
             leave: [],
             pickedUp: [],
             studyCenter: [],
@@ -967,8 +983,8 @@ class GasRunner {
           // 狀況 3：團隊抽離 (待確認，不代為處理)
           // ==========================================
           const report = {
-            total: 28,
-            presentCount: 27,
+            total: classTotal,
+            presentCount: Math.max(0, classTotal - 1),
             leave: [],
             pickedUp: [],
             studyCenter: [],
@@ -995,8 +1011,8 @@ class GasRunner {
           // ==========================================
           const missingStudent = { ...studentObj, locationTag: '' };
           const report = {
-            total: 28,
-            presentCount: 27,
+            total: classTotal,
+            presentCount: Math.max(0, classTotal - 1),
             leave: [],
             pickedUp: [],
             studyCenter: [],
@@ -1068,7 +1084,8 @@ class GasRunner {
         simTimeMode,
         classesCount: activeClasses.length,
         totalClasses: activeClasses.length,
-        totalStudents: activeClasses.length * 28,
+        totalStudents: totalStressStudents,
+        studentsCount: totalStressStudents,
         totalDurationSec: '0.12',
         activeClasses
       });
