@@ -1259,10 +1259,10 @@ function switchRescueSubTab(tabType) {
     const role = auth.getUserRole();
     const roleTitle = ROLE_NAME_ZH[role] || '一般訪客';
 
-    // 切換 A 區塊 (搜救與傷病處置) 嚴格查驗：僅限危難救助組 (搶救組、緊急救護組) 或總指揮官
+    // 切換 A 區塊 (搜救與傷病處置) 嚴格查驗：僅限搜救檢傷組 (搶救組、緊急救護組) 或總指揮官
     if (tabType === 'A') {
       if (!hasCommanderAccess && !canRescue) {
-        alert(`⛔ 存取被拒絕：【A 區：搜救與傷病處置】僅限危難救助組（搶救組、緊急救護組）或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
+        alert(`⛔ 存取被拒絕：【A 區：搜救與傷病處置】僅限搜救檢傷組（搶救組、緊急救護組）或總指揮官操作！\n您目前的登入身分為【${roleTitle}】。`);
         return;
       }
     }
@@ -4500,8 +4500,8 @@ function addRetry(key) {
 const ROLE_NAME_ZH = {
   commander: '總指揮官',
   pullout_teacher: '抽離確認組 (避難引導組)',
-  medical: '危難救助組 (搶救組/緊急救護組)',
-  rescue_officer: '危難救助組 (搶救組/緊急救護組)',
+  medical: '搜救檢傷組 (搶救組/緊急救護組)',
+  rescue_officer: '搜救檢傷組 (搶救組/緊急救護組)',
   patrol: '建物巡檢組 (安全防護組)',
   inspector: '建物巡檢組 (安全防護組)',
   visitor_manager: '訪客登記組',
@@ -4520,7 +4520,7 @@ function navigateByRole(role) {
     // 總指揮官 ➔ 自動切換至 🏫 指揮中心
     switchPage('adminPage');
   } else if (cleanRole === 'medical' || cleanRole === 'rescue_officer') {
-    // 危難救助組 (搶救組、緊急救護組) ➔ 自動切換至 🆘 危難救助 (A區：搜救與傷病處置)
+    // 搜救檢傷組 (搶救組、緊急救護組) ➔ 自動切換至 🆘 搜救檢傷與建物巡視 (A區：搜救與傷病處置)
     switchPage('rescuePage');
     if (typeof switchRescueSubTab === 'function') {
       switchRescueSubTab('A');

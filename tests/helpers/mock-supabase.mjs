@@ -200,7 +200,7 @@ export class MockSupabaseAuth {
 
     // 動態最新設定覆蓋（自訂最高優先權）
     if (cfg.pullout_teacher) map[String(cfg.pullout_teacher).trim()] = { role: 'pullout_teacher', name: '抽離確認組 (避難引導組)' };
-    if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '搜救檢傷組 (危難救助組)' };
+    if (cfg.medical) map[String(cfg.medical).trim()] = { role: 'medical', name: '搜救檢傷組 (搶救組/緊急救護組)' };
     if (cfg.inspector) map[String(cfg.inspector).trim()] = { role: 'inspector', name: '建物巡檢組 (安全防護組)' };
     if (cfg.visitor_manager) map[String(cfg.visitor_manager).trim()] = { role: 'visitor_manager', name: '訪客登記組' };
     if (cfg.commander_drill) map[String(cfg.commander_drill).trim()] = { role: 'commander', name: '演練總指揮官' };
