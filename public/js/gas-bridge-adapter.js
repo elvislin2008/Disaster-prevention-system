@@ -395,8 +395,8 @@ class GasRunner {
       }
 
       // 當 Firestore 成功回傳學生名冊時，直接以 Firestore 雲端即時名冊為準！
-      // 若尚未連線或本機為空，回退至 115 學年度標準保底名冊
-      if (!students || students.length === 0) {
+      // 若尚未連線或離線測試為空，回退至 115 學年度標準保底名冊
+      if (students === null || (!fs._isCloudLive && students.length === 0)) {
         if (typeof window !== 'undefined' && Array.isArray(window.allStudents) && window.allStudents.length > 0) {
           students = window.allStudents;
         } else if (this._adapter.options.students && this._adapter.options.students.length > 0) {
