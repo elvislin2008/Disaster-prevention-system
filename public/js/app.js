@@ -2491,6 +2491,24 @@ async function openPasscodeModal() {
     } catch (e) {}
   }
 
+  // 跨裝置雲端讀取：從 Firestore 讀取最新已儲存之組別密碼
+  try {
+    const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+               (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+    if (fs && typeof fs.getDoc === 'function' && typeof fs.doc === 'function') {
+      const snap = await fs.getDoc(fs.doc('config', 'passcodes'));
+      if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
+        const cloudData = typeof snap.data === 'function' ? snap.data() : snap.data;
+        if (cloudData) {
+          cfg = Object.assign(cfg, cloudData);
+          if (auth && typeof auth.rebuildRolePasscodes === 'function') {
+            auth.rebuildRolePasscodes(cfg);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
   const pulInput = document.getElementById('cfgPasscodePullout');
   const medInput = document.getElementById('cfgPasscodeMedical');
   const insInput = document.getElementById('cfgPasscodeInspector');
@@ -5029,12 +5047,22 @@ function setupData(data) {
 // ==============================================================================
 // 應用程式初始化 (全面採用 Firestore onSnapshot 推播，徹底拔除 3.5s~15s 輪詢)
 // ==============================================================================
-function initApp() {
+async function initApp() {
   applyBgTheme(currentBgTheme);
 
-  // 初始化 Supabase Auth (若環境提供)
+  // 0. 初始化 Firestore 雲端即時連線 (確保跨裝置推播與秒級同步)
+  if (typeof window !== 'undefined' && window.firestoreService && typeof window.firestoreService.init === 'function') {
+    try {
+      await window.firestoreService.init();
+    } catch (e) {
+      console.warn('[App] FirestoreService 初始化異常：', e);
+    }
+  }
+
+  // 1. 初始化 Supabase Auth (若環境提供)
   if (typeof window !== 'undefined' && window.AuthManager && typeof window.AuthManager.init === 'function') {
-    window.AuthManager.init().then(() => {
+    try {
+      await window.AuthManager.init();
       window.AuthManager.renderAuthBadge();
 
       // 監聽登入與登出事件，自動分流導向角色專屬頁面
@@ -5050,24 +5078,24 @@ function initApp() {
           }
         });
       }
-    }).catch(err => {
+    } catch (err) {
       console.warn('[App] Supabase Auth 初始化異常：', err);
-    });
+    }
   }
 
-  // 初始化 OfflineManager 連線狀態指示 (若環境提供)
+  // 2. 初始化 OfflineManager 連線狀態指示 (若環境提供)
   if (typeof window !== 'undefined' && window.OfflineManager && typeof window.OfflineManager.init === 'function') {
-    window.OfflineManager.init();
+    try {
+      await window.OfflineManager.init();
+    } catch (e) {
+      console.warn('[App] OfflineManager 初始化異常：', e);
+    }
   }
 
-  // 1. 抓取學生名冊
+  // 3. 抓取學生名冊、全域系統狀態與排程設定
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     google.script.run.withSuccessHandler(setupData).getStudentData();
-
-    // 2. 抓取全域系統狀態
     google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
-
-    // 3. 抓取排程設定表
     google.script.run.withSuccessHandler(function(config) {
       if (config && config.length > 0) {
         if (typeof window !== 'undefined') {

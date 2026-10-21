@@ -1177,24 +1177,41 @@ export class SupabaseAuth {
    * 初始化各組密碼的 Firestore 即時監聽與 REST 同步
    */
   _initPasscodesSync() {
-    try {
-      const fs = (typeof window !== 'undefined' && window.firestoreService) ||
-                 (typeof globalThis !== 'undefined' && globalThis.firestoreService);
-      if (fs && typeof fs.onSnapshot === 'function' && typeof fs.doc === 'function') {
-        fs.onSnapshot(fs.doc('config', 'passcodes'), (snap) => {
-          if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
-            const data = typeof snap.data === 'function' ? snap.data() : snap.data;
-            if (data) {
-              this._memPasscodesConfig = Object.assign({}, data);
-              rebuildRolePasscodes(this._memPasscodesConfig);
-              if (typeof window !== 'undefined' && window.localStorage) {
-                window.localStorage.setItem(STORAGE_KEYS.PASSCODES_CONFIG, JSON.stringify(this._memPasscodesConfig));
+    const attachSnapshot = () => {
+      try {
+        const fs = (typeof window !== 'undefined' && window.firestoreService) ||
+                   (typeof globalThis !== 'undefined' && globalThis.firestoreService);
+        if (fs && typeof fs.onSnapshot === 'function' && typeof fs.doc === 'function') {
+          if (this._passcodesUnsub) {
+            this._passcodesUnsub();
+            this._passcodesUnsub = null;
+          }
+          this._passcodesUnsub = fs.onSnapshot(fs.doc('config', 'passcodes'), (snap) => {
+            if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
+              const data = typeof snap.data === 'function' ? snap.data() : snap.data;
+              if (data) {
+                this._memPasscodesConfig = Object.assign({}, data);
+                rebuildRolePasscodes(this._memPasscodesConfig);
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  window.localStorage.setItem(STORAGE_KEYS.PASSCODES_CONFIG, JSON.stringify(this._memPasscodesConfig));
+                }
               }
             }
-          }
-        }, () => {});
+          }, () => {});
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    };
+
+    if (!attachSnapshot()) {
+      if (typeof window !== 'undefined') {
+        const timer = setInterval(() => {
+          if (attachSnapshot()) clearInterval(timer);
+        }, 500);
+        setTimeout(() => clearInterval(timer), 10000);
       }
-    } catch (e) {}
+    }
 
     try {
       const appConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || null;
@@ -1510,6 +1527,9 @@ export class SupabaseAuth {
   openLoginModal(targetTabOrRole = 'passcode') {
     if (typeof document === 'undefined') return;
     if (this._isModalOpen) return; // guard against double click
+
+    // 每次開啟登入視窗前確保通報碼已自雲端刷新
+    this._initPasscodesSync();
 
     this._isModalOpen = true;
 

@@ -1026,10 +1026,20 @@ export class FirestoreService {
 // 建立全域單例
 export const firestoreService = new FirestoreService();
 
-// 掛載至全域
+// 掛載至全域並於瀏覽器環境自動啟動雲端連線
 if (typeof window !== 'undefined') {
   window.FirestoreService = firestoreService;
   window.firestoreService = firestoreService;
+
+  // 自動啟動雲端 Firebase 即時雙向連線 (確保跨裝置即時推播)
+  firestoreService.init().then(() => {
+    // 當雲端連線就緒時，若 AuthManager 已載入則重新註冊密碼即時監聽
+    if (window.AuthManager && typeof window.AuthManager._initPasscodesSync === 'function') {
+      window.AuthManager._initPasscodesSync();
+    }
+  }).catch(err => {
+    console.warn('[FirestoreService] 雲端連線初始化異常，採用離線快取儲存體：', err);
+  });
 }
 if (typeof globalThis !== 'undefined') {
   globalThis.FirestoreService = firestoreService;
