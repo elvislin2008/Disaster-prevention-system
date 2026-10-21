@@ -45,6 +45,18 @@ const ALLOWED_COLLECTIONS = new Set([
   'stress_test_logs'
 ]);
 
+/**
+ * 跨 SDK 相容之 DocumentSnapshot exists 查驗輔助函式
+ * 同時相容 Firebase Compat SDK (snap.exists 為 boolean) 與 Modular SDK / 本地快取 (snap.exists() 為函式)
+ */
+export function docSnapExists(snap) {
+  if (!snap) return false;
+  if (typeof snap.exists === 'function') {
+    return snap.exists();
+  }
+  return Boolean(snap.exists);
+}
+
 // 預設 6 大主建物名冊
 const DEFAULT_BUILDINGS = [
   { id: 'ci_ai', name: '慈愛樓', sortOrder: 1 },
@@ -625,7 +637,7 @@ export class FirestoreService {
   async getClassReport(classKey) {
     const ref = this.doc('class_reports', classKey);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setClassReport(classKey, data, options = { merge: true }) {
@@ -659,7 +671,7 @@ export class FirestoreService {
   async getPullout(studentKey) {
     const ref = this.doc('pullouts', studentKey);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setPullout(studentKey, data, options = { merge: true }) {
@@ -693,7 +705,7 @@ export class FirestoreService {
   async getRescue(targetKey) {
     const ref = this.doc('rescues', targetKey);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setRescue(targetKey, data, options = { merge: true }) {
@@ -727,7 +739,7 @@ export class FirestoreService {
   async getContact(studentKey) {
     const ref = this.doc('contacts', studentKey);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setContact(studentKey, data, options = { merge: true }) {
@@ -756,7 +768,7 @@ export class FirestoreService {
   async getVisitor(id) {
     const ref = this.doc('visitors', id);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setVisitor(id, data, options = { merge: true }) {
@@ -786,7 +798,7 @@ export class FirestoreService {
   async getBuilding(idOrName) {
     const ref = this.doc('buildings', idOrName);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setBuilding(idOrName, data, options = { merge: true }) {
@@ -815,7 +827,7 @@ export class FirestoreService {
   async getSystemState() {
     const ref = this.doc('system_config', 'state');
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : {
+    return docSnapExists(snap) ? snap.data() : {
       securityMode: 'drill',
       simTimeMode: 'auto',
       siteLocked: false,
@@ -832,7 +844,7 @@ export class FirestoreService {
   async getScheduleConfig() {
     const ref = this.doc('system_config', 'schedules');
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data().rules || [] : [];
+    return docSnapExists(snap) ? snap.data().rules || [] : [];
   }
 
   async setScheduleConfig(rules) {
@@ -847,7 +859,7 @@ export class FirestoreService {
   async getStudent(studentId) {
     const ref = this.doc('students', studentId);
     const snap = await this.getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return docSnapExists(snap) ? snap.data() : null;
   }
 
   async setStudent(studentId, data) {
@@ -877,12 +889,22 @@ export class FirestoreService {
         const cloudColl = this.db.collection(collName);
         const snap = await cloudColl.get();
         if (snap && snap.docs && snap.docs.length > 0) {
-          const batch = (typeof this.db.batch === 'function') ? this.db.batch() : null;
-          if (batch) {
+          const hasBatch = typeof this.db.batch === 'function';
+          if (hasBatch) {
+            let currentBatch = this.db.batch();
+            let count = 0;
             for (const doc of snap.docs) {
-              batch.delete(doc.ref);
+              currentBatch.delete(doc.ref);
+              count++;
+              if (count >= 400) {
+                await currentBatch.commit();
+                currentBatch = this.db.batch();
+                count = 0;
+              }
             }
-            await batch.commit();
+            if (count > 0) {
+              await currentBatch.commit();
+            }
           } else {
             await Promise.all(snap.docs.map(doc => doc.ref.delete()));
           }
@@ -992,7 +1014,7 @@ export class FirestoreService {
 
   subscribeSystemState(callback, onError) {
     return this.onSnapshot(this.doc('system_config', 'state'), snap => {
-      const state = snap.exists() ? snap.data() : {
+      const state = docSnapExists(snap) ? snap.data() : {
         securityMode: 'drill',
         simTimeMode: 'auto',
         siteLocked: false,

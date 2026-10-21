@@ -1902,6 +1902,13 @@ function executeBackendStressTest() {
   let currentSimMode = document.getElementById("simTimeSelect")?.value || "mon_am";
   if (!confirm("⚠️ 確定要執行當前在校班級併發壓力測試嗎？\n系統將自動對實際在校班級進行模擬點名寫入。")) return;
 
+  const btn = document.querySelector('.btn-stress-inline');
+  const oldText = btn ? btn.innerText : '⚡ 壓測';
+  if (btn) {
+    btn.innerText = "⏳ 壓測中...";
+    btn.disabled = true;
+  }
+
   // 立即鎖定當前所選手動演練時段
   simTimeMode = currentSimMode;
   if (typeof window !== 'undefined') {
@@ -1915,21 +1922,38 @@ function executeBackendStressTest() {
   pulloutStatusMap = {};
   contactStates = {};
 
+  const restoreBtn = () => {
+    if (btn) {
+      btn.innerText = oldText;
+      btn.disabled = false;
+    }
+  };
+
   if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run.withSuccessHandler(function(res) {
-      if (res && res.success) {
-        // 確保壓測回傳後嚴格維持當前所選演練時段
-        simTimeMode = currentSimMode;
-        if (typeof document !== 'undefined') {
-          let selectEl = document.getElementById("simTimeSelect");
-          if (selectEl && selectEl.value !== currentSimMode) selectEl.value = currentSimMode;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        restoreBtn();
+        if (res && res.success) {
+          // 確保壓測回傳後嚴格維持當前所選演練時段
+          simTimeMode = currentSimMode;
+          if (typeof document !== 'undefined') {
+            let selectEl = document.getElementById("simTimeSelect");
+            if (selectEl && selectEl.value !== currentSimMode) selectEl.value = currentSimMode;
+          }
+          alert("✅ 當前在校班級併發壓力測試完成！\n\n當前模擬時段：" + currentSimMode + "\n實際測試班級數：" + (res.classesCount || res.totalClasses || 0) + " 班\n總模擬學生人數：" + (res.studentsCount || res.totalStudents || 0) + " 人\n處理時間：" + (res.durationMs ? (res.durationMs / 1000).toFixed(2) : (res.totalDurationSec || 0)) + " s\n\n📊 壓力測試紀錄已同步寫入 Firestore。");
+          google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
+        } else {
+          alert("❌ 測試失敗：" + (res ? res.error : "未知原因"));
         }
-        alert("✅ 當前在校班級併發壓力測試完成！\n\n當前模擬時段：" + currentSimMode + "\n實際測試班級數：" + (res.classesCount || res.totalClasses || 0) + " 班\n總模擬學生人數：" + (res.studentsCount || res.totalStudents || 0) + " 人\n處理時間：" + (res.durationMs ? (res.durationMs / 1000).toFixed(2) : (res.totalDurationSec || 0)) + " s\n\n📊 壓力測試紀錄已同步寫入 Firestore。");
-        google.script.run.withSuccessHandler(loadSavedFullState).getFullSystemState();
-      } else {
-        alert("❌ 測試失敗：" + (res ? res.error : "未知原因"));
-      }
-    }).runStressTest(currentSimMode);
+      })
+      .withFailureHandler(function(err) {
+        restoreBtn();
+        console.error("[StressTest] 壓測異常：", err);
+        alert("❌ 壓力測試執行異常：" + (err && err.message ? err.message : String(err)));
+      })
+      .runStressTest(currentSimMode);
+  } else {
+    restoreBtn();
   }
 }
 
@@ -1941,14 +1965,15 @@ function showLatestStressClassList() {
   if (modal) modal.style.display = "flex";
 
   if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run.withSuccessHandler(function(data) {
-      if (!body) return;
-      if (!data || data.error) {
-        body.innerHTML = '<div style="color:#dc3545; font-weight:bold;">⚠️ ' + (data ? data.error : '載入失敗') + '</div>';
-        rawStressClassText = "";
-      } else {
-        let classes = data.activeClasses || data.classList || [];
-        rawStressClassText = "📋 壓力測試班級名單 (共 " + (data.classesCount || classes.length) + " 班)\n\n" + classes.join("\n");
+    google.script.run
+      .withSuccessHandler(function(data) {
+        if (!body) return;
+        if (!data || data.error) {
+          body.innerHTML = '<div style="color:#dc3545; font-weight:bold;">⚠️ ' + (data ? data.error : '載入失敗') + '</div>';
+          rawStressClassText = "";
+        } else {
+          let classes = data.activeClasses || data.classList || [];
+          rawStressClassText = "📋 壓力測試班級名單 (共 " + (data.classesCount || classes.length) + " 班)\n\n" + classes.join("\n");
 
         const emergencyResponseTeams = ['通報組', '安全防護組', '避難引導組', '搶救組', '緊急救護組', '指揮官'];
         let groupedMap = {};
@@ -1986,7 +2011,12 @@ function showLatestStressClassList() {
 
         body.innerHTML = html;
       }
-    }).getLatestStressTestClassList();
+    })
+    .withFailureHandler(function(err) {
+      if (!body) return;
+      body.innerHTML = '<div style="color:#dc3545; font-weight:bold;">⚠️ 載入壓測名單失敗：' + (err && err.message ? err.message : String(err)) + '</div>';
+    })
+    .getLatestStressTestClassList();
   }
 }
 

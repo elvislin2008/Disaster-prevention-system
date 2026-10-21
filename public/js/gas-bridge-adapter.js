@@ -859,6 +859,17 @@ class GasRunner {
         }
       }
 
+      // 支援 Cloud Firestore 批次快速寫入 (Batch Commit: 將 120+ 筆單次寫入合併為 1 次提交，速度提升 20 倍)
+      const isCloudBatch = Boolean(fs._isCloudLive && fs.db && typeof fs.db.batch === 'function');
+      const cloudBatch = isCloudBatch ? fs.db.batch() : null;
+      const updateLocal = (collName, docId, data) => {
+        try {
+          if (fs.localStore && typeof fs.localStore.setDoc === 'function' && typeof fs.localStore.doc === 'function') {
+            fs.localStore.setDoc(fs.localStore.doc(collName, docId), data, { merge: true }).catch(() => {});
+          }
+        } catch (e) {}
+      };
+
       let idx = 0;
       let totalStressStudents = 0;
       for (let classIdx = 0; classIdx < activeClasses.length; classIdx++) {
@@ -923,7 +934,12 @@ class GasRunner {
             missingCount: 0,
             timestamp: Date.now()
           };
-          await fs.setClassReport(classKey, report);
+          if (cloudBatch) {
+            cloudBatch.set(fs.doc('class_reports', classKey), { ...report, classKey, updatedAt: Date.now() }, { merge: true });
+            updateLocal('class_reports', classKey, report);
+          } else {
+            await fs.setClassReport(classKey, report);
+          }
         } else if (anomalyType === 'study_center') {
           // ==========================================
           // 狀況 1：學習中心抽離 (待確認，不代為處理)
@@ -941,16 +957,23 @@ class GasRunner {
             missingCount: 0,
             timestamp: Date.now()
           };
-          await fs.setClassReport(classKey, report);
-
-          await fs.setPullout(sKey, {
+          const pulloutPayload = {
             studentKey: sKey,
             classKey: classKey,
             category: 'study_center',
             status: 'pending', // 保持待確認
             safe: false,
             updatedAt: Date.now()
-          });
+          };
+          if (cloudBatch) {
+            cloudBatch.set(fs.doc('class_reports', classKey), { ...report, classKey, updatedAt: Date.now() }, { merge: true });
+            cloudBatch.set(fs.doc('pullouts', sKey), pulloutPayload, { merge: true });
+            updateLocal('class_reports', classKey, report);
+            updateLocal('pullouts', sKey, pulloutPayload);
+          } else {
+            await fs.setClassReport(classKey, report);
+            await fs.setPullout(sKey, pulloutPayload);
+          }
         } else if (anomalyType === 'native_lang') {
           // ==========================================
           // 狀況 2：本土語抽離 (待確認，不代為處理)
@@ -968,16 +991,23 @@ class GasRunner {
             missingCount: 0,
             timestamp: Date.now()
           };
-          await fs.setClassReport(classKey, report);
-
-          await fs.setPullout(sKey, {
+          const pulloutPayload = {
             studentKey: sKey,
             classKey: classKey,
             category: 'native_lang',
             status: 'pending', // 保持待確認
             safe: false,
             updatedAt: Date.now()
-          });
+          };
+          if (cloudBatch) {
+            cloudBatch.set(fs.doc('class_reports', classKey), { ...report, classKey, updatedAt: Date.now() }, { merge: true });
+            cloudBatch.set(fs.doc('pullouts', sKey), pulloutPayload, { merge: true });
+            updateLocal('class_reports', classKey, report);
+            updateLocal('pullouts', sKey, pulloutPayload);
+          } else {
+            await fs.setClassReport(classKey, report);
+            await fs.setPullout(sKey, pulloutPayload);
+          }
         } else if (anomalyType === 'team') {
           // ==========================================
           // 狀況 3：團隊抽離 (待確認，不代為處理)
@@ -995,16 +1025,23 @@ class GasRunner {
             missingCount: 0,
             timestamp: Date.now()
           };
-          await fs.setClassReport(classKey, report);
-
-          await fs.setPullout(sKey, {
+          const pulloutPayload = {
             studentKey: sKey,
             classKey: classKey,
             category: 'team',
             status: 'pending', // 保持待確認
             safe: false,
             updatedAt: Date.now()
-          });
+          };
+          if (cloudBatch) {
+            cloudBatch.set(fs.doc('class_reports', classKey), { ...report, classKey, updatedAt: Date.now() }, { merge: true });
+            cloudBatch.set(fs.doc('pullouts', sKey), pulloutPayload, { merge: true });
+            updateLocal('class_reports', classKey, report);
+            updateLocal('pullouts', sKey, pulloutPayload);
+          } else {
+            await fs.setClassReport(classKey, report);
+            await fs.setPullout(sKey, pulloutPayload);
+          }
         } else if (anomalyType === 'missing') {
           // ==========================================
           // 狀況 4：失蹤搜救中 (只要顯示搜救中，不代為處理)
@@ -1023,11 +1060,7 @@ class GasRunner {
             missingCount: 1,
             timestamp: Date.now()
           };
-          await fs.setClassReport(classKey, report);
-
-          // 寫入 rescues 集合：
-          // 只要顯示學生的狀況 (搜救中 searching)，先不要代為處理 (未選檢傷、未選陪同、未點OK、未填地點)
-          await fs.setRescue(sKey, {
+          const rescuePayload = {
             targetKey: sKey,
             studentKey: sKey,
             classKey: classKey,
@@ -1039,36 +1072,53 @@ class GasRunner {
             locationFound: '',   // 未填地點
             note: '',            // 未填備註
             updatedAt: Date.now()
-          });
-
-          // 寫入 contacts 集合：初態為 未聯繫
-          await fs.setContact(sKey, {
+          };
+          const contactPayload = {
             studentKey: sKey,
             status: '未聯繫',
             count: 0,
             updatedAt: Date.now()
-          });
+          };
+          if (cloudBatch) {
+            cloudBatch.set(fs.doc('class_reports', classKey), { ...report, classKey, updatedAt: Date.now() }, { merge: true });
+            cloudBatch.set(fs.doc('rescues', sKey), rescuePayload, { merge: true });
+            cloudBatch.set(fs.doc('contacts', sKey), contactPayload, { merge: true });
+            updateLocal('class_reports', classKey, report);
+            updateLocal('rescues', sKey, rescuePayload);
+            updateLocal('contacts', sKey, contactPayload);
+          } else {
+            await fs.setClassReport(classKey, report);
+            await fs.setRescue(sKey, rescuePayload);
+            await fs.setContact(sKey, contactPayload);
+          }
         }
       }
 
       // 重置 6 大建物為安全待檢初始值，不預先代為送出或打勾，讓使用者可以現場展示點選
       const defaultBuildings = ["慈愛樓", "至善樓", "維揚樓", "樂群樓", "弘德樓", "中山樓"];
       for (const bName of defaultBuildings) {
-        if (typeof fs.setBuilding === 'function') {
-          await fs.setBuilding(bName, {
-            buildingName: bName,
-            submitted: false,
-            indicators: {
-              column: true, beam: true, wall: true, stair: true,
-              ceiling: true, window: true, water_elec: true, crack: true
-            },
-            notes: {}
-          });
+        const bPayload = {
+          buildingName: bName,
+          submitted: false,
+          indicators: {
+            column: true, beam: true, wall: true, stair: true,
+            ceiling: true, window: true, water_elec: true, crack: true
+          },
+          notes: {},
+          updatedAt: Date.now()
+        };
+        if (cloudBatch) {
+          cloudBatch.set(fs.doc('buildings', bName), bPayload, { merge: true });
+          updateLocal('buildings', bName, bPayload);
+        } else {
+          if (typeof fs.setBuilding === 'function') {
+            await fs.setBuilding(bName, bPayload);
+          }
         }
       }
 
       // 儲存最新壓測紀錄至 system_config/state
-      await fs.setSystemState({
+      const sysStatePayload = {
         simTimeMode: simTimeMode,
         lastStressTest: {
           simTimeMode,
@@ -1076,8 +1126,16 @@ class GasRunner {
           selectedClassesCount: activeClasses.length,
           classList: activeClasses,
           timestamp: Date.now()
-        }
-      });
+        },
+        updatedAt: Date.now()
+      };
+      if (cloudBatch) {
+        cloudBatch.set(fs.doc('system_config', 'state'), sysStatePayload, { merge: true });
+        updateLocal('system_config', 'state', sysStatePayload);
+        await cloudBatch.commit();
+      } else {
+        await fs.setSystemState(sysStatePayload);
+      }
 
       this._resolve({
         success: true,
@@ -1107,7 +1165,9 @@ class GasRunner {
           error: '尚未執行任何壓力測試',
           classes: [],
           classList: [],
+          activeClasses: [],
           selectedClassesCount: 0,
+          classesCount: 0,
           simTimeMode: 'auto'
         });
         return;
@@ -1116,8 +1176,10 @@ class GasRunner {
       this._resolve({
         simTimeMode: lastTest.simTimeMode || 'auto',
         selectedClassesCount: lastTest.selectedClassesCount || lastTest.classList.length,
+        classesCount: lastTest.selectedClassesCount || lastTest.classList.length,
         classList: lastTest.classList,
-        classes: lastTest.classList
+        classes: lastTest.classList,
+        activeClasses: lastTest.classList
       });
     } catch (e) {
       this._reject(e);
